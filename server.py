@@ -25,23 +25,26 @@ def gallery():
 @app.route('/api/drawinginfo/<info_name>', methods = ['POST', 'GET'])
 def drawing_info(info_name):
     if request.method == 'POST':
-        return add_drawing_info(info_name)
+        return update_drawing_info(info_name)
     if request.method == 'GET':
         return get_drawing_info(info_name)
 
 
 def add_drawing(image_name):
-    # Get JSON image data URL in base64 format
+    # Get JSON image data URL in base64 format and view count
     data = request.get_json()
     # Remove 'data:image/png;base64'
     image = data['image'].split(',')[1].encode('utf-8')
     if os.path.exists('drawings/' + image_name + '.png'):
-        same_name = image_name + '`{}' + '.png'
+        same_name = image_name + '`{}'
         filename = same_name.format(int(time.time()))
     else:
-        filename = image_name + '.png'
-    with open('drawings/' + filename, 'wb') as drawing_file:
+        filename = image_name
+    with open('drawings/' + filename + '.png', 'wb') as drawing_file:
         drawing_file.write(base64.decodestring(image))
+    views = data['views']
+    with open('drawinginfo/' + filename + '.csv', 'w') as info_file:
+        info_file.write(views)
     return "Success!"
 
 def get_drawing(image_name):
@@ -56,13 +59,13 @@ def get_all_drawings():
     images = [os.path.basename(i) for i in requested_drawings]
     return jsonify(images)
 
-def add_drawing_info(info_name):
-    info = request.get_json()
-    views = info['views']
+def update_drawing_info(info_name):
+    data = request.get_json()
+    views = data['views']
     with open('drawinginfo/' + info_name + '.csv', 'w') as info_file:
         info_file.write(views)
     return "Success!"
 
 def get_drawing_info(info_name):
-    with open('drawinginfo/' + info_name, 'r') as info_file:
+    with open('drawinginfo/' + info_name + '.csv', 'r') as info_file:
         return jsonify(info_file.read())
