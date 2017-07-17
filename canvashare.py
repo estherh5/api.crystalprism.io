@@ -35,25 +35,25 @@ def add_drawing(image_name):
     data = request.get_json()
     # Remove 'data:image/png;base64'
     image = data['image'].split(',')[1].encode('utf-8')
-    if os.path.exists('drawings/' + image_name + '.png'):
+    if os.path.exists(os.path.dirname(__file__) + '/drawings/' + image_name + '.png'):
         same_name = image_name + '`{}'
         filename = same_name.format(int(time.time()))
     else:
         filename = image_name
-    with open('drawings/' + filename + '.png', 'wb') as drawing_file:
+    with open(os.path.dirname(__file__) + '/drawings/' + filename + '.png', 'wb') as drawing_file:
         drawing_file.write(base64.decodestring(image))
     views = data['views']
-    with open('drawinginfo/' + filename + '.csv', 'w') as info_file:
+    with open(os.path.dirname(__file__) + '/drawinginfo/' + filename + '.csv', 'w') as info_file:
         info_file.write(views)
     return "Success!"
 
 def get_drawing(image_name):
-    return send_file('drawings/' + image_name)
+    return send_file(os.path.dirname(__file__) + '/drawings/' + image_name)
 
 def get_all_drawings():
     request_start = int(request.args.get('start'))
     request_end = int(request.args.get('end'))
-    all_drawings = glob.glob('drawings/*')
+    all_drawings = glob.glob(os.path.dirname(__file__) + '/drawings/*')
     all_drawings.sort(key = os.path.getctime, reverse = True)
     requested_drawings = all_drawings[request_start:request_end]
     images = [os.path.basename(i) for i in requested_drawings]
@@ -62,10 +62,10 @@ def get_all_drawings():
 def update_drawing_info(info_name):
     data = request.get_json()
     views = data['views']
-    with open('drawinginfo/' + info_name + '.csv', 'w') as info_file:
+    with open(os.path.dirname(__file__) + '/drawinginfo/' + info_name + '.csv', 'w') as info_file:
         info_file.write(views)
     return "Success!"
 
 def get_drawing_info(info_name):
-    with open('drawinginfo/' + info_name + '.csv', 'r') as info_file:
+    with open(os.path.dirname(__file__) + '/drawinginfo/' + info_name + '.csv', 'r') as info_file:
         return jsonify(info_file.read())
