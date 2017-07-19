@@ -5,7 +5,10 @@ from flask_cors import CORS
 
 
 app = Flask(__name__)
-cors = CORS(app, resources = {r"/api/*": {"origins": "*"}})
+if os.environ['ENV_TYPE'] == 'Production':
+    cors = CORS(app, resources = {r"/api/*": {"origins": r"http://crystalprism.io"}})
+elif os.environ['ENV_TYPE'] == 'Dev':
+    cors = CORS(app, resources = {r"/api/*": {"origins": "*"}})
 
 
 @app.route('/api/drawing/<image_name>', methods = ['POST', 'GET'])
