@@ -51,8 +51,12 @@ def get_drawing(image_name):
     return send_file(os.path.dirname(__file__) + '/drawings/' + image_name)
 
 def get_all_drawings():
-    request_start = int(request.args.get('start'))
-    request_end = int(request.args.get('end'))
+    if request.args.get('start') is not None:
+        request_start = int(request.args.get('start'))
+        request_end = int(request.args.get('end'))
+    else:
+        request_start = 0
+        request_end = 12
     all_drawings = glob.glob(os.path.dirname(__file__) + '/drawings/*')
     all_drawings.sort(key = os.path.getctime, reverse = True)
     requested_drawings = all_drawings[request_start:request_end]
