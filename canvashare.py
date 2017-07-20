@@ -1,6 +1,10 @@
-import base64, glob, json, os, time
+import base64
+import glob
+import json
+import os
+import time
 
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 
 
