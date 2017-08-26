@@ -102,16 +102,16 @@ def leaders():
         return rhythm_of_life.get_leaders()
 
 
-@app.route('/api/thought-writer/thoughts/<writer_id>', methods = ['POST', 'GET', 'DELETE'])
-def thoughts(writer_id):
+@app.route('/api/thought-writer/thoughts', methods = ['POST', 'GET', 'DELETE'])
+def thoughts():
     if request.method == 'POST':
-        return thought_writer.add_entry(writer_id)
+        return thought_writer.add_entry()
     if request.method == 'GET':
-        return thought_writer.get_entry(writer_id)
+        return thought_writer.get_entry()
     if request.method == 'DELETE':
-        return thought_writer.del_entry(writer_id)
+        return thought_writer.del_entry()
 
-@app.route('/api/thought-writer/entries/<writer_id>', methods = ['GET'])
-def entries(writer_id):
+@app.route('/api/thought-writer/entries', methods = ['GET'])
+def entries():
     if request.method == 'GET':
-        return thought_writer.get_entries(writer_id)
+        return thought_writer.get_entries()
