@@ -31,7 +31,7 @@ def add_drawing(image_name):
     json_drawing_dir = json.dumps(drawing_dir)
     with open(os.path.dirname(__file__) + '/drawinginfo/' + filename + '.json', 'w') as info_file:
         json.dump(json_drawing_dir, info_file)
-    return 'Success!'
+    return make_response('Success!', 200)
 
 def get_drawing(image_name):
     return send_file(os.path.dirname(__file__) + '/drawings/' + image_name)
@@ -57,7 +57,7 @@ def update_drawing_info(info_name):
     json_drawing_dir = json.dumps(drawing_dir)
     with open(os.path.dirname(__file__) + '/drawinginfo/' + info_name + '.json', 'w') as info_file:
         json.dump(json_drawing_dir, info_file)
-    return 'Success!'
+    return make_response('Success!', 200)
 
 def get_drawing_info(info_name):
     with open(os.path.dirname(__file__) + '/drawinginfo/' + info_name + '.json', 'r') as info_file:

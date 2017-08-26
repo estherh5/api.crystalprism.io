@@ -2,7 +2,7 @@ import csv
 import json
 import os
 
-from flask import jsonify, request
+from flask import jsonify, make_response, request
 from operator import itemgetter
 
 
@@ -13,7 +13,7 @@ def add_leader():
         content.append(data)
     with open(os.path.dirname(__file__) + '/leaders.json', 'w') as leaders_file:
         json.dump(content, leaders_file)
-    return 'Success!'
+    return make_response('Success!', 200)
 
 def get_leaders():
     with open(os.path.dirname(__file__) + '/leaders.json', 'r') as leaders_file:
