@@ -42,6 +42,12 @@ def user_info(user_id):
         return user.delete_user(user_id)
 
 
+@app.route('/api/user/verify', methods = ['GET'])
+def verify_user_token():
+    if request.method == 'GET':
+        return user.verify_token()
+
+
 @app.route('/api/login', methods = ['GET'])
 def login_route():
     if request.method == 'GET':
