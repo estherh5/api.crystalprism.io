@@ -10,6 +10,7 @@ from hashlib import sha256, sha512
 from os import path, urandom
 from time import time
 
+
 def create_user():
     data = request.get_json()
     username = data['username']
@@ -22,11 +23,11 @@ def create_user():
         content = json.load(users_file)
         for info in content:
             if info['username'] == username:
-                return make_response('Username already exists')
+                return make_response('Username already exists', 400)
         content.append(data)
     with open(path.dirname(__file__) + '/users.json', 'w') as users_file:
         json.dump(content, users_file)
-    return make_response('Success')
+    return make_response('Success', 200)
 
 def read_users():
     return 'read_users'
@@ -44,13 +45,15 @@ def delete_user(user_id):
             if user['username'] == user_id:
                 users = [user for user in users if user['username'] != user_id]
             else:
-                return 'Username does not exist'
+                return make_response('Username does not exist', 400)
     with open(path.dirname(__file__) + '/users.json', 'w') as users_file:
         json.dump(users, users_file)
-    return 'Success!'
+    return make_response('Success', 200)
 
 def verify_token():
     data = request.headers.get('Authorization')
+    if not data:
+        return make_response('Could not verify', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
     token = data.split(' ')[1]
     pattern = re.compile(r'^[a-zA-Z0-9-_]+={0,2}\.[a-zA-Z0-9-_]+={0,2}\.[a-zA-Z0-9-_]+={0,2}$')
     if not pattern.match(token):
@@ -66,4 +69,4 @@ def verify_token():
         signature_check = hmac.new(secret, message, digestmod=hashlib.sha256).digest()
         if signature != signature_check:
             return make_response('Token compromised', 401)
-        return json.dumps(payload).encode()
+        return make_response(json.dumps(payload).encode(), 200)

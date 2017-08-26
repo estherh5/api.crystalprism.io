@@ -4,9 +4,16 @@ import json
 import os
 import time
 
-from flask import jsonify, request, send_file
+from flask import jsonify, make_response, request, send_file
+from user import user
+
 
 def add_drawing(image_name):
+    verification = user.verify_token()
+    if verification.status.split(' ')[0] != '200':
+        return make_response('Could not verify', 401)
+    payload = json.loads(verification.data.decode())
+    painter = payload['username']
     # Get JSON image data URL in base64 format and view count
     data = request.get_json()
     # Remove 'data:image/png;base64'
@@ -20,7 +27,7 @@ def add_drawing(image_name):
         drawing_file.write(base64.decodestring(image))
     likes = data['likes']
     views = data['views']
-    drawing_dir = {'likes': likes, 'views': views}
+    drawing_dir = {'painter': painter, 'likes': likes, 'views': views}
     json_drawing_dir = json.dumps(drawing_dir)
     with open(os.path.dirname(__file__) + '/drawinginfo/' + filename + '.json', 'w') as info_file:
         json.dump(json_drawing_dir, info_file)
