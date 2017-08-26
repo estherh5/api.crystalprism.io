@@ -76,3 +76,15 @@ def get_entries():
             return jsonify(thought_entries[request_start:request_end])
     else:
         return make_response('No posts for this user', 400)
+
+def get_esther_entries():
+    if request.args.get('start') is not None:
+        request_start = int(request.args.get('start'))
+        request_end = int(request.args.get('end'))
+    else:
+        request_start = 0
+        request_end = 10
+    with open(os.path.dirname(__file__) + '/esther.json', 'r') as thoughts_file:
+        thought_entries = json.load(thoughts_file)
+        thought_entries.sort(key = itemgetter('timestamp'), reverse = True)
+        return jsonify(thought_entries[request_start:request_end])

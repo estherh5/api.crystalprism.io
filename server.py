@@ -115,3 +115,8 @@ def thoughts():
 def entries():
     if request.method == 'GET':
         return thought_writer.get_entries()
+
+@app.route('/api/thought-writer/esther_entries', methods = ['GET'])
+def esther_entries():
+    if request.method == 'GET':
+        return thought_writer.get_esther_entries()
