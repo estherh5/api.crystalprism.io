@@ -4,38 +4,7 @@ import json
 import os
 import time
 
-from flask import Flask, jsonify, request, send_file
-from flask_cors import CORS
-
-
-app = Flask(__name__)
-if os.environ['ENV_TYPE'] == 'Production':
-    cors = CORS(app, resources = {r"/api/*": {"origins": r"http://crystalprism.io"}})
-elif os.environ['ENV_TYPE'] == 'Dev':
-    cors = CORS(app, resources = {r"/api/*": {"origins": "*"}})
-
-
-@app.route('/api/drawing/<image_name>', methods = ['POST', 'GET'])
-def drawing(image_name):
-    if request.method == 'POST':
-        return add_drawing(image_name)
-    if request.method == 'GET':
-        return get_drawing(image_name)
-
-
-@app.route('/api/gallery', methods = ['GET'])
-def gallery():
-    if request.method == 'GET':
-        return get_all_drawings()
-
-
-@app.route('/api/drawinginfo/<info_name>', methods = ['POST', 'GET'])
-def drawing_info(info_name):
-    if request.method == 'POST':
-        return update_drawing_info(info_name)
-    if request.method == 'GET':
-        return get_drawing_info(info_name)
-
+from flask import jsonify, request, send_file
 
 def add_drawing(image_name):
     # Get JSON image data URL in base64 format and view count
@@ -49,10 +18,13 @@ def add_drawing(image_name):
         filename = image_name
     with open(os.path.dirname(__file__) + '/drawings/' + filename + '.png', 'wb') as drawing_file:
         drawing_file.write(base64.decodestring(image))
+    likes = data['likes']
     views = data['views']
-    with open(os.path.dirname(__file__) + '/drawinginfo/' + filename + '.csv', 'w') as info_file:
-        info_file.write(views)
-    return "Success!"
+    drawing_dir = {'likes': likes, 'views': views}
+    json_drawing_dir = json.dumps(drawing_dir)
+    with open(os.path.dirname(__file__) + '/drawinginfo/' + filename + '.json', 'w') as info_file:
+        json.dump(json_drawing_dir, info_file)
+    return 'Success!'
 
 def get_drawing(image_name):
     return send_file(os.path.dirname(__file__) + '/drawings/' + image_name)
@@ -72,11 +44,14 @@ def get_all_drawings():
 
 def update_drawing_info(info_name):
     data = request.get_json()
+    likes = data['likes']
     views = data['views']
-    with open(os.path.dirname(__file__) + '/drawinginfo/' + info_name + '.csv', 'w') as info_file:
-        info_file.write(views)
-    return "Success!"
+    drawing_dir = {'likes': likes, 'views': views}
+    json_drawing_dir = json.dumps(drawing_dir)
+    with open(os.path.dirname(__file__) + '/drawinginfo/' + info_name + '.json', 'w') as info_file:
+        json.dump(json_drawing_dir, info_file)
+    return 'Success!'
 
 def get_drawing_info(info_name):
-    with open(os.path.dirname(__file__) + '/drawinginfo/' + info_name + '.csv', 'r') as info_file:
-        return jsonify(info_file.read())
+    with open(os.path.dirname(__file__) + '/drawinginfo/' + info_name + '.json', 'r') as info_file:
+        return info_file.read()
