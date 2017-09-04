@@ -59,7 +59,7 @@ def login_route():
         with open(os.path.dirname(__file__) + '/user/users.json') as users_file:
             content = json.load(users_file)
             for info in content:
-                if info['username'] == username:
+                if info['username'].lower() == username.lower():
                     salt = info['salt'].encode()
                     password = password.encode()
                     hashed_password = sha512(salt + password).hexdigest()
