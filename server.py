@@ -101,7 +101,7 @@ def drawing_info(info_name):
 
 
 @app.route('/api/rhythm-of-life', methods = ['POST', 'GET'])
-def leaders():
+def rhythm_leaders():
     if request.method == 'POST':
         return rhythm_of_life.add_leader()
     if request.method == 'GET':
