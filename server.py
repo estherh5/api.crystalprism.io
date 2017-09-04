@@ -12,6 +12,7 @@ from flask_cors import CORS
 from hashlib import sha256, sha512
 from math import floor
 from rhythm_of_life import rhythm_of_life
+from shapes_in_rain import shapes_in_rain
 from thought_writer import thought_writer
 from time import time
 from user import user
@@ -100,6 +101,14 @@ def drawing_info(info_name):
         return canvashare.get_drawing_info(info_name)
 
 
+@app.route('/api/shapes-in-rain', methods = ['POST', 'GET'])
+def shapes_leaders():
+    if request.method == 'POST':
+        return shapes_in_rain.add_leader()
+    if request.method == 'GET':
+        return shapes_in_rain.get_leaders()
+
+
 @app.route('/api/rhythm-of-life', methods = ['POST', 'GET'])
 def rhythm_leaders():
     if request.method == 'POST':
@@ -117,10 +126,12 @@ def thoughts():
     if request.method == 'DELETE':
         return thought_writer.del_entry()
 
+
 @app.route('/api/thought-writer/entries', methods = ['GET'])
 def entries():
     if request.method == 'GET':
         return thought_writer.get_entries()
+
 
 @app.route('/api/thought-writer/esther_entries', methods = ['GET'])
 def esther_entries():
