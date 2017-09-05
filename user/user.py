@@ -24,7 +24,7 @@ def create_user():
     salt = b64encode(urandom(32))
     hashed_password = sha512(salt + password).hexdigest()
     member_since = json.dumps(datetime.now(timezone.utc), default = timeconvert)
-    data = {'username': username, 'password': hashed_password, 'salt': salt.decode(), 'first_name': '', 'last_name': '', 'name_public': '', 'email': '', 'email_public': '', 'color': '#000000', 'about': '', 'admin': False, 'member_since': member_since, 'shapes_plays': 0, 'shapes_scores': [], 'shapes_high_score': 0, 'rhythm_plays': 0, 'rhythm_scores': [], 'rhythm_high_score': 0, 'rhythm_high_lifespan': '00:00:00', 'images': [], 'liked_images': [], 'post_number': 0}
+    data = {'username': username, 'password': hashed_password, 'salt': salt.decode(), 'first_name': '', 'last_name': '', 'name_public': '', 'email': '', 'email_public': '', 'background_color': '#ffffff', 'color': '#000000', 'about': '', 'admin': False, 'member_since': member_since, 'shapes_plays': 0, 'shapes_scores': [], 'shapes_high_score': 0, 'rhythm_plays': 0, 'rhythm_scores': [], 'rhythm_high_score': 0, 'rhythm_high_lifespan': '00:00:00', 'images': [], 'liked_images': [], 'post_number': 0}
     with open(path.dirname(__file__) + '/users.json') as users_file:
         content = json.load(users_file)
         for info in content:
@@ -53,7 +53,7 @@ def read_user(user_id):
                         email = info['email']
                     else:
                         email = ''
-                    data = {'name': name, 'email': email, 'color': info['color'], 'about': info['about'], 'member_since': info['member_since'], 'shapes_high_score': info['shapes_high_score'], 'rhythm_high_lifespan': info['rhythm_high_lifespan'], 'images': info['images']}
+                    data = {'name': name, 'email': email, 'background_color': info['background_color'], 'color': info['color'], 'about': info['about'], 'member_since': info['member_since'], 'shapes_high_score': info['shapes_high_score'], 'rhythm_high_lifespan': info['rhythm_high_lifespan'], 'images': info['images']}
                     return jsonify(data)
             return make_response('Username does not exist', 400)
     if verification.status.split(' ')[0] == '200':
@@ -98,7 +98,7 @@ def update_user(user_id):
                 rhythm_score = info['rhythm_high_score']
                 lifespan = info['rhythm_high_lifespan']
                 content = [info for info in content if info['username'].lower() != user_id.lower()]
-        data = {'username': username, 'password': password, 'salt': salt, 'first_name': data['first_name'], 'last_name': data['last_name'], 'name_public': data['name_public'], 'email': data['email'], 'email_public': data['email_public'], 'color': data['color'], 'about': data['about'], 'admin': False, 'member_since': member_since, 'shapes_plays': shapes_plays, 'shapes_scores': shapes_scores, 'shapes_high_score': shapes_score, 'rhythm_plays': rhythm_plays, 'rhythm_scores': rhythm_scores, 'rhythm_high_score': rhythm_score, 'rhythm_high_lifespan': lifespan, 'images': images, 'liked_images': liked_images, 'post_number': post_number}
+        data = {'username': username, 'password': password, 'salt': salt, 'first_name': data['first_name'], 'last_name': data['last_name'], 'name_public': data['name_public'], 'email': data['email'], 'email_public': data['email_public'], 'background_color': data['background_color'], 'color': data['color'], 'about': data['about'], 'admin': False, 'member_since': member_since, 'shapes_plays': shapes_plays, 'shapes_scores': shapes_scores, 'shapes_high_score': shapes_score, 'rhythm_plays': rhythm_plays, 'rhythm_scores': rhythm_scores, 'rhythm_high_score': rhythm_score, 'rhythm_high_lifespan': lifespan, 'images': images, 'liked_images': liked_images, 'post_number': post_number}
         content.append(data)
         data = content
     with open(path.dirname(__file__) + '/users.json', 'w') as users_file:
