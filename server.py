@@ -133,13 +133,7 @@ def thoughts():
         return thought_writer.del_entry()
 
 
-@app.route('/api/thought-writer/entries', methods = ['GET'])
-def entries():
+@app.route('/api/thought-writer/entries/<writer_id>', methods = ['GET'])
+def entries(writer_id):
     if request.method == 'GET':
-        return thought_writer.get_entries()
-
-
-@app.route('/api/thought-writer/esther_entries', methods = ['GET'])
-def esther_entries():
-    if request.method == 'GET':
-        return thought_writer.get_esther_entries()
+        return thought_writer.get_entries(writer_id)

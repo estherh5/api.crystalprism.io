@@ -77,34 +77,40 @@ def del_entry():
         json.dump(updated_data, users_file)
     return make_response('Success', 200)
 
-def get_entries():
+def get_entries(writer_id):
+    if request.args.get('start') is not None:
+        request_start = int(request.args.get('start'))
+        request_end = int(request.args.get('end'))
+    else:
+        request_start = 0
+        request_end = 10
     verification = user.verify_token()
     if verification.status.split(' ')[0] != '200':
-        return make_response('Could not verify', 401)
-    payload = json.loads(verification.data.decode())
-    writer = payload['username']
-    if request.args.get('start') is not None:
-        request_start = int(request.args.get('start'))
-        request_end = int(request.args.get('end'))
+        if os.path.exists(os.path.dirname(__file__) + '/' + writer_id + '.json'):
+            with open(os.path.dirname(__file__) + '/' + writer_id + '.json', 'r') as thoughts_file:
+                thought_entries = json.load(thoughts_file)
+                thought_entries = [entry for entry in thought_entries if entry['public'] == 'true']
+                thought_entries.sort(key = itemgetter('timestamp'), reverse = True)
+                return jsonify(thought_entries[request_start:request_end])
+        else:
+            return make_response('No posts for this user', 400)
     else:
-        request_start = 0
-        request_end = 10
-    if os.path.exists(os.path.dirname(__file__) + '/' + writer + '.json'):
-        with open(os.path.dirname(__file__) + '/' + writer + '.json', 'r') as thoughts_file:
-            thought_entries = json.load(thoughts_file)
-            thought_entries.sort(key = itemgetter('timestamp'), reverse = True)
-            return jsonify(thought_entries[request_start:request_end])
-    else:
-        return make_response('No posts for this user', 400)
-
-def get_esther_entries():
-    if request.args.get('start') is not None:
-        request_start = int(request.args.get('start'))
-        request_end = int(request.args.get('end'))
-    else:
-        request_start = 0
-        request_end = 10
-    with open(os.path.dirname(__file__) + '/esther.json', 'r') as thoughts_file:
-        thought_entries = json.load(thoughts_file)
-        thought_entries.sort(key = itemgetter('timestamp'), reverse = True)
-        return jsonify(thought_entries[request_start:request_end])
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+        if requester == writer_id:
+            if os.path.exists(os.path.dirname(__file__) + '/' + writer_id + '.json'):
+                with open(os.path.dirname(__file__) + '/' + writer_id + '.json', 'r') as thoughts_file:
+                    thought_entries = json.load(thoughts_file)
+                    thought_entries.sort(key = itemgetter('timestamp'), reverse = True)
+                    return jsonify(thought_entries[request_start:request_end])
+            else:
+                return make_response('No posts for this user', 400)
+        else:
+            if os.path.exists(os.path.dirname(__file__) + '/' + writer_id + '.json'):
+                with open(os.path.dirname(__file__) + '/' + writer_id + '.json', 'r') as thoughts_file:
+                    thought_entries = json.load(thoughts_file)
+                    thought_entries = [entry for entry in thought_entries if entry['public'] == 'true']
+                    thought_entries.sort(key = itemgetter('timestamp'), reverse = True)
+                    return jsonify(thought_entries[request_start:request_end])
+            else:
+                return make_response('No posts for this user', 400)
