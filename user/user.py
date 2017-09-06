@@ -36,10 +36,19 @@ def create_user():
     return make_response('Success', 200)
 
 def read_users():
-    return 'read_users'
+    verification = verify_token()
+    if verification.status.split(' ')[0] == '200':
+        with open(path.dirname(__file__) + '/users.json', 'r') as users_file:
+            content = json.load(users_file)
+            data = [info['username'] for info in content]
+            return jsonify(data)
+    else:
+        return make_response('Access denied', 403)
 
 def read_user(user_id):
     verification = verify_token()
+    payload = json.loads(verification.data.decode())
+    requester = payload['username']
     if verification.status.split(' ')[0] != '200':
         with open(path.dirname(__file__) + '/users.json', 'r') as users_file:
             content = json.load(users_file)
@@ -56,69 +65,81 @@ def read_user(user_id):
                     data = {'name': name, 'email': email, 'background_color': info['background_color'], 'color': info['color'], 'about': info['about'], 'member_since': info['member_since'], 'shapes_high_score': info['shapes_high_score'], 'rhythm_high_lifespan': info['rhythm_high_lifespan'], 'images': info['images']}
                     return jsonify(data)
             return make_response('Username does not exist', 400)
-    if verification.status.split(' ')[0] == '200':
+    if verification.status.split(' ')[0] == '200' and requester == user_id:
         with open(path.dirname(__file__) + '/users.json', 'r') as users_file:
             content = json.load(users_file)
             for info in content:
                 if info['username'].lower() == user_id.lower():
                     return jsonify(info)
+    else:
+        return make_response('Access denied', 403)
 
 def update_user(user_id):
     verification = verify_token()
+    payload = json.loads(verification.data.decode())
+    requester = payload['username']
     if verification.status.split(' ')[0] != '200':
         return make_response('Access denied', 403)
-    data = request.get_json()
-    username = data['username']
-    password = data['password']
-    with open(path.dirname(__file__) + '/users.json') as users_file:
-        content = json.load(users_file)
-        if username.lower() != user_id.lower():
+    if requester == user_id:
+        data = request.get_json()
+        username = data['username']
+        password = data['password']
+        with open(path.dirname(__file__) + '/users.json') as users_file:
+            content = json.load(users_file)
+            if username.lower() != user_id.lower():
+                for info in content:
+                    if info['username'].lower() == username.lower():
+                        return make_response('Username already exists', 400)
             for info in content:
-                if info['username'].lower() == username.lower():
-                    return make_response('Username already exists', 400)
-        for info in content:
-            if info['username'].lower() == user_id.lower():
-                if password != '':
-                    password = password.encode()
-                    salt = b64encode(urandom(32))
-                    password = sha512(salt + password).hexdigest()
-                    salt = salt.decode()
-                else:
-                    password = info['password']
-                    salt = info['salt']
-                member_since = info['member_since']
-                images = info['images']
-                liked_images = info['liked_images']
-                post_number = info['post_number']
-                shapes_plays = info['shapes_plays']
-                shapes_scores = info['shapes_scores']
-                shapes_score = info['shapes_high_score']
-                rhythm_plays = info['rhythm_plays']
-                rhythm_scores = info['rhythm_scores']
-                rhythm_score = info['rhythm_high_score']
-                lifespan = info['rhythm_high_lifespan']
-                content = [info for info in content if info['username'].lower() != user_id.lower()]
-        data = {'username': username, 'password': password, 'salt': salt, 'first_name': data['first_name'], 'last_name': data['last_name'], 'name_public': data['name_public'], 'email': data['email'], 'email_public': data['email_public'], 'background_color': data['background_color'], 'color': data['color'], 'about': data['about'], 'admin': False, 'member_since': member_since, 'shapes_plays': shapes_plays, 'shapes_scores': shapes_scores, 'shapes_high_score': shapes_score, 'rhythm_plays': rhythm_plays, 'rhythm_scores': rhythm_scores, 'rhythm_high_score': rhythm_score, 'rhythm_high_lifespan': lifespan, 'images': images, 'liked_images': liked_images, 'post_number': post_number}
-        content.append(data)
-        data = content
-    with open(path.dirname(__file__) + '/users.json', 'w') as users_file:
-        json.dump(data, users_file)
-    return make_response('Success', 200)
+                if info['username'].lower() == user_id.lower():
+                    if password != '':
+                        password = password.encode()
+                        salt = b64encode(urandom(32))
+                        password = sha512(salt + password).hexdigest()
+                        salt = salt.decode()
+                    else:
+                        password = info['password']
+                        salt = info['salt']
+                    member_since = info['member_since']
+                    images = info['images']
+                    liked_images = info['liked_images']
+                    post_number = info['post_number']
+                    shapes_plays = info['shapes_plays']
+                    shapes_scores = info['shapes_scores']
+                    shapes_score = info['shapes_high_score']
+                    rhythm_plays = info['rhythm_plays']
+                    rhythm_scores = info['rhythm_scores']
+                    rhythm_score = info['rhythm_high_score']
+                    lifespan = info['rhythm_high_lifespan']
+                    content = [info for info in content if info['username'].lower() != user_id.lower()]
+            data = {'username': username, 'password': password, 'salt': salt, 'first_name': data['first_name'], 'last_name': data['last_name'], 'name_public': data['name_public'], 'email': data['email'], 'email_public': data['email_public'], 'background_color': data['background_color'], 'color': data['color'], 'about': data['about'], 'admin': False, 'member_since': member_since, 'shapes_plays': shapes_plays, 'shapes_scores': shapes_scores, 'shapes_high_score': shapes_score, 'rhythm_plays': rhythm_plays, 'rhythm_scores': rhythm_scores, 'rhythm_high_score': rhythm_score, 'rhythm_high_lifespan': lifespan, 'images': images, 'liked_images': liked_images, 'post_number': post_number}
+            content.append(data)
+            data = content
+        with open(path.dirname(__file__) + '/users.json', 'w') as users_file:
+            json.dump(data, users_file)
+        return make_response('Success', 200)
+    else:
+        return make_response('Access denied', 403)
 
 def delete_user(user_id):
     verification = verify_token()
+    payload = json.loads(verification.data.decode())
+    requester = payload['username']
     if verification.status.split(' ')[0] != '200':
         return make_response('Access denied', 403)
-    with open(path.dirname(__file__) + '/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user in users:
-            if user['username'].lower() == user_id.lower():
-                users = [user for user in users if user['username'].lower() != user_id.lower()]
-            else:
-                return make_response('Username does not exist', 400)
-    with open(path.dirname(__file__) + '/users.json', 'w') as users_file:
-        json.dump(users, users_file)
-    return make_response('Success', 200)
+    if requester == user_id:
+        with open(path.dirname(__file__) + '/users.json', 'r') as users_file:
+            users = json.load(users_file)
+            for user in users:
+                if user['username'].lower() == user_id.lower():
+                    users = [user for user in users if user['username'].lower() != user_id.lower()]
+                else:
+                    return make_response('Username does not exist', 400)
+        with open(path.dirname(__file__) + '/users.json', 'w') as users_file:
+            json.dump(users, users_file)
+        return make_response('Success', 200)
+    else:
+        return make_response('Access denied', 403)
 
 def verify_token():
     data = request.headers.get('Authorization')
