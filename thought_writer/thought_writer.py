@@ -14,6 +14,24 @@ def add_entry():
     payload = json.loads(verification.data.decode())
     writer = payload['username']
     data = request.get_json()
+    if data['public'] == 'true':
+        with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
+            public_content = json.load(public_file)
+            for entry in public_content:
+                if entry['writer'] == writer and entry['timestamp'] == int(request.args.get('timestamp')):
+                    public_content = [entry for entry in public_content if entry['writer'] != writer and entry['timestamp'] != int(request.args.get('timestamp'))]
+            public_content.append(data)
+            public_data = public_content
+        with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
+            json.dump(public_data, public_file)
+    if data['public'] == 'false':
+        with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
+            public_content = json.load(public_file)
+            for entry in public_content:
+                if entry['writer'] == writer and entry['timestamp'] == int(request.args.get('timestamp')):
+                    public_content = [entry for entry in public_content if entry['writer'] != writer and entry['timestamp'] != int(request.args.get('timestamp'))]
+        with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
+            json.dump(public_content, public_file)
     if os.path.exists(os.path.dirname(__file__) + '/' + writer + '.json'):
         with open(os.path.dirname(__file__) + '/' + writer + '.json') as thoughts_file:
             content = json.load(thoughts_file)
@@ -59,6 +77,13 @@ def del_entry():
         return make_response('Could not verify', 401)
     payload = json.loads(verification.data.decode())
     writer = payload['username']
+    with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
+        public_content = json.load(public_file)
+        for entry in public_content:
+            if entry['writer'] == writer and entry['timestamp'] == int(request.args.get('timestamp')):
+                public_content = [entry for entry in public_content if entry['writer'] != writer and entry['timestamp'] != int(request.args.get('timestamp'))]
+    with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
+        json.dump(public_content, public_file)
     with open(os.path.dirname(__file__) + '/' + writer + '.json', 'r') as thoughts_file:
         thought_entries = json.load(thoughts_file)
         thought_entries = [entry for entry in thought_entries if entry['timestamp'] != int(request.args.get('timestamp'))]
@@ -77,7 +102,19 @@ def del_entry():
         json.dump(updated_data, users_file)
     return make_response('Success', 200)
 
-def get_entries(writer_id):
+def get_all_entries():
+    if request.args.get('start') is not None:
+        request_start = int(request.args.get('start'))
+        request_end = int(request.args.get('end'))
+    else:
+        request_start = 0
+        request_end = 10
+    with open(os.path.dirname(__file__) + '/public/public.json', 'r') as thoughts_file:
+        thought_entries = json.load(thoughts_file)
+        thought_entries.sort(key = itemgetter('timestamp'), reverse = True)
+        return jsonify(thought_entries[request_start:request_end])
+
+def get_all_user_entries(writer_id):
     if request.args.get('start') is not None:
         request_start = int(request.args.get('start'))
         request_end = int(request.args.get('end'))
