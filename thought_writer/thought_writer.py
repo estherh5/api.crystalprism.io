@@ -2,6 +2,7 @@ import csv
 import json
 import os
 
+from datetime import datetime, timezone
 from flask import jsonify, make_response, request
 from operator import itemgetter
 from user import user
@@ -14,36 +15,25 @@ def add_entry():
     payload = json.loads(verification.data.decode())
     writer = payload['username']
     data = request.get_json()
-    if data['public'] == 'true':
+    title = data['title']
+    timestamp = json.dumps(datetime.now(timezone.utc), default = user.timeconvert)
+    content = data['content']
+    public = data['public']
+    new_entry = {'writer': writer, 'title': title, 'timestamp': timestamp, 'content': content, 'public': public}
+    if public == 'true':
         with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
             public_content = json.load(public_file)
-            for entry in public_content:
-                if entry['writer'] == writer and entry['timestamp'] == int(request.args.get('timestamp')):
-                    public_content = [entry for entry in public_content if entry['writer'] != writer and entry['timestamp'] != int(request.args.get('timestamp'))]
-            public_content.append(data)
-            public_data = public_content
-        with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
-            json.dump(public_data, public_file)
-    if data['public'] == 'false':
-        with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
-            public_content = json.load(public_file)
-            for entry in public_content:
-                if entry['writer'] == writer and entry['timestamp'] == int(request.args.get('timestamp')):
-                    public_content = [entry for entry in public_content if entry['writer'] != writer and entry['timestamp'] != int(request.args.get('timestamp'))]
+            public_content.append(new_entry)
         with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
             json.dump(public_content, public_file)
     if os.path.exists(os.path.dirname(__file__) + '/' + writer + '.json'):
         with open(os.path.dirname(__file__) + '/' + writer + '.json') as thoughts_file:
             content = json.load(thoughts_file)
-            for entry in content:
-                if entry['timestamp'] == int(request.args.get('timestamp')):
-                    content = [entry for entry in content if entry['timestamp'] != int(request.args.get('timestamp'))]
-            content.append(data)
-            data = content
+            content.append(new_entry)
     else:
-        data = [data]
+        content = [new_entry]
     with open(os.path.dirname(__file__) + '/' + writer + '.json', 'w') as thoughts_file:
-        json.dump(data, thoughts_file)
+        json.dump(content, thoughts_file)
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json') as users_file:
         user_data = json.load(users_file)
         for info in user_data:
@@ -52,10 +42,9 @@ def add_entry():
                 updated_data = {'username': info['username'], 'password': info['password'], 'salt': info['salt'], 'first_name': info['first_name'], 'last_name': info['last_name'], 'name_public': info['name_public'], 'email': info['email'], 'email_public': info['email_public'], 'background_color': info['background_color'], 'color': info['color'], 'about': info['about'], 'admin': info['admin'], 'member_since': info['member_since'], 'shapes_plays': info['shapes_plays'], 'shapes_scores': info['shapes_scores'], 'shapes_high_score': info['shapes_high_score'], 'rhythm_plays': info['rhythm_plays'], 'rhythm_scores': info['rhythm_scores'], 'rhythm_high_score': info['rhythm_high_score'], 'rhythm_high_lifespan': info['rhythm_high_lifespan'], 'images': info['images'], 'liked_images': info['liked_images'], 'post_number': posts}
                 user_data = [info for info in user_data if info['username'].lower() != writer.lower()]
         user_data.append(updated_data)
-        updated_data = user_data
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
-        json.dump(updated_data, users_file)
-    return make_response('Success', 200)
+        json.dump(user_data, users_file)
+    return make_response(timestamp, 200)
 
 def get_entry():
     verification = user.verify_token()
@@ -66,10 +55,45 @@ def get_entry():
     with open(os.path.dirname(__file__) + '/' + writer + '.json', 'r') as thoughts_file:
         thought_entries = json.load(thoughts_file)
         for entry in thought_entries:
-            if entry['timestamp'] == int(request.args.get('timestamp')):
+            if entry['timestamp'] == request.args.get('timestamp'):
                 return jsonify(entry)
             else:
-                return jsonify(thought_entries[0])
+                return make_response('No post found', 404)
+
+def update_entry():
+    verification = user.verify_token()
+    if verification.status.split(' ')[0] != '200':
+        return make_response('Could not verify', 401)
+    payload = json.loads(verification.data.decode())
+    writer = payload['username']
+    data = request.get_json()
+    if data['public'] == 'true':
+        with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
+            public_content = json.load(public_file)
+            for entry in public_content:
+                if entry['writer'] == writer and entry['timestamp'] == request.args.get('timestamp'):
+                    public_content = [entry for entry in public_content if entry['writer'] != writer and entry['timestamp'] != request.args.get('timestamp')]
+                    public_content.append(data)
+        with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
+            json.dump(public_content, public_file)
+    if data['public'] == 'false':
+        with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
+            public_content = json.load(public_file)
+            for entry in public_content:
+                if entry['writer'] == writer and entry['timestamp'] == request.args.get('timestamp'):
+                    public_content = [entry for entry in public_content if entry['writer'] != writer and entry['timestamp'] != request.args.get('timestamp')]
+        with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
+            json.dump(public_content, public_file)
+    if os.path.exists(os.path.dirname(__file__) + '/' + writer + '.json'):
+        with open(os.path.dirname(__file__) + '/' + writer + '.json') as thoughts_file:
+            content = json.load(thoughts_file)
+            for entry in content:
+                if entry['timestamp'] == request.args.get('timestamp'):
+                    content = [entry for entry in content if entry['timestamp'] != request.args.get('timestamp')]
+                    content.append(data)
+    with open(os.path.dirname(__file__) + '/' + writer + '.json', 'w') as thoughts_file:
+        json.dump(content, thoughts_file)
+    return make_response('Success', 200)
 
 def del_entry():
     verification = user.verify_token()
@@ -80,13 +104,13 @@ def del_entry():
     with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
         public_content = json.load(public_file)
         for entry in public_content:
-            if entry['writer'] == writer and entry['timestamp'] == int(request.args.get('timestamp')):
-                public_content = [entry for entry in public_content if entry['writer'] != writer and entry['timestamp'] != int(request.args.get('timestamp'))]
+            if entry['writer'] == writer and entry['timestamp'] == request.args.get('timestamp'):
+                public_content = [entry for entry in public_content if entry['writer'] != writer and entry['timestamp'] != request.args.get('timestamp')]
     with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
         json.dump(public_content, public_file)
     with open(os.path.dirname(__file__) + '/' + writer + '.json', 'r') as thoughts_file:
         thought_entries = json.load(thoughts_file)
-        thought_entries = [entry for entry in thought_entries if entry['timestamp'] != int(request.args.get('timestamp'))]
+        thought_entries = [entry for entry in thought_entries if entry['timestamp'] != request.args.get('timestamp')]
     with open(os.path.dirname(__file__) + '/' + writer + '.json', 'w') as thoughts_file:
         json.dump(thought_entries, thoughts_file)
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json') as users_file:

@@ -123,12 +123,14 @@ def rhythm_leaders():
         return rhythm_of_life.get_leaders()
 
 
-@app.route('/api/thought-writer/thoughts', methods = ['POST', 'GET', 'DELETE'])
+@app.route('/api/thought-writer/thoughts', methods = ['POST', 'GET', 'PUT', 'DELETE'])
 def thoughts():
     if request.method == 'POST':
         return thought_writer.add_entry()
     if request.method == 'GET':
         return thought_writer.get_entry()
+    if request.method == 'PUT':
+        return thought_writer.update_entry()
     if request.method == 'DELETE':
         return thought_writer.del_entry()
 
