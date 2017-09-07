@@ -47,8 +47,6 @@ def read_users():
 
 def read_user(user_id):
     verification = verify_token()
-    payload = json.loads(verification.data.decode())
-    requester = payload['username']
     if verification.status.split(' ')[0] != '200':
         with open(path.dirname(__file__) + '/users.json', 'r') as users_file:
             content = json.load(users_file)
@@ -65,6 +63,8 @@ def read_user(user_id):
                     data = {'name': name, 'email': email, 'background_color': info['background_color'], 'color': info['color'], 'about': info['about'], 'member_since': info['member_since'], 'shapes_high_score': info['shapes_high_score'], 'rhythm_high_lifespan': info['rhythm_high_lifespan'], 'images': info['images']}
                     return jsonify(data)
             return make_response('Username does not exist', 400)
+    payload = json.loads(verification.data.decode())
+    requester = payload['username']
     if verification.status.split(' ')[0] == '200' and requester == user_id:
         with open(path.dirname(__file__) + '/users.json', 'r') as users_file:
             content = json.load(users_file)
@@ -76,10 +76,10 @@ def read_user(user_id):
 
 def update_user(user_id):
     verification = verify_token()
-    payload = json.loads(verification.data.decode())
-    requester = payload['username']
     if verification.status.split(' ')[0] != '200':
         return make_response('Access denied', 403)
+    payload = json.loads(verification.data.decode())
+    requester = payload['username']
     if requester == user_id:
         data = request.get_json()
         username = data['username']
@@ -123,10 +123,10 @@ def update_user(user_id):
 
 def delete_user(user_id):
     verification = verify_token()
-    payload = json.loads(verification.data.decode())
-    requester = payload['username']
     if verification.status.split(' ')[0] != '200':
         return make_response('Access denied', 403)
+    payload = json.loads(verification.data.decode())
+    requester = payload['username']
     if requester == user_id:
         with open(path.dirname(__file__) + '/users.json', 'r') as users_file:
             users = json.load(users_file)
