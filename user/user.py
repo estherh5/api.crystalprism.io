@@ -133,8 +133,6 @@ def delete_user(user_id):
             for user in users:
                 if user['username'].lower() == user_id.lower():
                     users = [user for user in users if user['username'].lower() != user_id.lower()]
-                else:
-                    return make_response('Username does not exist', 400)
         with open(path.dirname(__file__) + '/users.json', 'w') as users_file:
             json.dump(users, users_file)
         return make_response('Success', 200)
