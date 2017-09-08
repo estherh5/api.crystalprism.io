@@ -70,27 +70,21 @@ def update_entry():
     if data['public'] == 'true':
         with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
             public_content = json.load(public_file)
-            for entry in public_content:
-                if entry['writer'] == writer and entry['timestamp'] == request.args.get('timestamp'):
-                    public_content = [entry for entry in public_content if entry['writer'] != writer and entry['timestamp'] != request.args.get('timestamp')]
-                    public_content.append(data)
+            public_content = [entry for entry in public_content if not (entry['writer'] == writer and entry['timestamp'] == request.args.get('timestamp'))]
+            public_content.append(data)
         with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
             json.dump(public_content, public_file)
     if data['public'] == 'false':
         with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
             public_content = json.load(public_file)
-            for entry in public_content:
-                if entry['writer'] == writer and entry['timestamp'] == request.args.get('timestamp'):
-                    public_content = [entry for entry in public_content if entry['writer'] != writer and entry['timestamp'] != request.args.get('timestamp')]
+            public_content = [entry for entry in public_content if not (entry['writer'] == writer and entry['timestamp'] == request.args.get('timestamp'))]
         with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
             json.dump(public_content, public_file)
     if os.path.exists(os.path.dirname(__file__) + '/' + writer + '.json'):
         with open(os.path.dirname(__file__) + '/' + writer + '.json') as thoughts_file:
             content = json.load(thoughts_file)
-            for entry in content:
-                if entry['timestamp'] == request.args.get('timestamp'):
-                    content = [entry for entry in content if entry['timestamp'] != request.args.get('timestamp')]
-                    content.append(data)
+            content = [entry for entry in content if entry['timestamp'] != request.args.get('timestamp')]
+            content.append(data)
     with open(os.path.dirname(__file__) + '/' + writer + '.json', 'w') as thoughts_file:
         json.dump(content, thoughts_file)
     return make_response('Success', 200)
@@ -103,9 +97,7 @@ def del_entry():
     writer = payload['username']
     with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
         public_content = json.load(public_file)
-        for entry in public_content:
-            if entry['writer'] == writer and entry['timestamp'] == request.args.get('timestamp'):
-                public_content = [entry for entry in public_content if entry['writer'] != writer and entry['timestamp'] != request.args.get('timestamp')]
+        public_content = [entry for entry in public_content if not (entry['writer'] == writer and entry['timestamp'] == request.args.get('timestamp'))]
     with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
         json.dump(public_content, public_file)
     with open(os.path.dirname(__file__) + '/' + writer + '.json', 'r') as thoughts_file:
