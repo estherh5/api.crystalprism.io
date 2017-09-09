@@ -46,20 +46,6 @@ def add_entry():
         json.dump(user_data, users_file)
     return make_response(timestamp, 200)
 
-def get_entry():
-    verification = user.verify_token()
-    if verification.status.split(' ')[0] != '200':
-        return make_response('Could not verify', 401)
-    payload = json.loads(verification.data.decode())
-    writer = payload['username']
-    with open(os.path.dirname(__file__) + '/' + writer + '.json', 'r') as thoughts_file:
-        thought_entries = json.load(thoughts_file)
-        for entry in thought_entries:
-            if entry['timestamp'] == request.args.get('timestamp'):
-                return jsonify(entry)
-            else:
-                return make_response('No post found', 404)
-
 def update_entry():
     verification = user.verify_token()
     if verification.status.split(' ')[0] != '200':
@@ -117,6 +103,26 @@ def del_entry():
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
         json.dump(updated_data, users_file)
     return make_response('Success', 200)
+
+def get_entry(writer_id, timestamp):
+    verification = user.verify_token()
+    if verification.status.split(' ')[0] != '200':
+        with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
+            public_content = json.load(public_file)
+            for entry in public_content:
+                if entry['writer'] == writer_id and entry['timestamp'] == timestamp:
+                    return jsonify(entry)
+    elif verification.status.split(' ')[0] == '200':
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+        if requester == writer_id:
+            with open(os.path.dirname(__file__) + '/' + requester + '.json', 'r') as thoughts_file:
+                thought_entries = json.load(thoughts_file)
+                for entry in thought_entries:
+                    if entry['timestamp'] == timestamp:
+                        return jsonify(entry)
+    else:
+        return make_response('No post found', 404)
 
 def get_all_entries():
     if request.args.get('start') is not None:
