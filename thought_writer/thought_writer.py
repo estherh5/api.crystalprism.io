@@ -19,7 +19,7 @@ def add_entry():
     timestamp = json.dumps(datetime.now(timezone.utc), default = user.timeconvert)
     content = data['content']
     public = data['public']
-    new_entry = {'writer': writer, 'title': title, 'timestamp': timestamp, 'content': content, 'public': public}
+    new_entry = {'writer': writer, 'title': title, 'timestamp': timestamp, 'content': content, 'public': public, 'comments': []}
     if public == 'true':
         with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
             public_content = json.load(public_file)
@@ -123,6 +123,104 @@ def get_entry(writer_id, timestamp):
                         return jsonify(entry)
     else:
         return make_response('No post found', 404)
+
+def add_comment():
+    verification = user.verify_token()
+    if verification.status.split(' ')[0] != '200':
+        return make_response('Could not verify', 401)
+    payload = json.loads(verification.data.decode())
+    commenter = payload['username']
+    data = request.get_json()
+    timestamp = json.dumps(datetime.now(timezone.utc), default = user.timeconvert)
+    comment = {'commenter': commenter, 'timestamp': timestamp, 'content': data['content']}
+    with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
+        public_content = json.load(public_file)
+        for entry in public_content:
+            if entry['timestamp'] == request.args.get('timestamp'):
+                writer = entry['writer']
+                comments = entry['comments']
+                comments.append(comment)
+                updated_entry = {'writer': entry['writer'], 'title': entry['title'], 'timestamp': entry['timestamp'], 'content': entry['content'], 'public': entry['public'], 'comments': comments}
+        public_content = [entry for entry in public_content if not (entry['timestamp'] == request.args.get('timestamp'))]
+        public_content.append(updated_entry)
+    with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
+        json.dump(public_content, public_file)
+    with open(os.path.dirname(__file__) + '/' + writer + '.json') as thoughts_file:
+        content = json.load(thoughts_file)
+        for entry in content:
+            if entry['timestamp'] == request.args.get('timestamp'):
+                comments = entry['comments']
+                comments.append(comment)
+                updated_entry = {'writer': entry['writer'], 'title': entry['title'], 'timestamp': entry['timestamp'], 'content': entry['content'], 'public': entry['public'], 'comments': comments}
+        content = [entry for entry in content if not (entry['timestamp'] == request.args.get('timestamp'))]
+        content.append(updated_entry)
+    with open(os.path.dirname(__file__) + '/' + writer + '.json', 'w') as thoughts_file:
+        json.dump(content, thoughts_file)
+    return make_response('Success', 200)
+
+def update_comment():
+    verification = user.verify_token()
+    if verification.status.split(' ')[0] != '200':
+        return make_response('Could not verify', 401)
+    payload = json.loads(verification.data.decode())
+    commenter = payload['username']
+    data = request.get_json()
+    old_timestamp = data['timestamp']
+    new_timestamp = json.dumps(datetime.now(timezone.utc), default = user.timeconvert)
+    comment = {'commenter': commenter, 'timestamp': new_timestamp, 'content': data['content']}
+    with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
+        public_content = json.load(public_file)
+        for entry in public_content:
+            if entry['timestamp'] == request.args.get('timestamp'):
+                updated_comments = [comment for comment in entry['comments'] if not (comment['writer'] == commenter and comment['timestamp'] == old_timestamp)]
+                updated_comments.append(comment)
+                updated_entry = {'writer': entry['writer'], 'title': entry['title'], 'timestamp': entry['timestamp'], 'content': entry['content'], 'public': entry['public'], 'comments': updated_comments}
+        public_content = [entry for entry in public_content if not (entry['timestamp'] == request.args.get('timestamp'))]
+        public_content.append(updated_entry)
+    with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
+        json.dump(public_content, public_file)
+    with open(os.path.dirname(__file__) + '/' + writer + '.json') as thoughts_file:
+        content = json.load(thoughts_file)
+        for entry in content:
+            if entry['timestamp'] == request.args.get('timestamp'):
+                updated_comments = [comment for comment in entry['comments'] if not (comment['writer'] == commenter and comment['timestamp'] == old_timestamp)]
+                updated_comments.append(comment)
+                updated_entry = {'writer': entry['writer'], 'title': entry['title'], 'timestamp': entry['timestamp'], 'content': entry['content'], 'public': entry['public'], 'comments': updated_comments}
+        content = [entry for entry in content if not (entry['timestamp'] == request.args.get('timestamp'))]
+        content.append(updated_entry)
+    with open(os.path.dirname(__file__) + '/' + writer + '.json', 'w') as thoughts_file:
+        json.dump(content, thoughts_file)
+    return make_response('Success', 200)
+
+def del_comment():
+    verification = user.verify_token()
+    if verification.status.split(' ')[0] != '200':
+        return make_response('Could not verify', 401)
+    payload = json.loads(verification.data.decode())
+    commenter = payload['username']
+    data = request.get_json()
+    comment_timestamp = data['timestamp']
+    with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
+        public_content = json.load(public_file)
+        for entry in public_content:
+            if entry['timestamp'] == request.args.get('timestamp'):
+                updated_comments = [comment for comment in entry['comments'] if not (comment['writer'] == commenter and comment['timestamp'] == comment_timestamp)]
+                updated_entry = {'writer': entry['writer'], 'title': entry['title'], 'timestamp': entry['timestamp'], 'content': entry['content'], 'public': entry['public'], 'comments': updated_comments}
+        public_content = [entry for entry in public_content if not (entry['timestamp'] == request.args.get('timestamp'))]
+        public_content.append(updated_entry)
+    with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
+        json.dump(public_content, public_file)
+    with open(os.path.dirname(__file__) + '/' + writer + '.json') as thoughts_file:
+        content = json.load(thoughts_file)
+        for entry in content:
+            if entry['timestamp'] == request.args.get('timestamp'):
+                updated_comments = [comment for comment in entry['comments'] if not (comment['writer'] == commenter and comment['timestamp'] == comment_timestamp)]
+                updated_entry = {'writer': entry['writer'], 'title': entry['title'], 'timestamp': entry['timestamp'], 'content': entry['content'], 'public': entry['public'], 'comments': updated_comments}
+        content = [entry for entry in content if not (entry['timestamp'] == request.args.get('timestamp'))]
+        content.append(updated_entry)
+    with open(os.path.dirname(__file__) + '/' + writer + '.json', 'w') as thoughts_file:
+        json.dump(content, thoughts_file)
+    return make_response('Success', 200)
 
 def get_all_entries():
     if request.args.get('start') is not None:

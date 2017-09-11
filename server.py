@@ -139,6 +139,16 @@ def thought(writer_id, timestamp):
         return thought_writer.get_entry(writer_id, timestamp)
 
 
+@app.route('/api/thought-writer/comments', methods = ['POST', 'PUT', 'DELETE'])
+def comments():
+    if request.method == 'POST':
+        return thought_writer.add_comment()
+    if request.method == 'PUT':
+        return thought_writer.update_comment()
+    if request.method == 'DELETE':
+        return thought_writer.del_comment()
+
+
 @app.route('/api/thought-writer/entries', methods = ['GET'])
 def entries():
     if request.method == 'GET':
