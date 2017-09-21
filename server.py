@@ -79,12 +79,12 @@ def login_route():
             return make_response('Username does not exist', 400)
 
 
-@app.route('/api/canvashare/drawing/<painter_name>/<image_name>', methods = ['POST', 'GET'])
-def drawing(painter_name, image_name):
+@app.route('/api/canvashare/drawing/<artist_name>/<drawing_name>', methods = ['POST', 'GET'])
+def drawing(artist_name, drawing_name):
     if request.method == 'POST':
-        return canvashare.add_drawing(painter_name, image_name)
+        return canvashare.add_drawing(artist_name, drawing_name)
     if request.method == 'GET':
-        return canvashare.get_drawing(painter_name, image_name)
+        return canvashare.get_drawing(artist_name, drawing_name)
 
 
 @app.route('/api/canvashare/gallery', methods = ['GET'])
@@ -93,18 +93,18 @@ def gallery():
         return canvashare.get_all_drawings()
 
 
-@app.route('/api/canvashare/gallery/<painter_name>', methods = ['GET'])
-def user_gallery(painter_name):
+@app.route('/api/canvashare/gallery/<artist_name>', methods = ['GET'])
+def user_gallery(artist_name):
     if request.method == 'GET':
-        return canvashare.get_all_user_drawings(painter_name)
+        return canvashare.get_all_user_drawings(artist_name)
 
 
-@app.route('/api/canvashare/drawinginfo/<painter_name>/<info_name>', methods = ['POST', 'GET'])
-def drawing_info(painter_name, info_name):
+@app.route('/api/canvashare/drawinginfo/<artist_name>/<info_name>', methods = ['POST', 'GET'])
+def drawing_info(artist_name, info_name):
     if request.method == 'POST':
-        return canvashare.update_drawing_info(painter_name, info_name)
+        return canvashare.update_drawing_info(artist_name, info_name)
     if request.method == 'GET':
-        return canvashare.get_drawing_info(painter_name, info_name)
+        return canvashare.get_drawing_info(artist_name, info_name)
 
 
 @app.route('/api/shapes-in-rain', methods = ['POST', 'GET'])
