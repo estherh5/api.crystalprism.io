@@ -19,28 +19,29 @@ from user import user
 
 app = Flask(__name__)
 app.config['DEBUG'] = True
+# Only allow Production server access for requests coming from api.crystalprism.io
 if os.environ['ENV_TYPE'] == 'Production':
     cors = CORS(app, resources = {r"/api/*": {"origins": r"https://api.crystalprism.io"}})
 elif os.environ['ENV_TYPE'] == 'Dev':
     cors = CORS(app, resources = {r"/api/*": {"origins": "*"}})
 
 
-@app.route('/api/user', methods = ['POST', 'GET'])
-def user_route():
+@app.route('/api/user', methods = ['POST', 'GET', 'PUT', 'DELETE'])
+def user_info():
     if request.method == 'POST':
         return user.create_user()
     if request.method == 'GET':
-        return user.read_users()
-
-
-@app.route('/api/user/<user_id>', methods = ['GET', 'PUT', 'DELETE'])
-def user_info(user_id):
-    if request.method == 'GET':
-        return user.read_user(user_id)
+        return user.read_user()
     if request.method == 'PUT':
-        return user.update_user(user_id)
+        return user.update_user()
     if request.method == 'DELETE':
-        return user.delete_user(user_id)
+        return user.delete_user()
+
+
+@app.route('/api/user/<username>', methods = ['GET'])
+def user_info_public(username):
+    if request.method == 'GET':
+        return user.read_user_public(username)
 
 
 @app.route('/api/user/verify', methods = ['GET'])
@@ -49,27 +50,39 @@ def verify_user_token():
         return user.verify_token()
 
 
+@app.route('/api/users', methods = ['GET'])
+def users_info():
+    if request.method == 'GET':
+        return user.read_users()
+
+
 @app.route('/api/login', methods = ['GET'])
 def login_route():
     if request.method == 'GET':
         data = request.authorization
         username = data.username
         password = data.password
+        # Check that authorization request contains required data (header, username, password)
         if not data or not data.username or not data.password:
             return make_response('Could not verify', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
-        with open(os.path.dirname(__file__) + '/user/users.json') as users_file:
-            content = json.load(users_file)
-            for info in content:
-                if info['username'].lower() == username.lower():
-                    salt = info['salt'].encode()
+        with open(os.path.dirname(__file__) + '/user/users.json', 'r') as users_file:
+            users = json.load(users_file)
+            for user_data in users:
+                if user_data['username'].lower() == username.lower():
+                    # Reject requests for logging into deleted user accounts
+                    if user_data['status'] == 'deleted':
+                        return make_response('Username does not exist', 400)
+                    # Check requested password against stored hashed and salted password
+                    salt = user_data['salt'].encode()
                     password = password.encode()
                     hashed_password = sha512(salt + password).hexdigest()
-                    if info['password'] == hashed_password:
+                    # Generate JWT token if password is correct
+                    if user_data['password'] == hashed_password:
                         header = b'{"alg": "HS256", "typ": "JWT"}'
                         payload = json.dumps({'username': username, 'exp': math.floor(time() + (60 * 60))}).encode()
                         secret = b'MySecret'
                         message = base64.urlsafe_b64encode(header) + b'.' + base64.urlsafe_b64encode(payload)
-                        signature = hmac.new(secret, message, digestmod=hashlib.sha256).digest()
+                        signature = hmac.new(secret, message, digestmod = hashlib.sha256).digest()
                         signature = base64.urlsafe_b64encode(signature)
                         token = message + b'.' + signature
                         response = {'token': token.decode()}
@@ -79,83 +92,79 @@ def login_route():
             return make_response('Username does not exist', 400)
 
 
-@app.route('/api/canvashare/drawing/<artist_name>/<drawing_name>', methods = ['POST', 'GET'])
-def drawing(artist_name, drawing_name):
+@app.route('/api/canvashare/drawing/<artist>/<drawing_name>', methods = ['POST', 'GET'])
+def drawing(artist, drawing_name):
     if request.method == 'POST':
-        return canvashare.add_drawing(artist_name, drawing_name)
+        return canvashare.create_drawing(artist, drawing_name)
     if request.method == 'GET':
-        return canvashare.get_drawing(artist_name, drawing_name)
+        return canvashare.read_drawing(artist, drawing_name)
+
+
+@app.route('/api/canvashare/drawing-info/<artist>/<drawing_name>', methods = ['POST', 'GET'])
+def drawing_info(artist, drawing_name):
+    if request.method == 'POST':
+        return canvashare.update_drawing_info(artist, drawing_name)
+    if request.method == 'GET':
+        return canvashare.read_drawing_info(artist, drawing_name)
 
 
 @app.route('/api/canvashare/gallery', methods = ['GET'])
 def gallery():
     if request.method == 'GET':
-        return canvashare.get_all_drawings()
+        return canvashare.read_all_drawings()
 
 
-@app.route('/api/canvashare/gallery/<artist_name>', methods = ['GET'])
-def user_gallery(artist_name):
+@app.route('/api/canvashare/gallery/<artist>', methods = ['GET'])
+def user_gallery(artist):
     if request.method == 'GET':
-        return canvashare.get_all_user_drawings(artist_name)
-
-
-@app.route('/api/canvashare/drawinginfo/<artist_name>/<info_name>', methods = ['POST', 'GET'])
-def drawing_info(artist_name, info_name):
-    if request.method == 'POST':
-        return canvashare.update_drawing_info(artist_name, info_name)
-    if request.method == 'GET':
-        return canvashare.get_drawing_info(artist_name, info_name)
+        return canvashare.read_all_user_drawings(artist)
 
 
 @app.route('/api/shapes-in-rain', methods = ['POST', 'GET'])
 def shapes_leaders():
     if request.method == 'POST':
-        return shapes_in_rain.add_leader()
+        return shapes_in_rain.create_leader()
     if request.method == 'GET':
-        return shapes_in_rain.get_leaders()
+        return shapes_in_rain.read_leaders()
 
 
 @app.route('/api/rhythm-of-life', methods = ['POST', 'GET'])
 def rhythm_leaders():
     if request.method == 'POST':
-        return rhythm_of_life.add_leader()
+        return rhythm_of_life.create_leader()
     if request.method == 'GET':
-        return rhythm_of_life.get_leaders()
+        return rhythm_of_life.read_leaders()
 
 
-@app.route('/api/thought-writer/thoughts', methods = ['POST', 'PUT', 'DELETE'])
-def thoughts():
+@app.route('/api/thought-writer/post', methods = ['POST', 'GET', 'PUT', 'DELETE'])
+def post():
     if request.method == 'POST':
-        return thought_writer.add_entry()
+        return thought_writer.create_post()
+    if request.method == 'GET':
+        return thought_writer.read_post()
     if request.method == 'PUT':
-        return thought_writer.update_entry()
+        return thought_writer.update_post()
     if request.method == 'DELETE':
-        return thought_writer.del_entry()
+        return thought_writer.delete_post()
 
 
-@app.route('/api/thought-writer/thoughts/<writer_id>/<timestamp>', methods = ['GET'])
-def thought(writer_id, timestamp):
-    if request.method == 'GET':
-        return thought_writer.get_entry(writer_id, timestamp)
-
-
-@app.route('/api/thought-writer/comments', methods = ['POST', 'PUT', 'DELETE'])
-def comments():
+@app.route('/api/thought-writer/comment', methods = ['POST', 'PUT', 'DELETE'])
+def comment():
     if request.method == 'POST':
-        return thought_writer.add_comment()
+        return thought_writer.create_comment()
     if request.method == 'PUT':
         return thought_writer.update_comment()
     if request.method == 'DELETE':
-        return thought_writer.del_comment()
+        return thought_writer.delete_comment()
 
 
-@app.route('/api/thought-writer/entries', methods = ['GET'])
-def entries():
+@app.route('/api/thought-writer/post-board', methods = ['GET'])
+def post_board():
     if request.method == 'GET':
-        return thought_writer.get_all_entries()
+        return thought_writer.read_all_posts()
 
 
-@app.route('/api/thought-writer/entries/<writer_id>', methods = ['GET'])
-def user_entries(writer_id):
+@app.route('/api/thought-writer/post-board/<writer>', methods = ['GET'])
+def user_post_board(writer):
     if request.method == 'GET':
-        return thought_writer.get_all_user_entries(writer_id)
+        return thought_writer.read_all_user_posts(writer)
