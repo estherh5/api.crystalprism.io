@@ -10,38 +10,33 @@ from user import user
 def create_leader():
     data = request.get_json()
     timestamp = json.dumps(datetime.now(timezone.utc).isoformat(), default = user.timeconvert)
-    # Update player's user account with score data if player has a user account
-    if data['status'] == 'user':
-        verification = user.verify_token()
-        if verification.status.split(' ')[0] != '200':
-            return make_response('Could not verify', 401)
-        payload = json.loads(verification.data.decode())
-        requester = payload['username']
-        with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
-            users = json.load(users_file)
-            for user_data in users:
-                if user_data['username'].lower() == requester.lower():
-                    # Convert username to member_id for player storage
-                    player = user_data['member_id']
-                    # Increment number of game plays by 1
-                    user_data['rhythm_plays'] = int(user_data['rhythm_plays']) + 1
-                    # Save current score as user's high score if it is higher than the current high score
-                    if int(user_data['rhythm_high_score']) < int(data['score']):
-                        user_data['rhythm_high_score'] = data['score']
-                        user_data['rhythm_high_lifespan'] = data['lifespan']
-                    # Add score data to user's stored game scores and sort game scores by highest to lowest
-                    user_data['rhythm_scores'].append({'timestamp': timestamp, 'score': data['score'], 'lifespan': data['lifespan']})
-                    user_data['rhythm_scores'].sort(key = itemgetter('score'), reverse = True)
-        with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
-            json.dump(users, users_file)
-        entry = {'timestamp': timestamp, 'score': data['score'], 'lifespan': data['lifespan'], 'player': player, 'status': data['status']}
-    # Use player's free-text name as the player listed in score data for game leaders file
-    else:
-        entry = {'timestamp': timestamp, 'score': data['score'], 'lifespan': data['lifespan'], 'player': data['player'], 'status': data['status']}
+    # Update player's user account with score data
+    verification = user.verify_token()
+    if verification.status.split(' ')[0] != '200':
+        return make_response('Could not verify', 401)
+    payload = json.loads(verification.data.decode())
+    requester = payload['username']
+    with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
+        users = json.load(users_file)
+        for user_data in users:
+            if user_data['username'].lower() == requester.lower():
+                # Convert username to member_id for player storage
+                player = user_data['member_id']
+                # Increment number of game plays by 1
+                user_data['rhythm_plays'] = int(user_data['rhythm_plays']) + 1
+                # Save current score as user's high score if it is higher than the current high score
+                if int(user_data['rhythm_high_score']) < int(data['score']):
+                    user_data['rhythm_high_score'] = data['score']
+                    user_data['rhythm_high_lifespan'] = data['lifespan']
+                # Add score data to user's stored game scores and sort game scores by highest to lowest
+                user_data['rhythm_scores'].append({'timestamp': timestamp, 'score': data['score'], 'lifespan': data['lifespan']})
+                user_data['rhythm_scores'].sort(key = itemgetter('score'), reverse = True)
+    with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
+        json.dump(users, users_file)
     # Add score to game leaders file
     with open(os.path.dirname(__file__) + '/leaders.json', 'r') as leaders_file:
         leaders = json.load(leaders_file)
-        leaders.append(entry)
+        leaders.append({'timestamp': timestamp, 'score': data['score'], 'lifespan': data['lifespan'], 'player': player})
     with open(os.path.dirname(__file__) + '/leaders.json', 'w') as leaders_file:
         json.dump(leaders, leaders_file)
     return make_response('Success!', 200)
