@@ -35,7 +35,7 @@ def create_user():
         salt = b64encode(os.urandom(32))
         # Hash password with SHA512 cryptographic hash function
         hashed_password = sha512(salt + password).hexdigest()
-        entry = {'member_id': member_id, 'status': 'active', 'username': username, 'password': hashed_password, 'salt': salt.decode(), 'admin': False, 'member_since': json.dumps(datetime.now(timezone.utc).isoformat(), default = timeconvert), 'first_name': '', 'last_name': '', 'name_public': False, 'email': '', 'email_public': False, 'background_color': '#ffffff', 'icon_color': '#000000', 'about': '', 'shapes_plays': 0, 'shapes_scores': [], 'shapes_high_score': 0, 'rhythm_plays': 0, 'rhythm_scores': [], 'rhythm_high_score': 0, 'rhythm_high_lifespan': '00:00:00', 'created_drawings': [], 'liked_drawings': [], 'post_number': 0}
+        entry = {'member_id': member_id, 'status': 'active', 'username': username, 'password': hashed_password, 'salt': salt.decode(), 'admin': False, 'member_since': json.dumps(datetime.now(timezone.utc).isoformat(), default = timeconvert), 'first_name': '', 'last_name': '', 'name_public': False, 'email': '', 'email_public': False, 'background_color': '#ffffff', 'icon_color': '#000000', 'about': '', 'shapes_plays': 0, 'shapes_scores': [], 'shapes_high_score': 0, 'rhythm_plays': 0, 'rhythm_scores': [], 'rhythm_high_score': 0, 'rhythm_high_lifespan': '00:00:00', 'drawing_number': 0, 'liked_drawings': [], 'post_number': 0}
         users.append(entry)
     with open(os.path.dirname(__file__) + '/users.json', 'w') as users_file:
         json.dump(users, users_file)
@@ -136,7 +136,7 @@ def read_user_public(username):
                     email = user_data['email']
                 else:
                     email = ''
-                data = {'name': name, 'email': email, 'background_color': user_data['background_color'], 'icon_color': user_data['icon_color'], 'about': user_data['about'], 'member_since': user_data['member_since'], 'shapes_high_score': user_data['shapes_high_score'], 'rhythm_high_lifespan': user_data['rhythm_high_lifespan'], 'created_drawings': user_data['created_drawings']}
+                data = {'name': name, 'email': email, 'background_color': user_data['background_color'], 'icon_color': user_data['icon_color'], 'about': user_data['about'], 'member_since': user_data['member_since'], 'shapes_high_score': user_data['shapes_high_score'], 'rhythm_high_lifespan': user_data['rhythm_high_lifespan'], 'drawing_number': user_data['drawing_number']}
                 return jsonify(data)
         return make_response('Username does not exist', 400)
 
