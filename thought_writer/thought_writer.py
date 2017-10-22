@@ -23,7 +23,7 @@ def create_post():
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
         json.dump(users, users_file)
     data = request.get_json()
-    timestamp = json.dumps(datetime.now(timezone.utc).isoformat(), default = user.timeconvert)
+    timestamp = datetime.now(timezone.utc).isoformat()
     post = {'title': data['title'], 'timestamp': timestamp, 'content': data['content'], 'public': data['public'], 'comments': []}
     # Add post to private user file if it exists or generate new file for first-time posting
     if os.path.exists(os.path.dirname(__file__) + '/' + writer + '.json'):
@@ -194,7 +194,7 @@ def create_comment():
             if user_data['username'].lower() == request.args.get('writer'):
                 writer = user_data['member_id']
     data = request.get_json()
-    timestamp = json.dumps(datetime.now(timezone.utc).isoformat(), default = user.timeconvert)
+    timestamp = datetime.now(timezone.utc).isoformat()
     comment = {'commenter': commenter, 'timestamp': timestamp, 'content': data['content']}
     # Add comment to post's entry in public file
     with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
@@ -231,8 +231,8 @@ def update_comment():
                 writer = user_data['member_id']
     data = request.get_json()
     old_timestamp = data['timestamp']
-    new_timestamp = json.dumps(datetime.now(timezone.utc).isoformat(), default = user.timeconvert)
-    # Update comment in post's entry in public file, locating comment by commenter and previous timestamp
+    new_timestamp = datetime.now(timezone.utc).isoformat()
+    # Update comment in post's entry in public file, locating comment by commenter and previous timestaxmp
     with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
         public_posts = json.load(public_file)
         for post in public_posts:

@@ -14,11 +14,6 @@ from hashlib import sha256, sha512
 from time import time
 
 
-# Make datetime object JSON serializable
-def timeconvert(obj):
-    if isinstance(obj, datetime):
-        return obj.__str__()
-
 def create_user():
     data = request.get_json()
     username = data['username']
@@ -35,7 +30,7 @@ def create_user():
         salt = b64encode(os.urandom(32))
         # Hash password with SHA512 cryptographic hash function
         hashed_password = sha512(salt + password).hexdigest()
-        entry = {'member_id': member_id, 'status': 'active', 'username': username, 'password': hashed_password, 'salt': salt.decode(), 'admin': False, 'member_since': json.dumps(datetime.now(timezone.utc).isoformat(), default = timeconvert), 'first_name': '', 'last_name': '', 'name_public': False, 'email': '', 'email_public': False, 'background_color': '#ffffff', 'icon_color': '#000000', 'about': '', 'shapes_plays': 0, 'shapes_scores': [], 'shapes_high_score': 0, 'rhythm_plays': 0, 'rhythm_scores': [], 'rhythm_high_score': 0, 'rhythm_high_lifespan': '00:00:00', 'drawing_number': 0, 'liked_drawings': [], 'post_number': 0}
+        entry = {'member_id': member_id, 'status': 'active', 'username': username, 'password': hashed_password, 'salt': salt.decode(), 'admin': False, 'member_since': datetime.now(timezone.utc).isoformat(), 'first_name': '', 'last_name': '', 'name_public': False, 'email': '', 'email_public': False, 'background_color': '#ffffff', 'icon_color': '#000000', 'about': '', 'shapes_plays': 0, 'shapes_scores': [], 'shapes_high_score': 0, 'rhythm_plays': 0, 'rhythm_scores': [], 'rhythm_high_score': 0, 'rhythm_high_lifespan': '00:00:00', 'drawing_number': 0, 'liked_drawings': [], 'post_number': 0}
         users.append(entry)
     with open(os.path.dirname(__file__) + '/users.json', 'w') as users_file:
         json.dump(users, users_file)

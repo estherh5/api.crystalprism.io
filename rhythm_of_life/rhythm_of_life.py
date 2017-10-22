@@ -9,7 +9,7 @@ from user import user
 
 def create_leader():
     data = request.get_json()
-    timestamp = json.dumps(datetime.now(timezone.utc).isoformat(), default = user.timeconvert)
+    timestamp = datetime.now(timezone.utc).isoformat()
     # Update player's user account with score data
     verification = user.verify_token()
     if verification.status.split(' ')[0] != '200':

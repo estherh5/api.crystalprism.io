@@ -14,7 +14,7 @@ def create_leader():
         return make_response('Could not verify', 401)
     payload = json.loads(verification.data.decode())
     requester = payload['username']
-    timestamp = json.dumps(datetime.now(timezone.utc).isoformat(), default = user.timeconvert)
+    timestamp = datetime.now(timezone.utc).isoformat()
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:

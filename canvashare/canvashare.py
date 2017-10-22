@@ -41,8 +41,8 @@ def create_drawing(artist, drawing_id):
         os.makedirs(os.path.dirname(__file__) + '/drawing_info/' + artist)
     # Save drawing information as JSON file in artist's drawing_info folder
     with open(os.path.dirname(__file__) + '/drawing_info/' + artist + '/' + drawing_number + '.json', 'w') as info_file:
-        drawing_info = {'title': drawing_id, 'timestamp': json.dumps(datetime.now(timezone.utc).isoformat(), default = user.timeconvert), 'likes': 0, 'views': 0, 'liked_users': []}
-        json.dump(json.dumps(drawing_info), info_file)
+        drawing_info = {'title': drawing_id, 'timestamp': datetime.now(timezone.utc).isoformat(), 'likes': 0, 'views': 0, 'liked_users': []}
+        json.dump(drawing_info, info_file)
     return make_response('Success!', 200)
 
 def read_drawing(artist, drawing_id):
@@ -67,11 +67,10 @@ def update_drawing_info(artist, drawing_id):
                     artist = user_data['member_id']
         with open(os.path.dirname(__file__) + '/drawing_info/' + artist + '/' + drawing_id + '.json', 'r') as info_file:
             drawing_info = json.load(info_file)
-            drawing_info = json.loads(drawing_info)
             # Increment drawing's views by 1 if the request's number of views is greater than the drawing's current number of views
             drawing_info['views'] = int(drawing_info['views']) + 1
         with open(os.path.dirname(__file__) + '/drawing_info/' + artist + '/' + drawing_id + '.json', 'w') as info_file:
-            json.dump(json.dumps(drawing_info), info_file)
+            json.dump(drawing_info, info_file)
         return make_response('Success!', 200)
     # Otherwise, request is for liking/unliking drawing, so verify that user is logged in first
     verification = user.verify_token()
@@ -90,7 +89,6 @@ def update_drawing_info(artist, drawing_id):
                 liker = user_data['member_id']
     with open(os.path.dirname(__file__) + '/drawing_info/' + artist + '/' + drawing_id + '.json', 'r') as info_file:
         drawing_info = json.load(info_file)
-        drawing_info = json.loads(drawing_info)
         # Decrement drawing's likes by 1 and remove liker from the drawing's liked users if the request is to unlike drawing
         if data['request'] == 'unlike':
             drawing_info['likes'] = int(drawing_info['likes']) - 1
@@ -116,7 +114,7 @@ def update_drawing_info(artist, drawing_id):
             with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
                 json.dump(users, users_file)
     with open(os.path.dirname(__file__) + '/drawing_info/' + artist + '/' + drawing_id + '.json', 'w') as info_file:
-        json.dump(json.dumps(drawing_info), info_file)
+        json.dump(drawing_info, info_file)
         return make_response('Success!', 200)
 
 def read_drawing_info(artist, drawing_id):
@@ -129,7 +127,6 @@ def read_drawing_info(artist, drawing_id):
     # Return specified drawing information file by drawing name
     with open(os.path.dirname(__file__) + '/drawing_info/' + artist + '/' + drawing_id + '.json', 'r') as info_file:
         drawing_info = json.load(info_file)
-        drawing_info = json.loads(drawing_info)
         # Replace member_id with username for each user in drawing's liked users list
         for i in range(len(drawing_info['liked_users'])):
             with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
@@ -137,7 +134,7 @@ def read_drawing_info(artist, drawing_id):
                 for user_data in users:
                     if user_data['member_id'] == drawing_info['liked_users'][i]:
                         drawing_info['liked_users'][i] = user_data['username']
-        return jsonify(json.dumps(drawing_info))
+        return jsonify(drawing_info)
 
 def read_all_drawings():
     # Get number of requested drawings from query parameters
