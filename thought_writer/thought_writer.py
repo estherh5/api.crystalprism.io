@@ -156,7 +156,7 @@ def delete_post():
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
                 writer = user_data['member_id']
-                user_data['post_number'] = int(info['post_number']) - 1
+                user_data['post_number'] = int(user_data['post_number']) - 1
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
         json.dump(users, users_file)
     # Remove post from user's private file
@@ -307,6 +307,8 @@ def read_all_posts():
         # Sort posts by timestamp, with newest posts first
         public_posts.sort(key = itemgetter('timestamp'), reverse = True)
         for post in public_posts[request_start:request_end]:
+            # Sort post comments by timestamp, with newest comments first
+            post['comments'].sort(key = itemgetter('timestamp'), reverse = True)
             # Replace member_id with writer's username for each retrieved post
             with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json') as users_file:
                 users = json.load(users_file)
@@ -336,20 +338,22 @@ def read_all_user_posts(writer):
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == writer.lower():
-                writer = user_data['member_id']
+                writer_id = user_data['member_id']
     verification = user.verify_token()
     # Return specified number of posts from writer's private file if verification is successful and requester is the writer
     if verification.status.split(' ')[0] == '200':
         payload = json.loads(verification.data.decode())
         requester = payload['username']
         if requester == writer:
-            if os.path.exists(os.path.dirname(__file__) + '/' + writer + '.json'):
-                with open(os.path.dirname(__file__) + '/' + writer + '.json', 'r') as private_file:
+            if os.path.exists(os.path.dirname(__file__) + '/' + writer_id + '.json'):
+                with open(os.path.dirname(__file__) + '/' + writer_id + '.json', 'r') as private_file:
                     private_posts = json.load(private_file)
                     # Sort posts by timestamp, with newest posts first
                     private_posts.sort(key = itemgetter('timestamp'), reverse = True)
                     # Replace member_id with commenter's username for each retrieved post's comments
                     for post in private_posts[request_start:request_end]:
+                        # Sort post comments by timestamp, with newest comments first
+                        post['comments'].sort(key = itemgetter('timestamp'), reverse = True)
                         for comment in post['comments']:
                             with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json') as users_file:
                                 users = json.load(users_file)
@@ -360,14 +364,16 @@ def read_all_user_posts(writer):
             else:
                 return make_response('No posts for this user', 400)
     # Return specified number of public posts from writer's private file otherwise
-    if os.path.exists(os.path.dirname(__file__) + '/' + writer + '.json'):
-        with open(os.path.dirname(__file__) + '/' + writer + '.json', 'r') as private_file:
+    if os.path.exists(os.path.dirname(__file__) + '/' + writer_id + '.json'):
+        with open(os.path.dirname(__file__) + '/' + writer_id + '.json', 'r') as private_file:
             private_posts = json.load(private_file)
             public_posts = [post for post in private_posts if post['public'] == True]
             # Sort posts by timestamp, with newest posts first
             public_posts.sort(key = itemgetter('timestamp'), reverse = True)
             # Replace member_id with commenter's username for each retrieved post's comments
             for post in public_posts[request_start:request_end]:
+                # Sort post comments by timestamp, with newest comments first
+                post['comments'].sort(key = itemgetter('timestamp'), reverse = True)
                 for comment in post['comments']:
                     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json') as users_file:
                         users = json.load(users_file)
