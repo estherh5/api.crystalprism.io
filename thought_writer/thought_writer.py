@@ -187,12 +187,15 @@ def create_comment():
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json') as users_file:
         users = json.load(users_file)
         for user_data in users:
-            # Convert requester's username to member_id for comment storage
+            # Convert requester's username to member_id for comment storage and increase comment number
             if user_data['username'].lower() == requester.lower():
                 commenter = user_data['member_id']
+                user_data['comment_number'] = int(user_data['comment_number']) + 1
             # Convert writer's username to member_id for post retrieval
             if user_data['username'].lower() == request.args.get('writer'):
                 writer = user_data['member_id']
+    with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
+        json.dump(users, users_file)
     data = request.get_json()
     timestamp = datetime.now(timezone.utc).isoformat()
     comment = {'commenter': commenter, 'timestamp': timestamp, 'content': data['content']}
@@ -267,12 +270,15 @@ def delete_comment():
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json') as users_file:
         users = json.load(users_file)
         for user_data in users:
-            # Convert requester's username to member_id for comment retrieval
+            # Convert requester's username to member_id for comment retrieval and decrease comment number
             if user_data['username'].lower() == requester.lower():
                 commenter = user_data['member_id']
+                user_data['comment_number'] = int(user_data['comment_number']) - 1
             # Convert writer's username to member_id for post retrieval
             if user_data['username'].lower() == request.args.get('writer'):
                 writer = user_data['member_id']
+    with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
+        json.dump(users, users_file)
     data = request.get_json()
     # Remove comment in post's entry in public file, locating comment by commenter and timestamp
     with open(os.path.dirname(__file__) + '/public/public.json') as public_file:
