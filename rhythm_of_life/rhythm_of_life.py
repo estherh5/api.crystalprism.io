@@ -1,3 +1,4 @@
+import fcntl
 import json
 import os
 
@@ -17,6 +18,8 @@ def create_leader():
     payload = json.loads(verification.data.decode())
     requester = payload['username']
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
@@ -33,12 +36,18 @@ def create_leader():
                 user_data['rhythm_scores'].sort(key = itemgetter('score'), reverse = True)
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
         json.dump(users, users_file)
+        # Release lock on file
+        fcntl.flock(users_file, fcntl.LOCK_UN)
     # Add score to game leaders file
     with open(os.path.dirname(__file__) + '/leaders.json', 'r') as leaders_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(leaders_file, fcntl.LOCK_EX)
         leaders = json.load(leaders_file)
         leaders.append({'timestamp': timestamp, 'score': data['score'], 'lifespan': data['lifespan'], 'player': player})
     with open(os.path.dirname(__file__) + '/leaders.json', 'w') as leaders_file:
         json.dump(leaders, leaders_file)
+        # Release lock on file
+        fcntl.flock(leaders_file, fcntl.LOCK_UN)
     return make_response('Success!', 200)
 
 def read_leaders():

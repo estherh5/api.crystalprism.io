@@ -1,4 +1,5 @@
 import base64
+import fcntl
 import glob
 import json
 import os
@@ -17,6 +18,8 @@ def create_drawing(artist, drawing_id):
     requester = payload['username']
     # Convert username to member_id for post storage and increase user's drawing count
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
@@ -26,6 +29,8 @@ def create_drawing(artist, drawing_id):
                 drawing_number = str(user_data['drawing_number'])
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
         json.dump(users, users_file)
+        # Release lock on file
+        fcntl.flock(users_file, fcntl.LOCK_UN)
     # Get JSON image data URL in base64 format from request
     data = request.get_json()
     # Create folder for artist's drawings if one does not already exist
@@ -66,11 +71,15 @@ def update_drawing_info(artist, drawing_id):
                 if user_data['username'].lower() == artist.lower():
                     artist = user_data['member_id']
         with open(os.path.dirname(__file__) + '/drawing_info/' + artist + '/' + drawing_id + '.json', 'r') as info_file:
+            # Lock file to prevent overwrite
+            fcntl.flock(info_file, fcntl.LOCK_EX)
             drawing_info = json.load(info_file)
             # Increment drawing's views by 1 if the request's number of views is greater than the drawing's current number of views
             drawing_info['views'] = int(drawing_info['views']) + 1
         with open(os.path.dirname(__file__) + '/drawing_info/' + artist + '/' + drawing_id + '.json', 'w') as info_file:
             json.dump(drawing_info, info_file)
+            # Release lock on file
+            fcntl.flock(info_file, fcntl.LOCK_UN)
         return make_response('Success!', 200)
     # Otherwise, request is for liking/unliking drawing, so verify that user is logged in first
     verification = user.verify_token()
@@ -88,6 +97,8 @@ def update_drawing_info(artist, drawing_id):
             if user_data['username'].lower() == requester.lower():
                 liker = user_data['member_id']
     with open(os.path.dirname(__file__) + '/drawing_info/' + artist + '/' + drawing_id + '.json', 'r') as info_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(info_file, fcntl.LOCK_EX)
         drawing_info = json.load(info_file)
         # Decrement drawing's likes by 1 and remove liker from the drawing's liked users if the request is to unlike drawing
         if data['request'] == 'unlike':
@@ -95,26 +106,36 @@ def update_drawing_info(artist, drawing_id):
             drawing_info['liked_users'].remove(liker)
             # Remove drawing from liker's liked drawings list
             with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
+                # Lock file to prevent overwrite
+                fcntl.flock(users_file, fcntl.LOCK_EX)
                 users = json.load(users_file)
                 for user_data in users:
                     if user_data['member_id'] == liker:
                         user_data['liked_drawings'].remove(artist + '/' + drawing_id + '.png')
             with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
                 json.dump(users, users_file)
+                # Release lock on file
+                fcntl.flock(users_file, fcntl.LOCK_UN)
         # Increment drawing's likes by 1 and add liker to the drawing's liked users if the request is to like drawing
         if data['request'] == 'like':
             drawing_info['likes'] = int(drawing_info['likes']) + 1
             drawing_info['liked_users'].append(liker)
             # Add drawing to liker's liked drawings list
             with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
+                # Lock file to prevent overwrite
+                fcntl.flock(users_file, fcntl.LOCK_EX)
                 users = json.load(users_file)
                 for user_data in users:
                     if user_data['member_id'] == liker:
                         user_data['liked_drawings'].append(artist + '/' + drawing_id + '.png')
             with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
                 json.dump(users, users_file)
+                # Release lock on file
+                fcntl.flock(users_file, fcntl.LOCK_UN)
     with open(os.path.dirname(__file__) + '/drawing_info/' + artist + '/' + drawing_id + '.json', 'w') as info_file:
         json.dump(drawing_info, info_file)
+        # Release lock on file
+        fcntl.flock(info_file, fcntl.LOCK_UN)
         return make_response('Success!', 200)
 
 def read_drawing_info(artist, drawing_id):
