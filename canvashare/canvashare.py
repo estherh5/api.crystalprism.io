@@ -165,7 +165,7 @@ def read_all_drawings():
     # Set default number of retrieved drawings if not specified in query parameters
     else:
         request_start = 0
-        request_end = 12
+        request_end = 9
     # Get all drawings from all artist's folders
     all_drawings = glob.glob(os.path.dirname(__file__) + '/drawings/*/*', recursive = True)
     # Sort all drawings by newest to oldest creation time
@@ -190,7 +190,7 @@ def read_all_user_drawings(artist):
     # Set default number of retrieved drawings if not specified in query parameters
     else:
         request_start = 0
-        request_end = 11
+        request_end = 9
     # Convert artist's username to member_id for drawing retrieval
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
         users = json.load(users_file)

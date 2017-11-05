@@ -375,7 +375,7 @@ def read_all_posts():
     # Set default number of retrieved posts if not specified in query parameters
     else:
         request_start = 0
-        request_end = 11
+        request_end = 9
     # Return specified number of posts from public file
     with open(os.path.dirname(__file__) + '/public/public.json', 'r') as public_file:
         public_posts = json.load(public_file)
@@ -407,7 +407,7 @@ def read_all_user_posts(writer_name):
     # Set default number of retrieved posts if not specified in query parameters
     else:
         request_start = 0
-        request_end = 11
+        request_end = 9
     # Convert writer's username to member_id for post retrieval
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
         users = json.load(users_file)

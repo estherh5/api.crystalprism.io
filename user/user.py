@@ -172,12 +172,20 @@ def verify_token():
     return make_response(json.dumps(payload).encode(), 200)
 
 def read_users():
+    # Get number of requested users from query parameters
+    if request.args.get('start') is not None:
+        request_start = int(request.args.get('start'))
+        request_end = int(request.args.get('end'))
+    # Set default number of users if not specified in query parameters
+    else:
+        request_start = 0
+        request_end = 9
     verification = verify_token()
     # Return list of usernames for logged-in user
     if verification.status.split(' ')[0] == '200':
         with open(os.path.dirname(__file__) + '/users.json', 'r') as users_file:
             users = json.load(users_file)
-            usernames = [user_data['username'] for user_data in users]
-            return jsonify(usernames)
+            usernames = [user_data['username'] for user_data in users[request_start:request_end]]
+            return jsonify(usernames[request_start:request_end])
     else:
         return make_response('Access denied', 403)
