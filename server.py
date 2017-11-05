@@ -92,20 +92,24 @@ def login_route():
             return make_response('Username does not exist', 400)
 
 
-@app.route('/api/canvashare/drawing/<artist>/<drawing_id>', methods = ['POST', 'GET'])
-def drawing(artist, drawing_id):
+@app.route('/api/canvashare/drawing', methods = ['POST'])
+def drawing():
     if request.method == 'POST':
-        return canvashare.create_drawing(artist, drawing_id)
+        return canvashare.create_drawing()
+
+
+@app.route('/api/canvashare/drawing/<artist>/<drawing_file>', methods = ['GET'])
+def get_drawing(artist, drawing_file):
     if request.method == 'GET':
-        return canvashare.read_drawing(artist, drawing_id)
+        return canvashare.read_drawing(artist, drawing_file)
 
 
-@app.route('/api/canvashare/drawing-info/<artist>/<drawing_id>', methods = ['POST', 'GET'])
+@app.route('/api/canvashare/drawing-info/<artist>/<drawing_id>', methods = ['PUT', 'GET'])
 def drawing_info(artist, drawing_id):
-    if request.method == 'POST':
-        return canvashare.update_drawing_info(artist, drawing_id)
     if request.method == 'GET':
         return canvashare.read_drawing_info(artist, drawing_id)
+    if request.method == 'PUT':
+        return canvashare.update_drawing_info(artist, drawing_id)
 
 
 @app.route('/api/canvashare/gallery', methods = ['GET'])

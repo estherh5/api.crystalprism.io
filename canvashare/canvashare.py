@@ -10,7 +10,7 @@ from flask import jsonify, make_response, request, send_file
 from user import user
 
 
-def create_drawing(artist, drawing_id):
+def create_drawing():
     verification = user.verify_token()
     if verification.status.split(' ')[0] != '200':
         return make_response('Could not verify', 401)
@@ -46,11 +46,11 @@ def create_drawing(artist, drawing_id):
         os.makedirs(os.path.dirname(__file__) + '/drawing_info/' + artist)
     # Save drawing information as JSON file in artist's drawing_info folder
     with open(os.path.dirname(__file__) + '/drawing_info/' + artist + '/' + drawing_number + '.json', 'w') as info_file:
-        drawing_info = {'title': drawing_id, 'timestamp': datetime.now(timezone.utc).isoformat(), 'likes': 0, 'views': 0, 'liked_users': []}
+        drawing_info = {'title': data['title'], 'timestamp': datetime.now(timezone.utc).isoformat(), 'likes': 0, 'views': 0, 'liked_users': []}
         json.dump(drawing_info, info_file)
     return make_response('Success!', 200)
 
-def read_drawing(artist, drawing_id):
+def read_drawing(artist, drawing_file):
     # Return drawing file path as '[artist]/[drawing_id].png'
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
         users = json.load(users_file)
@@ -58,7 +58,26 @@ def read_drawing(artist, drawing_id):
         for user_data in users:
             if user_data['username'].lower() == artist.lower():
                 artist = user_data['member_id']
-    return send_file(os.path.dirname(__file__) + '/drawings/' + artist + '/' + drawing_id)
+    return send_file(os.path.dirname(__file__) + '/drawings/' + artist + '/' + drawing_file)
+
+def read_drawing_info(artist, drawing_id):
+    # Convert artist's username to member_id for drawing information retrieval
+    with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
+        users = json.load(users_file)
+        for user_data in users:
+            if user_data['username'].lower() == artist.lower():
+                artist = user_data['member_id']
+    # Return specified drawing information file by drawing name
+    with open(os.path.dirname(__file__) + '/drawing_info/' + artist + '/' + drawing_id + '.json', 'r') as info_file:
+        drawing_info = json.load(info_file)
+        # Replace member_id with username for each user in drawing's liked users list
+        for i in range(len(drawing_info['liked_users'])):
+            with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
+                users = json.load(users_file)
+                for user_data in users:
+                    if user_data['member_id'] == drawing_info['liked_users'][i]:
+                        drawing_info['liked_users'][i] = user_data['username']
+        return jsonify(drawing_info)
 
 def update_drawing_info(artist, drawing_id):
     data = request.get_json()
@@ -137,25 +156,6 @@ def update_drawing_info(artist, drawing_id):
         # Release lock on file
         fcntl.flock(info_file, fcntl.LOCK_UN)
         return make_response('Success!', 200)
-
-def read_drawing_info(artist, drawing_id):
-    # Convert artist's username to member_id for drawing information retrieval
-    with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            if user_data['username'].lower() == artist.lower():
-                artist = user_data['member_id']
-    # Return specified drawing information file by drawing name
-    with open(os.path.dirname(__file__) + '/drawing_info/' + artist + '/' + drawing_id + '.json', 'r') as info_file:
-        drawing_info = json.load(info_file)
-        # Replace member_id with username for each user in drawing's liked users list
-        for i in range(len(drawing_info['liked_users'])):
-            with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
-                users = json.load(users_file)
-                for user_data in users:
-                    if user_data['member_id'] == drawing_info['liked_users'][i]:
-                        drawing_info['liked_users'][i] = user_data['username']
-        return jsonify(drawing_info)
 
 def read_all_drawings():
     # Get number of requested drawings from query parameters
