@@ -57,54 +57,6 @@ def create_post():
             fcntl.flock(public_file, fcntl.LOCK_UN)
     return make_response(timestamp, 200)
 
-def read_post():
-    verification = user.verify_token()
-    # Retrieve post from private user file if user token is verified
-    if verification.status.split(' ')[0] == '200':
-        payload = json.loads(verification.data.decode())
-        requester = payload['username']
-        # Convert username to member_id for post retrieval
-        with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
-            users = json.load(users_file)
-            for user_data in users:
-                if user_data['username'].lower() == requester.lower():
-                    writer = user_data['member_id']
-        # Replace member_id with commenter's username for each retrieved post's comments
-        with open(os.path.dirname(__file__) + '/' + writer + '.json', 'r') as private_file:
-            private_posts = json.load(private_file)
-            for post in private_posts:
-                if post['timestamp'] == request.args.get('timestamp'):
-                    for comment in post['comments']:
-                        with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
-                            users = json.load(users_file)
-                            for user_data in users:
-                                if user_data['member_id'] == comment['commenter']:
-                                    comment['commenter'] = user_data['username']
-                    return jsonify(post)
-    # Retrieve post from public file if user token is not verified
-    else:
-        requested_writer = request.args.get('writer')
-        # Convert username to member_id for post retrieval
-        with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
-            users = json.load(users_file)
-            for user_data in users:
-                if user_data['username'].lower() == requested_writer.lower():
-                    writer = user_data['member_id']
-        # Replace member_ids with writer's username and with commenter's username for each retrieved post's comments
-        with open(os.path.dirname(__file__) + '/public/public.json', 'r') as public_file:
-            public_posts = json.load(public_file)
-            for post in public_posts:
-                if post['writer'] == writer and post['timestamp'] == request.args.get('timestamp'):
-                    post['writer'] = request.args.get('writer')
-                    for comment in post['comments']:
-                        with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
-                            users = json.load(users_file)
-                            for user_data in users:
-                                if user_data['member_id'] == comment['commenter']:
-                                    comment['commenter'] = user_data['username']
-                    return jsonify(post)
-    return make_response('No post found', 404)
-
 def update_post():
     verification = user.verify_token()
     if verification.status.split(' ')[0] != '200':
@@ -188,6 +140,7 @@ def delete_post():
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
+    data = request.get_json()
     # Remove post from user's private file
     with open(os.path.dirname(__file__) + '/' + writer + '.json', 'r') as private_file:
         # Lock file to prevent overwrite
@@ -195,9 +148,9 @@ def delete_post():
         private_posts = json.load(private_file)
         # Get post's public status to see if it should also be removed from public file
         for post in private_posts:
-            if post['timestamp'] == request.args.get('timestamp'):
+            if post['timestamp'] == data['timestamp']:
                 public = post['public']
-        private_posts = [post for post in private_posts if post['timestamp'] != request.args.get('timestamp')]
+        private_posts = [post for post in private_posts if post['timestamp'] != data['timestamp']]
     with open(os.path.dirname(__file__) + '/' + writer + '.json', 'w') as private_file:
         json.dump(private_posts, private_file)
         # Release lock on file
@@ -208,14 +161,61 @@ def delete_post():
             # Lock file to prevent overwrite
             fcntl.flock(public_file, fcntl.LOCK_EX)
             public_posts = json.load(public_file)
-            public_posts = [post for post in public_posts if not (post['writer'] == writer and post['timestamp'] == request.args.get('timestamp'))]
+            public_posts = [post for post in public_posts if not (post['writer'] == writer and post['timestamp'] == data['timestamp'])]
         with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
             json.dump(public_posts, public_file)
             # Release lock on file
             fcntl.flock(public_file, fcntl.LOCK_UN)
     return make_response('Success', 200)
 
-def create_comment():
+def read_post(writer_name, post_timestamp):
+    verification = user.verify_token()
+    # Retrieve post from private user file if user token is verified
+    if verification.status.split(' ')[0] == '200':
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+        # Convert username to member_id for post retrieval
+        with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
+            users = json.load(users_file)
+            for user_data in users:
+                if user_data['username'].lower() == requester.lower():
+                    writer_id = user_data['member_id']
+        # Replace member_id with commenter's username for each retrieved post's comments
+        with open(os.path.dirname(__file__) + '/' + writer_id + '.json', 'r') as private_file:
+            private_posts = json.load(private_file)
+            for post in private_posts:
+                if post['timestamp'] == post_timestamp:
+                    for comment in post['comments']:
+                        with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
+                            users = json.load(users_file)
+                            for user_data in users:
+                                if user_data['member_id'] == comment['commenter']:
+                                    comment['commenter'] = user_data['username']
+                    return jsonify(post)
+    # Retrieve post from public file if user token is not verified
+    else:
+        # Convert username to member_id for post retrieval
+        with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
+            users = json.load(users_file)
+            for user_data in users:
+                if user_data['username'].lower() == writer_name.lower():
+                    writer_id = user_data['member_id']
+        # Replace member_ids with writer's username and with commenter's username for each retrieved post's comments
+        with open(os.path.dirname(__file__) + '/public/public.json', 'r') as public_file:
+            public_posts = json.load(public_file)
+            for post in public_posts:
+                if post['writer'] == writer_id and post['timestamp'] == post_timestamp:
+                    post['writer'] = writer_name
+                    for comment in post['comments']:
+                        with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
+                            users = json.load(users_file)
+                            for user_data in users:
+                                if user_data['member_id'] == comment['commenter']:
+                                    comment['commenter'] = user_data['username']
+                    return jsonify(post)
+    return make_response('No post found', 404)
+
+def create_comment(writer_name, post_timestamp):
     verification = user.verify_token()
     if verification.status.split(' ')[0] != '200':
         return make_response('Could not verify', 401)
@@ -231,7 +231,7 @@ def create_comment():
                 commenter = user_data['member_id']
                 user_data['comment_number'] = int(user_data['comment_number']) + 1
             # Convert writer's username to member_id for post retrieval
-            if user_data['username'].lower() == request.args.get('writer'):
+            if user_data['username'].lower() == writer_name.lower():
                 writer = user_data['member_id']
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
         json.dump(users, users_file)
@@ -246,7 +246,7 @@ def create_comment():
         fcntl.flock(public_file, fcntl.LOCK_EX)
         public_posts = json.load(public_file)
         for post in public_posts:
-            if post['writer'] == writer and post['timestamp'] == request.args.get('timestamp'):
+            if post['writer'] == writer and post['timestamp'] == post_timestamp:
                 post['comments'].append(comment)
     with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
         json.dump(public_posts, public_file)
@@ -258,7 +258,7 @@ def create_comment():
         fcntl.flock(private_file, fcntl.LOCK_EX)
         private_posts = json.load(private_file)
         for post in private_posts:
-            if post['timestamp'] == request.args.get('timestamp'):
+            if post['timestamp'] == post_timestamp:
                 post['comments'].append(comment)
     with open(os.path.dirname(__file__) + '/' + writer + '.json', 'w') as private_file:
         json.dump(private_posts, private_file)
@@ -266,7 +266,7 @@ def create_comment():
         fcntl.flock(private_file, fcntl.LOCK_UN)
     return make_response('Success', 200)
 
-def update_comment():
+def update_comment(writer_name, post_timestamp):
     verification = user.verify_token()
     if verification.status.split(' ')[0] != '200':
         return make_response('Could not verify', 401)
@@ -279,7 +279,7 @@ def update_comment():
             if user_data['username'].lower() == requester.lower():
                 commenter = user_data['member_id']
             # Convert writer's username to member_id for post retrieval
-            if user_data['username'].lower() == request.args.get('writer'):
+            if user_data['username'].lower() == writer_name.lower():
                 writer = user_data['member_id']
     data = request.get_json()
     old_timestamp = data['timestamp']
@@ -290,7 +290,7 @@ def update_comment():
         fcntl.flock(public_file, fcntl.LOCK_EX)
         public_posts = json.load(public_file)
         for post in public_posts:
-            if post['writer'] == writer and post['timestamp'] == request.args.get('timestamp'):
+            if post['writer'] == writer and post['timestamp'] == post_timestamp:
                 for comment in post['comments']:
                     if comment['commenter'] == commenter and comment['timestamp'] == old_timestamp:
                         # Update comment's timestamp to timestamp of update
@@ -306,7 +306,7 @@ def update_comment():
         fcntl.flock(private_file, fcntl.LOCK_EX)
         private_posts = json.load(private_file)
         for post in private_posts:
-            if post['timestamp'] == request.args.get('timestamp'):
+            if post['timestamp'] == post_timestamp:
                 for comment in post['comments']:
                     if comment['commenter'] == commenter and comment['timestamp'] == old_timestamp:
                         # Update comment's timestamp to timestamp of update
@@ -318,7 +318,7 @@ def update_comment():
         fcntl.flock(private_file, fcntl.LOCK_UN)
     return make_response('Success', 200)
 
-def delete_comment():
+def delete_comment(writer_name, post_timestamp):
     verification = user.verify_token()
     if verification.status.split(' ')[0] != '200':
         return make_response('Could not verify', 401)
@@ -334,7 +334,7 @@ def delete_comment():
                 commenter = user_data['member_id']
                 user_data['comment_number'] = int(user_data['comment_number']) - 1
             # Convert writer's username to member_id for post retrieval
-            if user_data['username'].lower() == request.args.get('writer'):
+            if user_data['username'].lower() == writer_name.lower():
                 writer = user_data['member_id']
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
         json.dump(users, users_file)
@@ -347,7 +347,7 @@ def delete_comment():
         fcntl.flock(public_file, fcntl.LOCK_EX)
         public_posts = json.load(public_file)
         for post in public_posts:
-            if post['writer'] == writer and post['timestamp'] == request.args.get('timestamp'):
+            if post['writer'] == writer and post['timestamp'] == post_timestamp:
                 post['comments'] = [comment for comment in post['comments'] if not (comment['commenter'] == commenter and comment['timestamp'] == data['timestamp'])]
     with open(os.path.dirname(__file__) + '/public/public.json', 'w') as public_file:
         json.dump(public_posts, public_file)
@@ -359,7 +359,7 @@ def delete_comment():
         fcntl.flock(private_file, fcntl.LOCK_EX)
         private_posts = json.load(private_file)
         for post in private_posts:
-            if post['timestamp'] == request.args.get('timestamp'):
+            if post['timestamp'] == post_timestamp:
                 post['comments'] = [comment for comment in post['comments'] if not (comment['commenter'] == commenter and comment['timestamp'] == data['timestamp'])]
     with open(os.path.dirname(__file__) + '/' + writer + '.json', 'w') as private_file:
         json.dump(private_posts, private_file)
@@ -399,7 +399,7 @@ def read_all_posts():
                             comment['commenter'] = user_data['username']
         return jsonify(public_posts[request_start:request_end])
 
-def read_all_user_posts(writer):
+def read_all_user_posts(writer_name):
     # Get number of requested posts from query parameters
     if request.args.get('start') is not None:
         request_start = int(request.args.get('start'))
@@ -412,14 +412,14 @@ def read_all_user_posts(writer):
     with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
-            if user_data['username'].lower() == writer.lower():
+            if user_data['username'].lower() == writer_name.lower():
                 writer_id = user_data['member_id']
     verification = user.verify_token()
     # Return specified number of posts from writer's private file if verification is successful and requester is the writer
     if verification.status.split(' ')[0] == '200':
         payload = json.loads(verification.data.decode())
         requester = payload['username']
-        if requester == writer:
+        if requester == writer_name:
             if os.path.exists(os.path.dirname(__file__) + '/' + writer_id + '.json'):
                 with open(os.path.dirname(__file__) + '/' + writer_id + '.json', 'r') as private_file:
                     private_posts = json.load(private_file)

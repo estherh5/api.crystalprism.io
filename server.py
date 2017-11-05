@@ -136,26 +136,30 @@ def rhythm_leaders():
         return rhythm_of_life.read_leaders()
 
 
-@app.route('/api/thought-writer/post', methods = ['POST', 'GET', 'PUT', 'DELETE'])
+@app.route('/api/thought-writer/post', methods = ['POST', 'PUT', 'DELETE'])
 def post():
     if request.method == 'POST':
         return thought_writer.create_post()
-    if request.method == 'GET':
-        return thought_writer.read_post()
     if request.method == 'PUT':
         return thought_writer.update_post()
     if request.method == 'DELETE':
         return thought_writer.delete_post()
 
 
-@app.route('/api/thought-writer/comment', methods = ['POST', 'PUT', 'DELETE'])
-def comment():
+@app.route('/api/thought-writer/post/<writer_name>/<post_timestamp>', methods = ['GET'])
+def get_post(writer_name, post_timestamp):
+    if request.method == 'GET':
+        return thought_writer.read_post(writer_name, post_timestamp)
+
+
+@app.route('/api/thought-writer/comment/<writer_name>/<post_timestamp>', methods = ['POST', 'PUT', 'DELETE'])
+def comment(writer_name, post_timestamp):
     if request.method == 'POST':
-        return thought_writer.create_comment()
+        return thought_writer.create_comment(writer_name, post_timestamp)
     if request.method == 'PUT':
-        return thought_writer.update_comment()
+        return thought_writer.update_comment(writer_name, post_timestamp)
     if request.method == 'DELETE':
-        return thought_writer.delete_comment()
+        return thought_writer.delete_comment(writer_name, post_timestamp)
 
 
 @app.route('/api/thought-writer/post-board', methods = ['GET'])
@@ -164,7 +168,7 @@ def post_board():
         return thought_writer.read_all_posts()
 
 
-@app.route('/api/thought-writer/post-board/<writer>', methods = ['GET'])
-def user_post_board(writer):
+@app.route('/api/thought-writer/post-board/<writer_name>', methods = ['GET'])
+def user_post_board(writer_name):
     if request.method == 'GET':
-        return thought_writer.read_all_user_posts(writer)
+        return thought_writer.read_all_user_posts(writer_name)
