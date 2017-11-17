@@ -138,7 +138,7 @@ def update_drawing_info(artist, drawing_id):
         # Increment drawing's likes by 1 and add liker to the drawing's liked users if the request is to like drawing
         if data['request'] == 'like':
             drawing_info['likes'] = int(drawing_info['likes']) + 1
-            drawing_info['liked_users'].append(liker)
+            drawing_info['liked_users'].insert(0, liker)
             # Add drawing to liker's liked drawings list
             with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
                 # Lock file to prevent overwrite
@@ -146,7 +146,7 @@ def update_drawing_info(artist, drawing_id):
                 users = json.load(users_file)
                 for user_data in users:
                     if user_data['member_id'] == liker:
-                        user_data['liked_drawings'].append(artist + '/' + drawing_id + '.png')
+                        user_data['liked_drawings'].insert(0, artist + '/' + drawing_id + '.png')
             with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
                 json.dump(users, users_file)
                 # Release lock on file
