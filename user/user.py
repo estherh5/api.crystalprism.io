@@ -21,9 +21,10 @@ def login():
     # Check that authorization request contains required data (header,
     # username, password)
     if not data or not data.username or not data.password:
-        return make_response('Could not verify', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
+        return make_response('Could not verify', 401,
+            {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
-    with open(os.path.dirname(__file__) + '/users.json', 'r') as users_file:
+    with open('users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == username.lower():
@@ -37,15 +38,18 @@ def login():
                 hashed_password = sha512(salt + password).hexdigest()
                 # Generate JWT token if password is correct
                 if user_data['password'] == hashed_password:
-                    header = b'{"alg": "HS256", "typ": "JWT"}'
-                    payload = json.dumps({
-                                          'username': username,
-                                          'exp': floor(time() + (60 * 60))
-                                          }).encode()
+                    header = urlsafe_b64encode(
+                        b'{"alg": "HS256", "typ": "JWT"}')
+                    payload = urlsafe_b64encode(
+                        json.dumps({
+                            'username': username,
+                            'exp': floor(time() + (60 * 60))
+                            }).encode()
+                        )
                     secret = b'MySecret'
-                    message = urlsafe_b64encode(header) + b'.'
-                              + urlsafe_b64encode(payload)
-                    signature = hmac.new(secret, message, digestmod = sha256).digest()
+                    message = header + b'.' + payload
+                    signature = hmac.new(secret, message,
+                        digestmod = sha256).digest()
                     signature = urlsafe_b64encode(signature)
                     token = message + b'.' + signature
                     response = {'token': token.decode()}
@@ -59,7 +63,7 @@ def create_user():
     data = request.get_json()
     username = data['username']
 
-    with open(os.path.dirname(__file__) + '/users.json', 'r') as users_file:
+    with open('users.json', 'r') as users_file:
         # Lock file to prevent overwrite
         fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
@@ -104,7 +108,7 @@ def create_user():
                  }
         users.append(entry)
 
-    with open(os.path.dirname(__file__) + '/users.json', 'w') as users_file:
+    with open('users.json', 'w') as users_file:
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
@@ -119,7 +123,7 @@ def read_user():
     payload = json.loads(verification.data.decode())
     requester = payload['username']
 
-    with open(os.path.dirname(__file__) + '/users.json', 'r') as users_file:
+    with open('users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
@@ -127,8 +131,10 @@ def read_user():
                 # user liked
                 for i in range(len(user_data['liked_drawings'])):
                     for artist in users:
-                        if artist['member_id'] == user_data['liked_drawings'][i].split('/', 1)[0]:
-                            user_data['liked_drawings'][i] = str(artist['username'] + '/' + user_data['liked_drawings'][i].split('/', 1)[1])
+                        liked_file = user_data['liked_drawings'][i].split('/')
+                        if artist['member_id'] == liked_file[-2]:
+                            user_data['liked_drawings'][i] = str(
+                                artist['username'] + '/' + liked_file[-1])
                 return jsonify(user_data)
 
 
@@ -142,7 +148,7 @@ def update_user():
     username = data['username']
     password = data['password']
 
-    with open(os.path.dirname(__file__) + '/users.json', 'r') as users_file:
+    with open('users.json', 'r') as users_file:
         # Lock file to prevent overwrite
         fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
@@ -169,22 +175,24 @@ def update_user():
                 user_data['about'] = data['about']
             # Update bearer token if user requests username update
             if username.lower() != requester.lower():
-                header = b'{"alg": "HS256", "typ": "JWT"}'
-                payload = json.dumps({
-                                      'username': username,
-                                      'exp': floor(time() + (60 * 60))
-                                      }).encode()
+                header = urlsafe_b64encode(b'{"alg": "HS256", "typ": "JWT"}')
+                payload = urlsafe_b64encode(
+                    json.dumps({
+                        'username': username,
+                        'exp': floor(time() + (60 * 60))
+                        }).encode()
+                    )
                 secret = b'MySecret'
-                message = urlsafe_b64encode(header) + b'.'
-                          + urlsafe_b64encode(payload)
-                signature = hmac.new(secret, message, digestmod = sha256).digest()
+                message = header + b'.' + payload
+                signature = hmac.new(secret, message,
+                    digestmod = sha256).digest()
                 signature = urlsafe_b64encode(signature)
                 token = message + b'.' + signature
                 response = token.decode()
             else:
                 response = 'Success'
 
-    with open(os.path.dirname(__file__) + '/users.json', 'w') as users_file:
+    with open('users.json', 'w') as users_file:
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
@@ -199,7 +207,7 @@ def delete_user():
     payload = json.loads(verification.data.decode())
     requester = payload['username']
 
-    with open(os.path.dirname(__file__) + '/users.json', 'r') as users_file:
+    with open('users.json', 'r') as users_file:
         # Lock file to prevent overwrite
         fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
@@ -207,7 +215,7 @@ def delete_user():
             if user_data['username'].lower() == requester.lower():
                 user_data['status'] = 'deleted'
 
-    with open(os.path.dirname(__file__) + '/users.json', 'w') as users_file:
+    with open('users.json', 'w') as users_file:
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
@@ -216,7 +224,7 @@ def delete_user():
 
 
 def read_user_public(username):
-    with open(os.path.dirname(__file__) + '/users.json', 'r') as users_file:
+    with open('users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == username.lower():
@@ -251,16 +259,18 @@ def read_user_public(username):
 def verify_token():
     data = request.headers.get('Authorization')
     if not data:
-        return make_response('Could not verify', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
+        return make_response('Could not verify', 401,
+        {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
     token = data.split(' ')[1]
 
     # Check if token in Authorization header is properly formatted
-    pattern = re.compile(r'^[a-zA-Z0-9-_]+={0,2}\.[a-zA-Z0-9-_]+={0,2}\.[a-zA-Z0-9-_]+={0,2}$')
+    pattern = re.compile(
+        r'^[a-zA-Z0-9-_]+={0,2}\.[a-zA-Z0-9-_]+={0,2}\.[a-zA-Z0-9-_]+={0,2}$')
     if not pattern.match(token):
         return make_response('Token is incorrect format', 401)
 
-    header = urlsafe_b64decode(token.split('.')[0])
+    header = urlsafe_b64encode(urlsafe_b64decode(token.split('.')[0]))
     payload = json.loads(urlsafe_b64decode(token.split('.')[1]).decode())
 
     # Check if token is past expiration time
@@ -272,8 +282,7 @@ def verify_token():
     # Generate signature using secret to check against signature from Auth
     # header
     secret = b'MySecret'
-    message = urlsafe_b64encode(header) + b'.'
-              + urlsafe_b64encode(json.dumps(payload).encode())
+    message = header + b'.' + urlsafe_b64encode(json.dumps(payload).encode())
     signature_check = hmac.new(secret, message, digestmod = sha256).digest()
     if signature != signature_check:
         return make_response('Token compromised', 401)
@@ -296,9 +305,10 @@ def read_users():
 
     # Return list of usernames for logged-in user
     if verification.status.split(' ')[0] == '200':
-        with open(os.path.dirname(__file__) + '/users.json', 'r') as users_file:
+        with open('users.json', 'r') as users_file:
             users = json.load(users_file)
-            usernames = [user_data['username'] for user_data in users[request_start:request_end]]
+            usernames = [user_data['username']
+                for user_data in users[request_start:request_end]]
             return jsonify(usernames[request_start:request_end])
 
     else:

@@ -10,13 +10,17 @@ from user import user
 
 def create_leader():
     data = request.get_json()
+
+    # Verify that user is logged in
     verification = user.verify_token()
     if verification.status.split(' ')[0] != '200':
         return make_response('Could not verify', 401)
     payload = json.loads(verification.data.decode())
     requester = payload['username']
     timestamp = datetime.now(timezone.utc).isoformat()
-    with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
+
+    # Update player's user account with score data
+    with open('user/users.json', 'r') as users_file:
         # Lock file to prevent overwrite
         fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
@@ -25,47 +29,63 @@ def create_leader():
                 # Convert username to member_id for player storage
                 player = user_data['member_id']
                 # Increment number of game plays by 1
-                user_data['shapes_plays'] = int(user_data['shapes_plays']) + 1
-                # Save current score as user's high score if it is higher than the current high score
+                user_data['shapes_plays'] += 1
+                # Save current score as user's high score if it is higher than
+                # the current high score
                 if int(user_data['shapes_high_score']) < int(data['score']):
                     user_data['shapes_high_score'] = data['score']
-                # Add score data to user's stored game scores and sort game scores by highest to lowest
-                user_data['shapes_scores'].append({'timestamp': timestamp, 'score': data['score']})
-                user_data['shapes_scores'].sort(key = itemgetter('score'), reverse = True)
-    with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'w') as users_file:
+                # Add score data to user's stored game scores and sort game
+                # scores by highest to lowest
+                user_data['shapes_scores'].append({
+                    'timestamp': timestamp,
+                    'score': data['score']
+                    })
+                user_data['shapes_scores'].sort(
+                    key = itemgetter('score'), reverse = True)
+
+    with open('user/users.json', 'w') as users_file:
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
-    entry = {'timestamp': timestamp, 'score': data['score'], 'player': player}
+
     # Add score to game leaders file
-    with open(os.path.dirname(__file__) + '/leaders.json', 'r') as leaders_file:
+    with open('rhythm_of_life/leaders.json', 'r') as leaders_file:
         # Lock file to prevent overwrite
         fcntl.flock(leaders_file, fcntl.LOCK_EX)
         leaders = json.load(leaders_file)
-        leaders.append(entry)
-    with open(os.path.dirname(__file__) + '/leaders.json', 'w') as leaders_file:
+        leaders.append({
+            'timestamp': timestamp,
+            'score': data['score'],
+            'player': player
+            })
+
+    with open('rhythm_of_life/leaders.json', 'w') as leaders_file:
         json.dump(leaders, leaders_file)
         # Release lock on file
         fcntl.flock(leaders_file, fcntl.LOCK_UN)
+
     return make_response('Success!', 200)
+
 
 def read_leaders():
     # Get number of requested leaders from query parameters
     if request.args.get('start') is not None:
         request_start = int(request.args.get('start'))
         request_end = int(request.args.get('end'))
+
     # Set default number of leaders if not specified in query parameters
     else:
         request_start = 0
         request_end = 5
+
     # Return requested game leaders
-    with open(os.path.dirname(__file__) + '/leaders.json', 'r') as leaders_file:
+    with open('rhythm_of_life/leaders.json', 'r') as leaders_file:
         leaders = json.load(leaders_file)
         # Sort game leaders by highest to lowest score
         leaders.sort(key = itemgetter('score'), reverse = True)
         # Replace each player's member_id with username
         for entry in leaders[request_start:request_end]:
-            with open(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/user/users.json', 'r') as users_file:
+            with open('user/users.json', 'r') as users_file:
                 users = json.load(users_file)
                 for user_data in users:
                     if user_data['member_id'] == entry['player']:
