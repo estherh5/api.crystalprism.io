@@ -1,5 +1,8 @@
 # api.crystalprism.io
-I started programming in January 2017 and am learning Python for back-end server development. api.crystalprism.io is the API for my website, [Crystal Prism](https://crystalprism.io). The API allows for the storage and retrieval of game scores, user-created drawings and thought posts, as well as user accounts. Endpoints are listed below.
+I started programming in January 2017 and am learning Python for back-end server development. api.crystalprism.io is the API for my website, [Crystal Prism](https://crystalprism.io). The API allows for the storage and retrieval of game scores, user-created drawings and thought posts, as well as user accounts. For user security, I implemented a JWT authentication flow from scratch that includes generating and verifying secure user tokens. To handle race conditions when reading and writing to files, I implemented file locking operations with [`fcntl.flock`](https://docs.python.org/3.6/library/fcntl.html#fcntl.flock).
+
+## Setup
+To create your own copy of the Crystal Prism API, first clone this repository on your server. Next, install requirements by running `pip install -r requirements.txt`. Set up the API's necessary environment variables of "SECRET_KEY" for the salt used to generate the signature portion of the JWT for user authentication (set this as a secret key that only you know; it is imperative to keep this private for user account protection) and "ENV_TYPE" for the environment status (set this to "Dev" for testing or "Prod" for live), and start the server by running `flask run` (if you are making changes while the server is running, enter `flask run --reload` instead for instant updates).
 
 ## CanvaShare API
 #### March 2017 - Present
@@ -16,12 +19,12 @@ I started programming in January 2017 and am learning Python for back-end server
 ```
 
 **GET** /api/canvashare/drawing/[artist]/[drawing_file]
-* Retrieve an artist's drawing PNG file by specifying the artist's username and the drawing file name (e.g., *1.png*) in the request URL.
+* Retrieve an artist's drawing PNG file by specifying the artist's username and the drawing file name (e.g., *1.png*) in the request URL. No bearer token is needed in the request Authorization header.
 * Example response body:<br />
 ![Welcome](canvashare/drawings/UUID/1.png)
 
-**PUT** /api/canvashare/drawing-info/[artist]/[drawing_id]
-* Update a drawing's attributes by specifying the artist's username and the drawing file name without the extension (e.g., *1*) in the request URL. Send the jsonified attribute request ("like", "unlike", "view") to increase/decrease in the request body. Note that there must be a verified bearer token in the request Authorization header.
+**PATCH** /api/canvashare/drawing-info/[artist]/[drawing_id]
+* Update a drawing's attributes by specifying the artist's username and the drawing file name without the extension (e.g., *1*) in the request URL. Send the jsonified attribute request ("like", "unlike", "view") in the request body. Note that there must be a verified bearer token in the request Authorization header.
 * Example response body:
 ```javascript
 {
@@ -30,7 +33,7 @@ I started programming in January 2017 and am learning Python for back-end server
 ```
 
 **GET** /api/canvashare/drawing-info/[artist]/[drawing_id]
-* Retrieve an artist's drawing attributes by specifying the artist's username and the drawing file name without the extension (e.g., *1*) in the request URL.
+* Retrieve an artist's drawing's attributes by specifying the artist's username and the drawing file name without the extension (e.g., *1*) in the request URL. No bearer token is needed in the request Authorization header.
 * Example response body:
 ```javascript
 {
@@ -45,7 +48,7 @@ I started programming in January 2017 and am learning Python for back-end server
 ```
 
 **GET** /api/canvashare/gallery?start=[request_start]&end=[request_end]
-* Retrieve all users' drawing file paths in the format "[artist]/[drawing_id].png", in order of newest to oldest drawings. Optionally specify the number of drawings via the request URL's start and end query parameters.
+* Retrieve all users' drawing file paths in the format "[artist]/[drawing_id].png", in order of newest to oldest drawings. Optionally specify the number of drawings via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
 ```javascript
 {
@@ -66,7 +69,7 @@ I started programming in January 2017 and am learning Python for back-end server
 ```
 
 **GET** /api/canvashare/gallery/[artist]?start=[request_start]&end=[request_end]
-* Retrieve all of a single user's drawing file paths in the format "[artist]/[drawing_name].png", in order of newest to oldest drawings, by specifying the artist's username in the request URL. Optionally specify the number of drawings via the request URL's start and end query parameters.
+* Retrieve all of a single user's drawing file paths in the format "[artist]/[drawing_name].png", in order of newest to oldest drawings, by specifying the artist's username in the request URL. Optionally specify the number of drawings via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
 ```javascript
 {
@@ -101,7 +104,7 @@ I started programming in January 2017 and am learning Python for back-end server
 ```
 
 **GET** /api/rhythm-of-life?start=[request_start]&end=[request_end]
-* Retrieve all users' game scores, in order of highest to lowest score. Optionally specify the number of scores via the request URL's start and end query parameters.
+* Retrieve all users' game scores, in order of highest to lowest score. Optionally specify the number of scores via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
 ```javascript
 [
@@ -153,7 +156,7 @@ I started programming in January 2017 and am learning Python for back-end server
 }
 ```
 
-**PUT** /api/thought-writer/post
+**PATCH** /api/thought-writer/post
 * Update a thought post by sending the jsonified post content, post creation timestamp (UTC), title, and public status (*true* or *false*) in the request body. Note that there must be a verified bearer token in the request Authorization header.
 * Example request body:
 ```javascript
@@ -202,7 +205,7 @@ I started programming in January 2017 and am learning Python for back-end server
 }
 ```
 
-**PUT** /api/thought-writer/comment/[writer_name]/[post_timestamp]
+**PATCH** /api/thought-writer/comment/[writer_name]/[post_timestamp]
 * Update a comment to a thought post by specifying the post writer's username and the thought post's URI-encoded creation timestamp (UTC) in the request URL, as well as the jsonified comment content and original comment creation timestamp (UTC) in the request body. Note that there must be a verified bearer token in the request Authorization header.
 * Example request body:
 ```javascript
@@ -222,7 +225,7 @@ I started programming in January 2017 and am learning Python for back-end server
 ```
 
 **GET** /api/thought-writer/post-board?start=[request_start]&end=[request_end]
-* Retrieve all users' thought posts. Optionally specify the number of thought posts via the request URL's start and end query parameters.
+* Retrieve all users' public thought posts. Optionally specify the number of thought posts via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
 ```javascript
 [
@@ -276,7 +279,7 @@ I started programming in January 2017 and am learning Python for back-end server
 ```
 
 **GET** /api/shapes-in-rain?start=[request_start]&end=[request_end]
-* Retrieve all users' game scores, in order of highest to lowest score. Optionally specify the number of scores via the request URL's start and end query parameters.
+* Retrieve all users' game scores, in order of highest to lowest score. Optionally specify the number of scores via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
 ```javascript
 [
@@ -341,7 +344,7 @@ Users who want to join the Crystal Prism community can create an account to stor
 }
 ```
 
-**PUT** /api/user
+**PATCH** /api/user
 * Update a user's account information by specifying the jsonified account updates in the request body. Note that there must be a verified bearer token for the user in the request Authorization header.
 * Example request body:
 ```javascript
@@ -377,7 +380,8 @@ Users who want to join the Crystal Prism community can create an account to stor
     "name": "",
     "post_number": 0,
     "rhythm_high_lifespan": "00:00:00",
-    "shapes_high_score": 0
+    "shapes_high_score": 0,
+    "username": "user"
 }
 ```
 
@@ -402,7 +406,7 @@ Users who want to join the Crystal Prism community can create an account to stor
 ```
 
 **GET** /api/login
-* Check if a username and password in a request Authorization header match the username and password stored for a user account and receive a [JSON Web Token](https://jwt.io/) if so.
+* Check if a username and password in a request Authorization header match the username and password stored for a user account and receive a [JSON Web Token](https://jwt.io/) if so. The JWT is set to expire after 1 hour.
 * Example response body:
 ```javascript
 {
