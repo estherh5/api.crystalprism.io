@@ -24,7 +24,7 @@ def login():
         return make_response('Could not verify', 401,
             {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
-    with open('users.json', 'r') as users_file:
+    with open('user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == username.lower():
@@ -46,7 +46,7 @@ def login():
                             'exp': floor(time() + (60 * 60))
                             }).encode()
                         )
-                    secret = b'MySecret'
+                    secret = os.environ['SECRET_KEY'].encode()
                     message = header + b'.' + payload
                     signature = hmac.new(secret, message,
                         digestmod = sha256).digest()
@@ -63,7 +63,7 @@ def create_user():
     data = request.get_json()
     username = data['username']
 
-    with open('users.json', 'r') as users_file:
+    with open('user/users.json', 'r') as users_file:
         # Lock file to prevent overwrite
         fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
@@ -108,7 +108,7 @@ def create_user():
                  }
         users.append(entry)
 
-    with open('users.json', 'w') as users_file:
+    with open('user/users.json', 'w') as users_file:
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
@@ -123,7 +123,7 @@ def read_user():
     payload = json.loads(verification.data.decode())
     requester = payload['username']
 
-    with open('users.json', 'r') as users_file:
+    with open('user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
@@ -148,7 +148,7 @@ def update_user():
     username = data['username']
     password = data['password']
 
-    with open('users.json', 'r') as users_file:
+    with open('user/users.json', 'r') as users_file:
         # Lock file to prevent overwrite
         fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
@@ -182,7 +182,7 @@ def update_user():
                         'exp': floor(time() + (60 * 60))
                         }).encode()
                     )
-                secret = b'MySecret'
+                secret = os.environ['SECRET_KEY'].encode()
                 message = header + b'.' + payload
                 signature = hmac.new(secret, message,
                     digestmod = sha256).digest()
@@ -192,7 +192,7 @@ def update_user():
             else:
                 response = 'Success'
 
-    with open('users.json', 'w') as users_file:
+    with open('user/users.json', 'w') as users_file:
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
@@ -207,7 +207,7 @@ def delete_user():
     payload = json.loads(verification.data.decode())
     requester = payload['username']
 
-    with open('users.json', 'r') as users_file:
+    with open('user/users.json', 'r') as users_file:
         # Lock file to prevent overwrite
         fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
@@ -215,7 +215,7 @@ def delete_user():
             if user_data['username'].lower() == requester.lower():
                 user_data['status'] = 'deleted'
 
-    with open('users.json', 'w') as users_file:
+    with open('user/users.json', 'w') as users_file:
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
@@ -224,7 +224,7 @@ def delete_user():
 
 
 def read_user_public(username):
-    with open('users.json', 'r') as users_file:
+    with open('user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == username.lower():
@@ -281,7 +281,7 @@ def verify_token():
 
     # Generate signature using secret to check against signature from Auth
     # header
-    secret = b'MySecret'
+    secret = os.environ['SECRET_KEY'].encode()
     message = header + b'.' + urlsafe_b64encode(json.dumps(payload).encode())
     signature_check = hmac.new(secret, message, digestmod = sha256).digest()
     if signature != signature_check:
@@ -305,7 +305,7 @@ def read_users():
 
     # Return list of usernames for logged-in user
     if verification.status.split(' ')[0] == '200':
-        with open('users.json', 'r') as users_file:
+        with open('user/users.json', 'r') as users_file:
             users = json.load(users_file)
             usernames = [user_data['username']
                 for user_data in users[request_start:request_end]]
