@@ -9,12 +9,11 @@ from glob import glob
 from user import user
 
 
-def create_drawing():
-    verification = user.verify_token()
-    if verification.status.split(' ')[0] != '200':
-        return make_response('Could not verify', 401)
-    payload = json.loads(verification.data.decode())
-    requester = payload['username']
+def create_drawing(requester):
+    # Request should contain:
+    # image <data:image/png;base64...>
+    # title <str>
+    data = request.get_json()
 
     # Convert username to member_id for post storage and increase user's
     # drawing count
@@ -32,9 +31,6 @@ def create_drawing():
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
-
-    # Get JSON image data URL in base64 format from request
-    data = request.get_json()
 
     # Create folder for artist's drawings if one does not already exist
     if not os.path.exists('canvashare/drawings/' + artist):
@@ -64,7 +60,7 @@ def create_drawing():
             }
         json.dump(drawing_info, info_file)
 
-    return make_response('Success!', 200)
+    return make_response('Success', 200)
 
 
 def read_drawing(artist, drawing_file):
@@ -103,7 +99,9 @@ def read_drawing_info(artist, drawing_id):
         return jsonify(drawing_info)
 
 
-def update_drawing_info(artist, drawing_id):
+def update_drawing_info(requester, artist, drawing_id):
+    # Request should contain:
+    # request <str; 'view', 'like', 'unlike'>
     data = request.get_json()
 
     # If request is for viewing the drawing, increase view count without
@@ -128,16 +126,10 @@ def update_drawing_info(artist, drawing_id):
             json.dump(drawing_info, info_file)
             # Release lock on file
             fcntl.flock(info_file, fcntl.LOCK_UN)
-        return make_response('Success!', 200)
+        return make_response('Success', 200)
 
-    # Otherwise, request is for liking/unliking drawing, so verify that user is
-    # logged in first
-    verification = user.verify_token()
-    if verification.status.split(' ')[0] != '200':
-        return make_response('Could not verify', 401)
-    payload = json.loads(verification.data.decode())
-    requester = payload['username']
-
+    # Otherwise, request is for liking/unliking drawing, so increase/decrease
+    # like count
     with open('user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
@@ -197,7 +189,7 @@ def update_drawing_info(artist, drawing_id):
         json.dump(drawing_info, info_file)
         # Release lock on file
         fcntl.flock(info_file, fcntl.LOCK_UN)
-        return make_response('Success!', 200)
+        return make_response('Success', 200)
 
 
 def read_all_drawings():

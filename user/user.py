@@ -4,7 +4,7 @@ import json
 import os
 import re
 
-from base64 import urlsafe_b64decode, urlsafe_b64encode
+from base64 import b64encode, urlsafe_b64decode, urlsafe_b64encode
 from datetime import datetime, timezone
 from flask import jsonify, make_response, request
 from hashlib import sha256, sha512
@@ -14,28 +14,35 @@ from uuid import uuid4
 
 
 def login():
+    # Request should contain Authorization header:
+    # Basic (username:password) <base64>
     data = request.authorization
+
     username = data.username
     password = data.password
 
-    # Check that authorization request contains required data (header,
-    # username, password)
+    # Check that authorization request contains required data
     if not data or not data.username or not data.password:
         return make_response('Could not verify', 401,
             {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
+    # Check that request credentials are correct
     with open('user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
+
             if user_data['username'].lower() == username.lower():
+
                 # Reject requests for logging into deleted user accounts
                 if user_data['status'] == 'deleted':
-                    return make_response('Username does not exist', 400)
+                    return make_response('Username does not exist', 404)
+
                 # Check requested password against stored hashed and salted
                 # password
                 salt = user_data['salt'].encode()
                 password = password.encode()
                 hashed_password = sha512(salt + password).hexdigest()
+
                 # Generate JWT token if password is correct
                 if user_data['password'] == hashed_password:
                     header = urlsafe_b64encode(
@@ -54,13 +61,18 @@ def login():
                     token = message + b'.' + signature
                     response = {'token': token.decode()}
                     return json.dumps(response)
-                else:
-                    return make_response('Incorrect password', 400)
-        return make_response('Username does not exist', 400)
+
+                return make_response('Incorrect password', 401)
+
+        return make_response('Username does not exist', 404)
 
 
 def create_user():
+    # Request should contain:
+    # username <str>
+    # password <str>
     data = request.get_json()
+
     username = data['username']
 
     with open('user/users.json', 'r') as users_file:
@@ -70,7 +82,7 @@ def create_user():
         # Check if username already exists
         for user_data in users:
             if user_data['username'].lower() == username.lower():
-                return make_response('Username already exists', 400)
+                return make_response('Username already exists', 409)
         # Generate random UUID as non-client-facing user identifier
         member_id = str(uuid4())
         password = data['password'].encode()
@@ -116,13 +128,7 @@ def create_user():
     return make_response('Success', 200)
 
 
-def read_user():
-    verification = verify_token()
-    if verification.status.split(' ')[0] != '200':
-        return make_response('Access denied', 403)
-    payload = json.loads(verification.data.decode())
-    requester = payload['username']
-
+def read_user(requester):
     with open('user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
@@ -138,13 +144,20 @@ def read_user():
                 return jsonify(user_data)
 
 
-def update_user():
-    verification = verify_token()
-    if verification.status.split(' ')[0] != '200':
-        return make_response('Access denied', 403)
-    payload = json.loads(verification.data.decode())
-    requester = payload['username']
+def update_user(requester):
+    # Request should contain:
+    # username <str>
+    # password <str>
+    # about <str>
+    # first_name <str>
+    # last_name <str>
+    # name_public <boolean>
+    # email <str>
+    # email_public <boolean>
+    # background_color <str>
+    # icon_color <str>
     data = request.get_json()
+
     username = data['username']
     password = data['password']
 
@@ -156,7 +169,7 @@ def update_user():
         if username.lower() != requester.lower():
             for user_data in users:
                 if user_data['username'].lower() == username.lower():
-                    return make_response('Username already exists', 400)
+                    return make_response('Username already exists', 409)
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
                 user_data['username'] = username
@@ -173,6 +186,7 @@ def update_user():
                 user_data['background_color'] = data['background_color']
                 user_data['icon_color'] = data['icon_color']
                 user_data['about'] = data['about']
+
             # Update bearer token if user requests username update
             if username.lower() != requester.lower():
                 header = urlsafe_b64encode(b'{"alg": "HS256", "typ": "JWT"}')
@@ -200,13 +214,7 @@ def update_user():
     return make_response(response, 200)
 
 
-def delete_user():
-    verification = verify_token()
-    if verification.status.split(' ')[0] != '200':
-        return make_response('Access denied', 403)
-    payload = json.loads(verification.data.decode())
-    requester = payload['username']
-
+def delete_user(requester):
     with open('user/users.json', 'r') as users_file:
         # Lock file to prevent overwrite
         fcntl.flock(users_file, fcntl.LOCK_EX)
@@ -229,7 +237,7 @@ def read_user_public(username):
         for user_data in users:
             if user_data['username'].lower() == username.lower():
                 if user_data['status'] == 'deleted':
-                    return make_response('Username does not exist', 400)
+                    return make_response('Username does not exist', 404)
                 if user_data['name_public'] == True:
                     name = user_data['first_name'] + ' ' + user_data['last_name']
                 else:
@@ -253,14 +261,18 @@ def read_user_public(username):
                         'comment_number': user_data['comment_number']
                         }
                 return jsonify(data)
-        return make_response('Username does not exist', 400)
+
+        return make_response('Username does not exist', 404)
 
 
 def verify_token():
+    # Request should contain Authorization header:
+    # Bearer (token) <str>
     data = request.headers.get('Authorization')
+
     if not data:
         return make_response('Could not verify', 401,
-        {'WWW-Authenticate': 'Basic realm="Login required!"'})
+            {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
     token = data.split(' ')[1]
 
@@ -301,15 +313,9 @@ def read_users():
         request_start = 0
         request_end = 9
 
-    verification = verify_token()
-
-    # Return list of usernames for logged-in user
-    if verification.status.split(' ')[0] == '200':
-        with open('user/users.json', 'r') as users_file:
-            users = json.load(users_file)
-            usernames = [user_data['username']
-                for user_data in users[request_start:request_end]]
-            return jsonify(usernames[request_start:request_end])
-
-    else:
-        return make_response('Access denied', 403)
+    # Return list of requested number of usernames
+    with open('user/users.json', 'r') as users_file:
+        users = json.load(users_file)
+        usernames = [user_data['username']
+            for user_data in users[request_start:request_end]]
+        return jsonify(usernames[request_start:request_end])

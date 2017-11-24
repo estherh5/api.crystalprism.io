@@ -8,15 +8,12 @@ from operator import itemgetter
 from user import user
 
 
-def create_leader():
+def create_leader(requester):
+    # Request should contain:
+    # score <int>
     data = request.get_json()
 
-    # Verify that user is logged in
-    verification = user.verify_token()
-    if verification.status.split(' ')[0] != '200':
-        return make_response('Could not verify', 401)
-    payload = json.loads(verification.data.decode())
-    requester = payload['username']
+    # Generate timestamp in UTC format to associate with score
     timestamp = datetime.now(timezone.utc).isoformat()
 
     # Update player's user account with score data
@@ -32,7 +29,7 @@ def create_leader():
                 user_data['shapes_plays'] += 1
                 # Save current score as user's high score if it is higher than
                 # the current high score
-                if int(user_data['shapes_high_score']) < int(data['score']):
+                if user_data['shapes_high_score'] < data['score']:
                     user_data['shapes_high_score'] = data['score']
                 # Add score data to user's stored game scores and sort game
                 # scores by highest to lowest
@@ -49,7 +46,7 @@ def create_leader():
         fcntl.flock(users_file, fcntl.LOCK_UN)
 
     # Add score to game leaders file
-    with open('rhythm_of_life/leaders.json', 'r') as leaders_file:
+    with open('shapes_in_rain/leaders.json', 'r') as leaders_file:
         # Lock file to prevent overwrite
         fcntl.flock(leaders_file, fcntl.LOCK_EX)
         leaders = json.load(leaders_file)
@@ -59,12 +56,12 @@ def create_leader():
             'player': player
             })
 
-    with open('rhythm_of_life/leaders.json', 'w') as leaders_file:
+    with open('shapes_in_rain/leaders.json', 'w') as leaders_file:
         json.dump(leaders, leaders_file)
         # Release lock on file
         fcntl.flock(leaders_file, fcntl.LOCK_UN)
 
-    return make_response('Success!', 200)
+    return make_response('Success', 200)
 
 
 def read_leaders():
@@ -79,7 +76,7 @@ def read_leaders():
         request_end = 5
 
     # Return requested game leaders
-    with open('rhythm_of_life/leaders.json', 'r') as leaders_file:
+    with open('shapes_in_rain/leaders.json', 'r') as leaders_file:
         leaders = json.load(leaders_file)
         # Sort game leaders by highest to lowest score
         leaders.sort(key = itemgetter('score'), reverse = True)

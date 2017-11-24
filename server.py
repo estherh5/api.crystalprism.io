@@ -1,3 +1,4 @@
+import json
 import os
 
 from canvashare import canvashare
@@ -26,7 +27,16 @@ def drawing():
     # format and drawing title in the request body and a verified bearer token
     # in the request Authorization header
     if request.method == 'POST':
-        return canvashare.create_drawing()
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return canvashare.create_drawing(requester)
 
 
 @app.route('/api/canvashare/drawing/<artist>/<drawing_file>', methods = ['GET'])
@@ -39,7 +49,7 @@ def get_drawing(artist, drawing_file):
 
 
 @app.route('/api/canvashare/drawing-info/<artist>/<drawing_id>',
-    methods = ['PATCH', 'GET'])
+    methods = ['GET', 'PATCH'])
 def drawing_info(artist, drawing_id):
     # Retrieve an artist's drawing's attributes when client sends the artist's
     # username and drawing file name without the extension (e.g., '1') in the
@@ -52,7 +62,16 @@ def drawing_info(artist, drawing_id):
     # and jsonified attribute request ('like', 'unlike', 'view') in request
     # body and verified bearer token in request Authorization header
     if request.method == 'PATCH':
-        return canvashare.update_drawing_info(artist, drawing_id)
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return canvashare.update_drawing_info(requester, artist, drawing_id)
 
 
 @app.route('/api/canvashare/gallery', methods = ['GET'])
@@ -88,7 +107,16 @@ def rhythm_leaders():
     # lifespan in the request body and verified bearer token in request
     # Authorization header
     if request.method == 'POST':
-        return rhythm_of_life.create_leader()
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return rhythm_of_life.create_leader(requester)
 
     # Retrieve all users' game scores, in order of highest to lowest score; no
     # bearer token needed; query params specify number of scores
@@ -101,7 +129,16 @@ def shapes_leaders():
     # Post a game score for a user when client sends the jsonified score in the
     # request body and verified bearer token in request Authorization header
     if request.method == 'POST':
-        return shapes_in_rain.create_leader()
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return shapes_in_rain.create_leader(requester)
 
     # Retrieve all users' game scores, in order of highest to lowest score; no
     # bearer token needed; query params specify number of scores
@@ -115,20 +152,47 @@ def post():
     # and public status ('true' or 'false') in the request body and a verified
     # bearer token in the request Authorization header
     if request.method == 'POST':
-        return thought_writer.create_post()
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return thought_writer.create_post(requester)
 
     # Update a thought post when client sends the jsonified post content, post
     # creation timestamp (UTC), title, and public status ('true' or 'false') in
     # the request body and a verified bearer token in the request Authorization
     # header
     if request.method == 'PATCH':
-        return thought_writer.update_post()
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return thought_writer.update_post(requester)
 
     # Delete a thought post when client sends the jsonified post creation
     # timestamp (UTC) in the request body and a verified bearer token in the
     # request Authorization header
     if request.method == 'DELETE':
-        return thought_writer.delete_post()
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return thought_writer.delete_post(requester)
 
 
 @app.route('/api/thought-writer/post/<writer_name>/<post_timestamp>',
@@ -150,7 +214,17 @@ def comment(writer_name, post_timestamp):
     # the request URL, the jsonified comment content in the request body, and a
     # verified bearer token in the request Authorization header
     if request.method == 'POST':
-        return thought_writer.create_comment(writer_name, post_timestamp)
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return thought_writer.create_comment(requester, writer_name,
+            post_timestamp)
 
     # Update a comment to a thought post when client sends the post writer's
     # username and the thought post's URI-encoded creation timestamp (UTC) in
@@ -158,14 +232,34 @@ def comment(writer_name, post_timestamp):
     # creation timestamp (UTC) in the request body, and a verified bearer token
     # in the request Authorization header
     if request.method == 'PATCH':
-        return thought_writer.update_comment(writer_name, post_timestamp)
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return thought_writer.update_comment(requester, writer_name,
+            post_timestamp)
 
     # Delete a comment to a thought post when client sends the post writer's
     # username and the thought post's URI-encoded creation timestamp (UTC) in
     # the request URL, the jsonified comment creation timestamp (UTC) in the
     # request body, and a verified bearer token in request Authorization header
     if request.method == 'DELETE':
-        return thought_writer.delete_comment(writer_name, post_timestamp)
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return thought_writer.delete_comment(requester, writer_name,
+            post_timestamp)
 
 
 @app.route('/api/thought-writer/post-board', methods = ['GET'])
@@ -197,18 +291,45 @@ def user_info_private():
     # Retrieve a user's complete account information when there is a verified
     # bearer token for the user in the request Authorization header
     if request.method == 'GET':
-        return user.read_user()
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return user.read_user(requester)
 
     # Update a user's account when the client sends the jsonified account
     # updates in the request body and a verified bearer token for the user in
     # the request Authorization header
     if request.method == 'PATCH':
-        return user.update_user()
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return user.update_user(requester)
 
     # Change a user's account status to deleted when there is a verified
     # bearer token for the user in the request Authorization header
     if request.method == 'DELETE':
-        return user.delete_user()
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return user.delete_user(requester)
 
 
 @app.route('/api/user/<username>', methods = ['GET'])
@@ -231,4 +352,13 @@ def users_info():
     # Retrieve all users' usernames if there is a verified bearer token in the
     # Authorization header; query params specify number of users
     if request.method == 'GET':
-        return user.read_users()
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return user.read_users(requester)

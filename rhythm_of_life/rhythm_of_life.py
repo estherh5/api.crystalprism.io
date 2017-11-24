@@ -8,15 +8,13 @@ from operator import itemgetter
 from user import user
 
 
-def create_leader():
+def create_leader(requester):
+    # Request should contain:
+    # score <int>
+    # lifespan <str>
     data = request.get_json()
 
-    # Verify that user is logged in
-    verification = user.verify_token()
-    if verification.status.split(' ')[0] != '200':
-        return make_response('Could not verify', 401)
-    payload = json.loads(verification.data.decode())
-    requester = payload['username']
+    # Generate timestamp in UTC format to associate with score
     timestamp = datetime.now(timezone.utc).isoformat()
 
     # Update player's user account with score data
@@ -32,7 +30,7 @@ def create_leader():
                 user_data['rhythm_plays'] += 1
                 # Save current score as user's high score if it is higher than
                 # the current high score
-                if int(user_data['rhythm_high_score']) < int(data['score']):
+                if user_data['rhythm_high_score'] < data['score']:
                     user_data['rhythm_high_score'] = data['score']
                     user_data['rhythm_high_lifespan'] = data['lifespan']
                 # Add score data to user's stored game scores and sort game
@@ -67,7 +65,7 @@ def create_leader():
         # Release lock on file
         fcntl.flock(leaders_file, fcntl.LOCK_UN)
 
-    return make_response('Success!', 200)
+    return make_response('Success', 200)
 
 
 def read_leaders():
