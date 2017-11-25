@@ -1,3 +1,4 @@
+import bcrypt
 import fcntl
 import hmac
 import json
@@ -7,7 +8,7 @@ import re
 from base64 import b64encode, urlsafe_b64decode, urlsafe_b64encode
 from datetime import datetime, timezone
 from flask import jsonify, make_response, request
-from hashlib import sha256, sha512
+from hashlib import sha256
 from math import floor
 from time import time
 from uuid import uuid4
@@ -15,7 +16,7 @@ from uuid import uuid4
 
 def login():
     # Request should contain Authorization header:
-    # Basic (username:password) <base64>
+    # 'Basic <username:password>' <base64>
     data = request.authorization
 
     username = data.username
@@ -39,18 +40,15 @@ def login():
 
                 # Check requested password against stored hashed and salted
                 # password
-                salt = user_data['salt'].encode()
-                password = password.encode()
-                hashed_password = sha512(salt + password).hexdigest()
-
-                # Generate JWT token if password is correct
-                if user_data['password'] == hashed_password:
+                if bcrypt.checkpw(
+                    password.encode(), user_data['password'].encode()):
+                    # Generate JWT token if password is correct
                     header = urlsafe_b64encode(
                         b'{"alg": "HS256", "typ": "JWT"}')
                     payload = urlsafe_b64encode(
                         json.dumps({
                             'username': username,
-                            'exp': floor(time() + (60 * 60))
+                            'exp': floor(time() + (60 * 60)) # in seconds
                             }).encode()
                         )
                     secret = os.environ['SECRET_KEY'].encode()
@@ -59,8 +57,7 @@ def login():
                         digestmod = sha256).digest()
                     signature = urlsafe_b64encode(signature)
                     token = message + b'.' + signature
-                    response = {'token': token.decode()}
-                    return json.dumps(response)
+                    return make_response(token.decode(), 200)
 
                 return make_response('Incorrect password', 401)
 
@@ -76,26 +73,25 @@ def create_user():
     username = data['username']
 
     with open('user/users.json', 'r') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
+
         # Check if username already exists
         for user_data in users:
             if user_data['username'].lower() == username.lower():
                 return make_response('Username already exists', 409)
+
         # Generate random UUID as non-client-facing user identifier
         member_id = str(uuid4())
+
+        # Hash password with bcrypt cryptographic hash function and salt
         password = data['password'].encode()
-        # Generate salt using CSPRNG (32 random alphanumeric characters)
-        salt = b64encode(os.urandom(32))
-        # Hash password with SHA512 cryptographic hash function
-        hashed_password = sha512(salt + password).hexdigest()
+        hashed_password = bcrypt.hashpw(password, bcrypt.gensalt())
+
         entry = {
                  'member_id': member_id,
                  'status': 'active',
                  'username': username,
-                 'password': hashed_password,
-                 'salt': salt.decode(),
+                 'password': hashed_password.decode(),
                  'admin': False,
                  'member_since': datetime.now(timezone.utc).isoformat(),
                  'first_name': '',
@@ -121,6 +117,8 @@ def create_user():
         users.append(entry)
 
     with open('user/users.json', 'w') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
@@ -162,22 +160,24 @@ def update_user(requester):
     password = data['password']
 
     with open('user/users.json', 'r') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
+
         # Check if username already exists if user requests to update it
         if username.lower() != requester.lower():
             for user_data in users:
                 if user_data['username'].lower() == username.lower():
                     return make_response('Username already exists', 409)
+
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
                 user_data['username'] = username
+
+                # Store hashed password if user requested change
                 if password != '':
                     password = password.encode()
-                    salt = b64encode(os.urandom(32))
-                    user_data['password'] = sha512(salt + password).hexdigest()
-                    user_data['salt'] = salt.decode()
+                    user_data['password'] = bcrypt.hashpw(password,
+                        bcrypt.gensalt()).decode()
+
                 user_data['first_name'] = data['first_name']
                 user_data['last_name'] = data['last_name']
                 user_data['name_public'] = data['name_public']
@@ -187,13 +187,12 @@ def update_user(requester):
                 user_data['icon_color'] = data['icon_color']
                 user_data['about'] = data['about']
 
-            # Update bearer token if user requests username update
-            if username.lower() != requester.lower():
+                # Update bearer token
                 header = urlsafe_b64encode(b'{"alg": "HS256", "typ": "JWT"}')
                 payload = urlsafe_b64encode(
                     json.dumps({
                         'username': username,
-                        'exp': floor(time() + (60 * 60))
+                        'exp': floor(time() + (60 * 60)) # in seconds
                         }).encode()
                     )
                 secret = os.environ['SECRET_KEY'].encode()
@@ -202,28 +201,27 @@ def update_user(requester):
                     digestmod = sha256).digest()
                 signature = urlsafe_b64encode(signature)
                 token = message + b'.' + signature
-                response = token.decode()
-            else:
-                response = 'Success'
 
     with open('user/users.json', 'w') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
 
-    return make_response(response, 200)
+    return make_response(token.decode(), 200)
 
 
 def delete_user(requester):
     with open('user/users.json', 'r') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
                 user_data['status'] = 'deleted'
 
     with open('user/users.json', 'w') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
@@ -238,14 +236,19 @@ def read_user_public(username):
             if user_data['username'].lower() == username.lower():
                 if user_data['status'] == 'deleted':
                     return make_response('Username does not exist', 404)
+
+                # Send user's first and last name if public
                 if user_data['name_public'] == True:
                     name = user_data['first_name'] + ' ' + user_data['last_name']
                 else:
                     name = ''
+
+                # Send user's email address if public
                 if user_data['email_public'] == True:
                     email = user_data['email']
                 else:
                     email = ''
+
                 data = {
                         'username': user_data['username'],
                         'name': name,
@@ -267,7 +270,7 @@ def read_user_public(username):
 
 def verify_token():
     # Request should contain Authorization header:
-    # Bearer (token) <str>
+    # 'Bearer <token>' <str>
     data = request.headers.get('Authorization')
 
     if not data:
@@ -282,7 +285,7 @@ def verify_token():
     if not pattern.match(token):
         return make_response('Token is incorrect format', 401)
 
-    header = urlsafe_b64encode(urlsafe_b64decode(token.split('.')[0]))
+    header = token.split('.')[0].encode()
     payload = json.loads(urlsafe_b64decode(token.split('.')[1]).decode())
 
     # Check if token is past expiration time

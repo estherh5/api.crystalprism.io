@@ -329,13 +329,12 @@ Users who want to join the Crystal Prism community can create an account to stor
     "member_id": "UUID", // Random universally unique identifier
     "member_since": "2017-10-04T00:00:00.000000+00:00", // UTC timestamp of when user created account
     "name_public": false, // User specifies if name is viewable on public profile
-    "password": "d680975aeeaa9c101b44a44dde4...", // Password hashed with SHA512 algorithm
+    "password": "$2b$12$GD0XvyXV/8i9G1...", // Password hashed with bcrypt algorithm
     "post_number": 1, // Number of user's Thought Writer posts
     "rhythm_high_lifespan": "00:00:00", // High lifespan in Rhythm of Life
     "rhythm_high_score": 0, // High score in Rhythm of Life (lifespan converted to integer)
     "rhythm_plays": 0, // Number of Rhythm of Life game plays
     "rhythm_scores": [], // Array of user's Rhythm of Life scores that includes timestamp
-    "salt": "mP5vhoX7nKz16gMEw+7gf3G+ia...", // Random salt generated for password hashing
     "shapes_high_score": 0, // High score in Shapes in Rain
     "shapes_plays": 0, // Number of Shapes in Rain game plays
     "shapes_scores": [], // Array of user's Shapes in Rain scores that includes timestamp
