@@ -28,8 +28,6 @@ def create_post(requester):
 
     # Convert username to member_id for post storage and increase post count
     with open('user/users.json', 'r') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
@@ -37,6 +35,8 @@ def create_post(requester):
                 user_data['post_number'] += 1
 
     with open('user/users.json', 'w') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
@@ -45,13 +45,14 @@ def create_post(requester):
     # first-time posting
     if os.path.exists('thought_writer/' + writer + '.json'):
         with open('thought_writer/' + writer + '.json', 'r') as private_file:
-            # Lock file to prevent overwrite
-            fcntl.flock(private_file, fcntl.LOCK_EX)
             private_posts = json.load(private_file)
             private_posts.append(post)
     else:
         private_posts = [post]
+
     with open('thought_writer/' + writer + '.json', 'w') as private_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(private_file, fcntl.LOCK_EX)
         json.dump(private_posts, private_file)
         # Release lock on file
         fcntl.flock(private_file, fcntl.LOCK_UN)
@@ -66,11 +67,11 @@ def create_post(requester):
                 'comments': []
                 }
         with open('thought_writer/public/public.json', 'r') as public_file:
-            # Lock file to prevent overwrite
-            fcntl.flock(public_file, fcntl.LOCK_EX)
             public_posts = json.load(public_file)
             public_posts.append(post)
         with open('thought_writer/public/public.json', 'w') as public_file:
+            # Lock file to prevent overwrite
+            fcntl.flock(public_file, fcntl.LOCK_EX)
             json.dump(public_posts, public_file)
             # Release lock on file
             fcntl.flock(public_file, fcntl.LOCK_UN)
@@ -96,8 +97,6 @@ def update_post(requester):
 
     # Update post in user's private file
     with open('thought_writer/' + writer + '.json', 'r') as private_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(private_file, fcntl.LOCK_EX)
         private_posts = json.load(private_file)
         for post in private_posts:
             if post['timestamp'] == data['timestamp']:
@@ -112,6 +111,8 @@ def update_post(requester):
                 comments = post['comments']
 
     with open('thought_writer/' + writer + '.json', 'w') as private_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(private_file, fcntl.LOCK_EX)
         json.dump(private_posts, private_file)
         # Release lock on file
         fcntl.flock(private_file, fcntl.LOCK_UN)
@@ -119,8 +120,6 @@ def update_post(requester):
     # Update post in public file if public
     if data['public'] == True:
         with open('thought_writer/public/public.json', 'r') as public_file:
-            # Lock file to prevent overwrite
-            fcntl.flock(public_file, fcntl.LOCK_EX)
             public_posts = json.load(public_file)
             # Update post in public file if it was already public
             if previously_public == True:
@@ -139,7 +138,10 @@ def update_post(requester):
                         'comments': comments
                         }
                 public_posts.append(post)
+
         with open('thought_writer/public/public.json', 'w') as public_file:
+            # Lock file to prevent overwrite
+            fcntl.flock(public_file, fcntl.LOCK_EX)
             json.dump(public_posts, public_file)
             # Release lock on file
             fcntl.flock(public_file, fcntl.LOCK_UN)
@@ -147,14 +149,14 @@ def update_post(requester):
     # Remove post from public file if it was previously public but is now private
     if data['public'] == False and previously_public == True:
         with open('thought_writer/public/public.json', 'r') as public_file:
-            # Lock file to prevent overwrite
-            fcntl.flock(public_file, fcntl.LOCK_EX)
             public_posts = json.load(public_file)
             public_posts = [post for post in public_posts
                 if not (post['writer'] == writer
                         and post['timestamp'] == data['timestamp'])
                 ]
         with open('thought_writer/public/public.json', 'w') as public_file:
+            # Lock file to prevent overwrite
+            fcntl.flock(public_file, fcntl.LOCK_EX)
             json.dump(public_posts, public_file)
             # Release lock on file
             fcntl.flock(public_file, fcntl.LOCK_UN)
@@ -169,8 +171,6 @@ def delete_post(requester):
 
     # Convert username to member_id for post retrieval and decrease post count
     with open('user/users.json', 'r') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
@@ -178,14 +178,14 @@ def delete_post(requester):
                 user_data['post_number'] -= 1
 
     with open('user/users.json', 'w') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
 
     # Remove post from user's private file
     with open('thought_writer/' + writer + '.json', 'r') as private_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(private_file, fcntl.LOCK_EX)
         private_posts = json.load(private_file)
         # Get post's public status to see if it should also be removed from
         # public file
@@ -196,6 +196,8 @@ def delete_post(requester):
             if post['timestamp'] != data['timestamp']]
 
     with open('thought_writer/' + writer + '.json', 'w') as private_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(private_file, fcntl.LOCK_EX)
         json.dump(private_posts, private_file)
         # Release lock on file
         fcntl.flock(private_file, fcntl.LOCK_UN)
@@ -203,14 +205,14 @@ def delete_post(requester):
     # Remove post from public file if it is public
     if public == True:
         with open('thought_writer/public/public.json', 'r') as public_file:
-            # Lock file to prevent overwrite
-            fcntl.flock(public_file, fcntl.LOCK_EX)
             public_posts = json.load(public_file)
             public_posts = [post for post in public_posts
                 if not (post['writer'] == writer
                         and post['timestamp'] == data['timestamp'])
                 ]
         with open('thought_writer/public/public.json', 'w') as public_file:
+            # Lock file to prevent overwrite
+            fcntl.flock(public_file, fcntl.LOCK_EX)
             json.dump(public_posts, public_file)
             # Release lock on file
             fcntl.flock(public_file, fcntl.LOCK_UN)
@@ -281,8 +283,6 @@ def create_comment(requester, writer_name, post_timestamp):
     timestamp = datetime.now(timezone.utc).isoformat()
 
     with open('user/users.json', 'r') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
         for user_data in users:
             # Convert requester's username to member_id for comment storage and
@@ -295,6 +295,8 @@ def create_comment(requester, writer_name, post_timestamp):
                 writer = user_data['member_id']
 
     with open('user/users.json', 'w') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
@@ -308,28 +310,28 @@ def create_comment(requester, writer_name, post_timestamp):
 
     # Add comment to post's entry in public file
     with open('thought_writer/public/public.json', 'r') as public_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(public_file, fcntl.LOCK_EX)
         public_posts = json.load(public_file)
         for post in public_posts:
             if post['writer'] == writer and post['timestamp'] == post_timestamp:
                 post['comments'].append(comment)
 
     with open('thought_writer/public/public.json', 'w') as public_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(public_file, fcntl.LOCK_EX)
         json.dump(public_posts, public_file)
         # Release lock on file
         fcntl.flock(public_file, fcntl.LOCK_UN)
 
     # Add comment to post's entry in private file
     with open('thought_writer/' + writer + '.json', 'r') as private_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(private_file, fcntl.LOCK_EX)
         private_posts = json.load(private_file)
         for post in private_posts:
             if post['timestamp'] == post_timestamp:
                 post['comments'].append(comment)
 
     with open('thought_writer/' + writer + '.json', 'w') as private_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(private_file, fcntl.LOCK_EX)
         json.dump(private_posts, private_file)
         # Release lock on file
         fcntl.flock(private_file, fcntl.LOCK_UN)
@@ -362,8 +364,6 @@ def update_comment(requester, writer_name, post_timestamp):
     # Update comment in post's entry in public file, locating comment by
     # commenter and previous timestaxmp
     with open('thought_writer/public/public.json', 'r') as public_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(public_file, fcntl.LOCK_EX)
         public_posts = json.load(public_file)
         for post in public_posts:
             if post['writer'] == writer and post['timestamp'] == post_timestamp:
@@ -375,6 +375,8 @@ def update_comment(requester, writer_name, post_timestamp):
                         comment['content'] = data['content']
 
     with open('thought_writer/public/public.json', 'w') as public_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(public_file, fcntl.LOCK_EX)
         json.dump(public_posts, public_file)
         # Release lock on file
         fcntl.flock(public_file, fcntl.LOCK_UN)
@@ -382,8 +384,6 @@ def update_comment(requester, writer_name, post_timestamp):
     # Update comment in post's entry in private file, locating comment by
     # commenter and previous timestamp
     with open('thought_writer/' + writer + '.json', 'r') as private_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(private_file, fcntl.LOCK_EX)
         private_posts = json.load(private_file)
         for post in private_posts:
             if post['timestamp'] == post_timestamp:
@@ -395,6 +395,8 @@ def update_comment(requester, writer_name, post_timestamp):
                         comment['content'] = data['content']
 
     with open('thought_writer/' + writer + '.json', 'w') as private_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(private_file, fcntl.LOCK_EX)
         json.dump(private_posts, private_file)
         # Release lock on file
         fcntl.flock(private_file, fcntl.LOCK_UN)
@@ -408,8 +410,6 @@ def delete_comment(requester, writer_name, post_timestamp):
     data = request.get_json()
 
     with open('user/users.json', 'r') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
         for user_data in users:
             # Convert requester's username to member_id for comment retrieval
@@ -422,6 +422,8 @@ def delete_comment(requester, writer_name, post_timestamp):
                 writer = user_data['member_id']
 
     with open('user/users.json', 'w') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
@@ -429,8 +431,6 @@ def delete_comment(requester, writer_name, post_timestamp):
     # Remove comment in post's entry in public file, locating comment by
     # commenter and timestamp
     with open('thought_writer/public/public.json', 'r') as public_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(public_file, fcntl.LOCK_EX)
         public_posts = json.load(public_file)
         for post in public_posts:
             if post['writer'] == writer and post['timestamp'] == post_timestamp:
@@ -440,6 +440,8 @@ def delete_comment(requester, writer_name, post_timestamp):
                     ]
 
     with open('thought_writer/public/public.json', 'w') as public_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(public_file, fcntl.LOCK_EX)
         json.dump(public_posts, public_file)
         # Release lock on file
         fcntl.flock(public_file, fcntl.LOCK_UN)
@@ -447,8 +449,6 @@ def delete_comment(requester, writer_name, post_timestamp):
     # Remove comment in post's entry in private file, locating comment by
     # commenter and timestamp
     with open('thought_writer/' + writer + '.json','r') as private_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(private_file, fcntl.LOCK_EX)
         private_posts = json.load(private_file)
         for post in private_posts:
             if post['timestamp'] == post_timestamp:
@@ -458,6 +458,8 @@ def delete_comment(requester, writer_name, post_timestamp):
                     ]
 
     with open('thought_writer/' + writer + '.json', 'w') as private_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(private_file, fcntl.LOCK_EX)
         json.dump(private_posts, private_file)
         # Release lock on file
         fcntl.flock(private_file, fcntl.LOCK_UN)

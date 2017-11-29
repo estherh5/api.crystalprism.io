@@ -18,8 +18,6 @@ def create_drawing(requester):
     # Convert username to member_id for post storage and increase user's
     # drawing count
     with open('user/users.json', 'r') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
@@ -27,7 +25,10 @@ def create_drawing(requester):
                 user_data['drawing_number'] += 1
                 # Get current drawing number to set as drawing file name
                 drawing_number = str(user_data['drawing_number'])
+
     with open('user/users.json', 'w') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
@@ -113,16 +114,18 @@ def update_drawing_info(requester, artist, drawing_id):
                 # Convert artist's username to member_id for drawing retrieval
                 if user_data['username'].lower() == artist.lower():
                     artist = user_data['member_id']
+
         with open('canvashare/drawing_info/' + artist + '/' + drawing_id
             + '.json', 'r') as info_file:
-            # Lock file to prevent overwrite
-            fcntl.flock(info_file, fcntl.LOCK_EX)
             drawing_info = json.load(info_file)
             # Increment drawing's views by 1 if the request's number of views
             # is greater than the drawing's current number of views
             drawing_info['views'] += 1
+
         with open('canvashare/drawing_info/' + artist + '/' + drawing_id
             + '.json', 'w') as info_file:
+            # Lock file to prevent overwrite
+            fcntl.flock(info_file, fcntl.LOCK_EX)
             json.dump(drawing_info, info_file)
             # Release lock on file
             fcntl.flock(info_file, fcntl.LOCK_UN)
@@ -142,8 +145,6 @@ def update_drawing_info(requester, artist, drawing_id):
 
     with open('canvashare/drawing_info/' + artist + '/' + drawing_id + '.json',
         'r') as info_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(info_file, fcntl.LOCK_EX)
         drawing_info = json.load(info_file)
 
         # Decrement drawing's likes by 1 and remove liker from the drawing's
@@ -151,16 +152,18 @@ def update_drawing_info(requester, artist, drawing_id):
         if data['request'] == 'unlike':
             drawing_info['likes'] -= 1
             drawing_info['liked_users'].remove(liker)
+
             # Remove drawing from liker's liked drawings list
             with open('user/users.json', 'r') as users_file:
-                # Lock file to prevent overwrite
-                fcntl.flock(users_file, fcntl.LOCK_EX)
                 users = json.load(users_file)
                 for user_data in users:
                     if user_data['member_id'] == liker:
                         user_data['liked_drawings'].remove(
                             artist + '/' + drawing_id + '.png')
+
             with open('user/users.json', 'w') as users_file:
+                # Lock file to prevent overwrite
+                fcntl.flock(users_file, fcntl.LOCK_EX)
                 json.dump(users, users_file)
                 # Release lock on file
                 fcntl.flock(users_file, fcntl.LOCK_UN)
@@ -170,22 +173,26 @@ def update_drawing_info(requester, artist, drawing_id):
         if data['request'] == 'like':
             drawing_info['likes'] += 1
             drawing_info['liked_users'].insert(0, liker)
+
             # Add drawing to liker's liked drawings list
             with open('user/users.json', 'r') as users_file:
-                # Lock file to prevent overwrite
-                fcntl.flock(users_file, fcntl.LOCK_EX)
                 users = json.load(users_file)
                 for user_data in users:
                     if user_data['member_id'] == liker:
                         user_data['liked_drawings'].insert(
                             0, artist + '/' + drawing_id + '.png')
+
             with open('user/users.json', 'w') as users_file:
+                # Lock file to prevent overwrite
+                fcntl.flock(users_file, fcntl.LOCK_EX)
                 json.dump(users, users_file)
                 # Release lock on file
                 fcntl.flock(users_file, fcntl.LOCK_UN)
 
     with open('canvashare/drawing_info/' + artist + '/' + drawing_id + '.json',
         'w') as info_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(info_file, fcntl.LOCK_EX)
         json.dump(drawing_info, info_file)
         # Release lock on file
         fcntl.flock(info_file, fcntl.LOCK_UN)

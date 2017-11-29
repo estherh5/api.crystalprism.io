@@ -19,8 +19,6 @@ def create_leader(requester):
 
     # Update player's user account with score data
     with open('user/users.json', 'r') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
@@ -44,14 +42,14 @@ def create_leader(requester):
                     key = itemgetter('score'), reverse = True)
 
     with open('user/users.json', 'w') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
         json.dump(users, users_file)
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
 
     # Add score to game leaders file
     with open('rhythm_of_life/leaders.json', 'r') as leaders_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(leaders_file, fcntl.LOCK_EX)
         leaders = json.load(leaders_file)
         leaders.append({
             'timestamp': timestamp,
@@ -61,6 +59,8 @@ def create_leader(requester):
             })
 
     with open('rhythm_of_life/leaders.json', 'w') as leaders_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(leaders_file, fcntl.LOCK_EX)
         json.dump(leaders, leaders_file)
         # Release lock on file
         fcntl.flock(leaders_file, fcntl.LOCK_UN)
