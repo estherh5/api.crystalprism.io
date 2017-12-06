@@ -39,23 +39,24 @@ def drawing():
         return canvashare.create_drawing(requester)
 
 
-@app.route('/api/canvashare/drawing/<artist>/<drawing_file>', methods = ['GET'])
-def get_drawing(artist, drawing_file):
+@app.route('/api/canvashare/drawing/<artist_name>/<drawing_file>',
+    methods = ['GET'])
+def get_drawing(artist_name, drawing_file):
     # Retrieve a drawing PNG file when client sends the artist's username and
     # drawing file name (e.g., '1.png') in the request URL; no bearer token
     # needed
     if request.method == 'GET':
-        return canvashare.read_drawing(artist, drawing_file)
+        return canvashare.read_drawing(artist_name, drawing_file)
 
 
-@app.route('/api/canvashare/drawing-info/<artist>/<drawing_id>',
+@app.route('/api/canvashare/drawing-info/<artist_name>/<drawing_id>',
     methods = ['GET', 'PATCH'])
-def drawing_info(artist, drawing_id):
+def drawing_info(artist_name, drawing_id):
     # Retrieve an artist's drawing's attributes when client sends the artist's
     # username and drawing file name without the extension (e.g., '1') in the
     # request URL; no bearer token needed
     if request.method == 'GET':
-        return canvashare.read_drawing_info(artist, drawing_id)
+        return canvashare.read_drawing_info(artist_name, drawing_id)
 
     # Update a drawing's attributes when client sends the artist's username and
     # drawing file name without the extension (e.g., '1') in the request URL
@@ -71,26 +72,26 @@ def drawing_info(artist, drawing_id):
         payload = json.loads(verification.data.decode())
         requester = payload['username']
 
-        return canvashare.update_drawing_info(requester, artist, drawing_id)
+        return canvashare.update_drawing_info(requester, artist_name, drawing_id)
 
 
 @app.route('/api/canvashare/gallery', methods = ['GET'])
 def gallery():
-    # Retrieve all users' drawing file paths as '[artist]/[drawing_id].png',
-    # in order of newest to oldest drawings; no bearer token needed; query
-    # params specify number of drawings
+    # Retrieve all drawing file paths as '[artist_name]/[drawing_id].png', in
+    # order of newest to oldest drawings; no bearer token needed; query params
+    # specify number of drawings
     if request.method == 'GET':
         return canvashare.read_all_drawings()
 
 
-@app.route('/api/canvashare/gallery/<artist>', methods = ['GET'])
-def user_gallery(artist):
-    # Retrieve a user's drawing file paths as '[artist]/[drawing_name].png', in
-    # order of newest to oldest drawings, when client sends the artist's
+@app.route('/api/canvashare/gallery/<artist_name>', methods = ['GET'])
+def user_gallery(artist_name):
+    # Retrieve user's drawing file paths as '[artist_name]/[drawing_name].png',
+    # in order of newest to oldest drawings, when client sends the artist's
     # username in the request URL; no bearer token needed; query params specify
     # number of drawings
     if request.method == 'GET':
-        return canvashare.read_all_user_drawings(artist)
+        return canvashare.read_all_user_drawings(artist_name)
 
 
 @app.route('/api/login', methods = ['GET'])
