@@ -61,18 +61,10 @@ def drawing_info(artist_name, drawing_id):
     # Update a drawing's attributes when client sends the artist's username and
     # drawing file name without the extension (e.g., '1') in the request URL
     # and jsonified attribute request ('like', 'unlike', 'view') in request
-    # body and verified bearer token in request Authorization header
+    # body and verified bearer token in request Authorization header if request
+    # is to like/unlike drawing (not required to view drawing)
     if request.method == 'PATCH':
-        # Verify that user is logged in and return error status code if not
-        verification = user.verify_token()
-        if verification.status_code != 200:
-            return verification
-
-        # Get username from payload if user is logged in
-        payload = json.loads(verification.data.decode())
-        requester = payload['username']
-
-        return canvashare.update_drawing_info(requester, artist_name, drawing_id)
+        return canvashare.update_drawing_info(artist_name, drawing_id)
 
 
 @app.route('/api/canvashare/gallery', methods = ['GET'])

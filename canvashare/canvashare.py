@@ -6,6 +6,7 @@ from base64 import decodestring
 from datetime import datetime, timezone
 from flask import jsonify, make_response, request, send_file
 from glob import glob
+from user import user
 
 
 def create_drawing(requester):
@@ -98,10 +99,14 @@ def read_drawing_info(artist_name, drawing_id):
         return jsonify(drawing_info)
 
 
-def update_drawing_info(requester, artist_name, drawing_id):
+def update_drawing_info(artist_name, drawing_id):
     # Request should contain:
     # request <str; 'view', 'like', 'unlike'>
     data = request.get_json()
+
+    # Define requester variable as user who sent request (for liking/unliking
+    # drawing) <str>
+    requester = ''
 
     with open('user/users.json', 'r') as users_file:
         users = json.load(users_file)
@@ -129,10 +134,20 @@ def update_drawing_info(requester, artist_name, drawing_id):
             json.dump(drawing_info, info_file)
             # Release lock on file
             fcntl.flock(info_file, fcntl.LOCK_UN)
-        return make_response('Success', 200)
+            return make_response('Success', 200)
 
     # Otherwise, request is for liking/unliking drawing, so increase/decrease
     # like count
+
+    # Verify that user is logged in and return error status code if not
+    verification = user.verify_token()
+    if verification.status_code != 200:
+        return verification
+
+    # Get username from payload if user is logged in
+    payload = json.loads(verification.data.decode())
+    requester = payload['username']
+
     with open('canvashare/drawing_info/' + artist_id + '/' + drawing_id
         + '.json', 'r') as info_file:
         drawing_info = json.load(info_file)
@@ -140,53 +155,76 @@ def update_drawing_info(requester, artist_name, drawing_id):
         # Decrement drawing's likes by 1 and remove liker from the drawing's
         # liked users if the request is to unlike drawing
         if data['request'] == 'unlike':
-            drawing_info['likes'] -= 1
-            drawing_info['liked_users'].remove(liker)
 
-            # Remove drawing from liker's liked drawings list
-            with open('user/users.json', 'r') as users_file:
-                users = json.load(users_file)
-                for user_data in users:
-                    if user_data['member_id'] == liker:
-                        user_data['liked_drawings'].remove(
-                            artist + '/' + drawing_id + '.png')
+            # Check if requester is in list of liked users for drawing to
+            # prevent tampering with like count
+            if liker in drawing_info['liked_users']:
 
-            with open('user/users.json', 'w') as users_file:
-                # Lock file to prevent overwrite
-                fcntl.flock(users_file, fcntl.LOCK_EX)
-                json.dump(users, users_file)
-                # Release lock on file
-                fcntl.flock(users_file, fcntl.LOCK_UN)
+                drawing_info['likes'] -= 1
+                drawing_info['liked_users'].remove(liker)
+
+                # Remove drawing from liker's liked drawings list
+                with open('user/users.json', 'r') as users_file:
+                    users = json.load(users_file)
+                    for user_data in users:
+                        if user_data['member_id'] == liker:
+                            user_data['liked_drawings'].remove(
+                                artist_id + '/' + drawing_id + '.png')
+
+                with open('user/users.json', 'w') as users_file:
+                    # Lock file to prevent overwrite
+                    fcntl.flock(users_file, fcntl.LOCK_EX)
+                    json.dump(users, users_file)
+                    # Release lock on file
+                    fcntl.flock(users_file, fcntl.LOCK_UN)
+
+                with open('canvashare/drawing_info/' + artist_id + '/'
+                    + drawing_id + '.json', 'w') as info_file:
+                    # Lock file to prevent overwrite
+                    fcntl.flock(info_file, fcntl.LOCK_EX)
+                    json.dump(drawing_info, info_file)
+                    # Release lock on file
+                    fcntl.flock(info_file, fcntl.LOCK_UN)
+                    return make_response('Success', 200)
+
+            return make_response('User did not like drawing', 400)
 
         # Increment drawing's likes by 1 and add liker to the drawing's liked
         # users if the request is to like drawing
         if data['request'] == 'like':
-            drawing_info['likes'] += 1
-            drawing_info['liked_users'].insert(0, liker)
 
-            # Add drawing to liker's liked drawings list
-            with open('user/users.json', 'r') as users_file:
-                users = json.load(users_file)
-                for user_data in users:
-                    if user_data['member_id'] == liker:
-                        user_data['liked_drawings'].insert(
-                            0, artist + '/' + drawing_id + '.png')
+            # Ensure user is not already in list of liked users for drawing to
+            # prevent tampering with like count
+            if liker not in drawing_info['liked_users']:
 
-            with open('user/users.json', 'w') as users_file:
-                # Lock file to prevent overwrite
-                fcntl.flock(users_file, fcntl.LOCK_EX)
-                json.dump(users, users_file)
-                # Release lock on file
-                fcntl.flock(users_file, fcntl.LOCK_UN)
+                drawing_info['likes'] += 1
+                drawing_info['liked_users'].insert(0, liker)
 
-    with open('canvashare/drawing_info/' + artist + '/' + drawing_id + '.json',
-        'w') as info_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(info_file, fcntl.LOCK_EX)
-        json.dump(drawing_info, info_file)
-        # Release lock on file
-        fcntl.flock(info_file, fcntl.LOCK_UN)
-        return make_response('Success', 200)
+                # Add drawing to liker's liked drawings list
+                with open('user/users.json', 'r') as users_file:
+                    users = json.load(users_file)
+                    for user_data in users:
+                        if user_data['member_id'] == liker:
+                            user_data['liked_drawings'].insert(
+                                0, artist_id + '/' + drawing_id + '.png')
+
+                with open('user/users.json', 'w') as users_file:
+                    # Lock file to prevent overwrite
+                    fcntl.flock(users_file, fcntl.LOCK_EX)
+                    json.dump(users, users_file)
+                    # Release lock on file
+                    fcntl.flock(users_file, fcntl.LOCK_UN)
+
+                with open('canvashare/drawing_info/' + artist_id + '/'
+                    + drawing_id + '.json', 'w') as info_file:
+                    # Lock file to prevent overwrite
+                    fcntl.flock(info_file, fcntl.LOCK_EX)
+                    json.dump(drawing_info, info_file)
+                    # Release lock on file
+                    fcntl.flock(info_file, fcntl.LOCK_UN)
+                    return make_response('Success', 200)
+
+            return make_response('User already liked drawing', 400)
 
 
 def read_all_drawings():
