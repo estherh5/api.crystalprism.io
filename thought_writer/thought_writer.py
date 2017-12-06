@@ -468,15 +468,10 @@ def delete_comment(requester, writer_name, post_timestamp):
 
 
 def read_all_posts():
-    # Get number of requested posts from query parameters
-    if request.args.get('start') is not None:
-        request_start = int(request.args.get('start'))
-        request_end = int(request.args.get('end'))
-
-    # Set default number of retrieved posts if not specified in query parameters
-    else:
-        request_start = 0
-        request_end = 9
+    # Get number of requested posts from query parameters, using default if
+    # null
+    request_start = int(request.args.get('start', 0))
+    request_end = int(request.args.get('end', request_start + 10))
 
     # Return specified number of posts from public file
     with open('thought_writer/public/public.json', 'r') as public_file:
@@ -504,15 +499,10 @@ def read_all_posts():
 
 
 def read_all_user_posts(writer_name):
-    # Get number of requested posts from query parameters
-    if request.args.get('start') is not None:
-        request_start = int(request.args.get('start'))
-        request_end = int(request.args.get('end'))
-
-    # Set default number of retrieved posts if not specified in query parameters
-    else:
-        request_start = 0
-        request_end = 9
+    # Get number of requested posts from query parameters, using default if
+    # null
+    request_start = int(request.args.get('start', 0))
+    request_end = int(request.args.get('end', request_start + 10))
 
     # Convert writer's username to member_id for post retrieval
     with open('user/users.json', 'r') as users_file:
@@ -577,4 +567,4 @@ def read_all_user_posts(writer_name):
                                 comment['commenter'] = user_data['username']
             return jsonify(public_posts[request_start:request_end])
 
-        return make_response('No posts for this user', 404)
+    return make_response('No posts for this user', 404)

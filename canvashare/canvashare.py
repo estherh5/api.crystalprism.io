@@ -228,18 +228,12 @@ def update_drawing_info(artist_name, drawing_id):
 
 
 def read_all_drawings():
-    # Get number of requested drawings from query parameters
-    if request.args.get('start') is not None:
-        request_start = int(request.args.get('start'))
-        request_end = int(request.args.get('end'))
+    # Get number of requested drawings from query parameters, using default if
+    # null
+    request_start = int(request.args.get('start', 0))
+    request_end = int(request.args.get('end', request_start + 10))
 
-    # Set default number of retrieved drawings if not specified in query
-    # parameters
-    else:
-        request_start = 0
-        request_end = 9
-
-    # Get all drawings from all artist's folders
+    # Get all drawings from all artists' folders
     all_drawings = glob('canvashare/drawings/*/*', recursive = True)
 
     # Sort all drawings from newest to oldest creation time
@@ -258,17 +252,11 @@ def read_all_drawings():
     return jsonify(requested_drawings)
 
 
-def read_all_user_drawings(artist):
-    # Get number of requested drawings from query parameters
-    if request.args.get('start') is not None:
-        request_start = int(request.args.get('start'))
-        request_end = int(request.args.get('end'))
-
-    # Set default number of retrieved drawings if not specified in query
-    # parameters
-    else:
-        request_start = 0
-        request_end = 9
+def read_all_user_drawings(artist_name):
+    # Get number of requested drawings from query parameters, using default if
+    # null
+    request_start = int(request.args.get('start', 0))
+    request_end = int(request.args.get('end', request_start + 10))
 
     # Convert artist's username to member_id for drawing retrieval
     with open('user/users.json', 'r') as users_file:

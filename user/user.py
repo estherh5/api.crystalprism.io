@@ -306,15 +306,10 @@ def verify_token():
 
 
 def read_users():
-    # Get number of requested users from query parameters
-    if request.args.get('start') is not None:
-        request_start = int(request.args.get('start'))
-        request_end = int(request.args.get('end'))
-
-    # Set default number of users if not specified in query parameters
-    else:
-        request_start = 0
-        request_end = 9
+    # Get number of requested users from query parameters, using default if
+    # null
+    request_start = int(request.args.get('start', 0))
+    request_end = int(request.args.get('end', request_start + 10))
 
     # Return list of requested number of usernames
     with open('user/users.json', 'r') as users_file:

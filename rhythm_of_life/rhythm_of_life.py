@@ -5,7 +5,6 @@ import os
 from datetime import datetime, timezone
 from flask import jsonify, make_response, request
 from operator import itemgetter
-from user import user
 
 
 def create_leader(requester):
@@ -69,15 +68,10 @@ def create_leader(requester):
 
 
 def read_leaders():
-    # Get number of requested leaders from query parameters
-    if request.args.get('start') is not None:
-        request_start = int(request.args.get('start'))
-        request_end = int(request.args.get('end'))
-
-    # Set default number of leaders if not specified in query parameters
-    else:
-        request_start = 0
-        request_end = 5
+    # Get number of requested leaders from query parameters, using default if
+    # null
+    request_start = int(request.args.get('start', 0))
+    request_end = int(request.args.get('end', request_start + 5))
 
     # Return requested game leaders
     with open('rhythm_of_life/leaders.json', 'r') as leaders_file:
