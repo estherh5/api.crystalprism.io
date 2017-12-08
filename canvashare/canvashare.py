@@ -64,7 +64,7 @@ def create_drawing(requester):
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
 
-    return make_response('Success', 200)
+    return make_response('Success', 201)
 
 
 def read_drawing(artist_name, drawing_file):

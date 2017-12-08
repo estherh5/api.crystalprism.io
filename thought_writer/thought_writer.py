@@ -81,7 +81,7 @@ def create_post(requester):
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
 
-    return make_response(timestamp, 200)
+    return make_response(timestamp, 201)
 
 
 def update_post(requester):
@@ -354,7 +354,7 @@ def create_comment(requester, writer_name, post_timestamp):
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
 
-    return make_response('Success', 200)
+    return make_response('Success', 201)
 
 
 def update_comment(requester, writer_name, post_timestamp):

@@ -22,18 +22,22 @@ def create_leader(requester):
             if user_data['username'].lower() == requester.lower():
                 # Convert username to member_id for player storage
                 player = user_data['member_id']
+
                 # Increment number of game plays by 1
                 user_data['shapes_plays'] += 1
+
                 # Save current score as user's high score if it is higher than
                 # the current high score
                 if user_data['shapes_high_score'] < data['score']:
                     user_data['shapes_high_score'] = data['score']
+
                 # Add score data to user's stored game scores and sort game
                 # scores by highest to lowest
                 user_data['shapes_scores'].append({
                     'timestamp': timestamp,
                     'score': data['score']
                     })
+
                 user_data['shapes_scores'].sort(
                     key = itemgetter('score'), reverse = True)
 
@@ -60,7 +64,7 @@ def create_leader(requester):
         # Release lock on file
         fcntl.flock(leaders_file, fcntl.LOCK_UN)
 
-    return make_response('Success', 200)
+    return make_response('Success', 201)
 
 
 def read_leaders():
@@ -72,8 +76,10 @@ def read_leaders():
     # Return requested game leaders
     with open('shapes_in_rain/leaders.json', 'r') as leaders_file:
         leaders = json.load(leaders_file)
+
         # Sort game leaders by highest to lowest score
         leaders.sort(key = itemgetter('score'), reverse = True)
+
         # Replace each player's member_id with username
         for entry in leaders[request_start:request_end]:
             with open('user/users.json', 'r') as users_file:
@@ -81,4 +87,5 @@ def read_leaders():
                 for user_data in users:
                     if user_data['member_id'] == entry['player']:
                         entry['player'] = user_data['username']
+
         return jsonify(leaders[request_start:request_end])

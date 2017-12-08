@@ -123,7 +123,7 @@ def create_user():
         # Release lock on file
         fcntl.flock(users_file, fcntl.LOCK_UN)
 
-    return make_response('Success', 200)
+    return make_response('Success', 201)
 
 
 def read_user(requester):
