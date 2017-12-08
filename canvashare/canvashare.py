@@ -6,6 +6,7 @@ from base64 import decodestring
 from datetime import datetime, timezone
 from flask import jsonify, make_response, request, send_file
 from glob import glob
+
 from user import user
 
 
@@ -90,6 +91,7 @@ def read_drawing_info(artist_name, drawing_id):
     with open('canvashare/drawing_info/' + artist_id + '/' + drawing_id
         + '.json', 'r') as info_file:
         drawing_info = json.load(info_file)
+
         # Replace member_id with username for each user in drawing's liked users
         # list
         for i in range(len(drawing_info['liked_users'])):
@@ -98,6 +100,7 @@ def read_drawing_info(artist_name, drawing_id):
                 for user_data in users:
                     if user_data['member_id'] == drawing_info['liked_users'][i]:
                         drawing_info['liked_users'][i] = user_data['username']
+
         return jsonify(drawing_info)
 
 
@@ -116,9 +119,10 @@ def update_drawing_info(artist_name, drawing_id):
             # Convert artist's username to member_id for drawing retrieval
             if user_data['username'].lower() == artist_name.lower():
                 artist_id = user_data['member_id']
+
             # Convert requester's username to member_id for liker storage
             if user_data['username'].lower() == requester.lower():
-                liker = user_data['member_id']
+                liker_id = user_data['member_id']
 
     # If request is for viewing the drawing, increase view count without
     # requiring user to be logged in
@@ -160,16 +164,16 @@ def update_drawing_info(artist_name, drawing_id):
 
             # Check if requester is in list of liked users for drawing to
             # prevent tampering with like count
-            if liker in drawing_info['liked_users']:
+            if liker_id in drawing_info['liked_users']:
 
                 drawing_info['likes'] -= 1
-                drawing_info['liked_users'].remove(liker)
+                drawing_info['liked_users'].remove(liker_id)
 
                 # Remove drawing from liker's liked drawings list
                 with open('user/users.json', 'r') as users_file:
                     users = json.load(users_file)
                     for user_data in users:
-                        if user_data['member_id'] == liker:
+                        if user_data['member_id'] == liker_id:
                             user_data['liked_drawings'].remove(
                                 artist_id + '/' + drawing_id + '.png')
 
@@ -199,16 +203,16 @@ def update_drawing_info(artist_name, drawing_id):
 
             # Ensure user is not already in list of liked users for drawing to
             # prevent tampering with like count
-            if liker not in drawing_info['liked_users']:
+            if liker_id not in drawing_info['liked_users']:
 
                 drawing_info['likes'] += 1
-                drawing_info['liked_users'].insert(0, liker)
+                drawing_info['liked_users'].insert(0, liker_id)
 
                 # Add drawing to liker's liked drawings list
                 with open('user/users.json', 'r') as users_file:
                     users = json.load(users_file)
                     for user_data in users:
-                        if user_data['member_id'] == liker:
+                        if user_data['member_id'] == liker_id:
                             user_data['liked_drawings'].insert(
                                 0, artist_id + '/' + drawing_id + '.png')
 
@@ -233,7 +237,7 @@ def update_drawing_info(artist_name, drawing_id):
             return make_response('User already liked drawing', 400)
 
 
-def read_all_drawings():
+def read_drawings():
     # Get number of requested drawings from query parameters, using default if
     # null
     request_start = int(request.args.get('start', 0))
@@ -254,11 +258,13 @@ def read_all_drawings():
             for user_data in users:
                 if user_data['member_id'] == drawing.split('/')[-2]:
                     artist_name = user_data['username']
+
         requested_drawings.append(artist_name + '/' + drawing.split('/')[-1])
+
     return jsonify(requested_drawings)
 
 
-def read_all_user_drawings(artist_name):
+def read_drawings_for_one_user(artist_name):
     # Get number of requested drawings from query parameters, using default if
     # null
     request_start = int(request.args.get('start', 0))
@@ -284,4 +290,5 @@ def read_all_user_drawings(artist_name):
         artist_name + '/' + drawing.split('/')[-1]
         for drawing in all_drawings[request_start:request_end]
         ]
+
     return jsonify(requested_drawings)

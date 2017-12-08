@@ -1,9 +1,10 @@
 import json
 import os
 
-from canvashare import canvashare
 from flask import Flask, request
 from flask_cors import CORS
+
+from canvashare import canvashare
 from rhythm_of_life import rhythm_of_life
 from shapes_in_rain import shapes_in_rain
 from thought_writer import thought_writer
@@ -73,7 +74,7 @@ def gallery():
     # order of newest to oldest drawings; no bearer token needed; query params
     # specify number of drawings
     if request.method == 'GET':
-        return canvashare.read_all_drawings()
+        return canvashare.read_drawings()
 
 
 @app.route('/api/canvashare/gallery/<artist_name>', methods = ['GET'])
@@ -83,7 +84,7 @@ def user_gallery(artist_name):
     # username in the request URL; no bearer token needed; query params specify
     # number of drawings
     if request.method == 'GET':
-        return canvashare.read_all_user_drawings(artist_name)
+        return canvashare.read_drawings_for_one_user(artist_name)
 
 
 @app.route('/api/login', methods = ['GET'])
@@ -260,7 +261,7 @@ def post_board():
     # Retrieve all users' public thought posts; no bearer token needed; query
     # params specify number of posts
     if request.method == 'GET':
-        return thought_writer.read_all_posts()
+        return thought_writer.read_posts()
 
 
 @app.route('/api/thought-writer/post-board/<writer_name>', methods = ['GET'])
@@ -271,7 +272,7 @@ def user_post_board(writer_name):
     # public posts; otherwise, only public posts will be sent; query params
     # specify number of posts
     if request.method == 'GET':
-        return thought_writer.read_all_user_posts(writer_name)
+        return thought_writer.read_posts_for_one_user(writer_name)
 
 
 @app.route('/api/user', methods = ['POST', 'GET', 'PATCH', 'DELETE'])
