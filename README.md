@@ -318,8 +318,8 @@ Users who want to join the Crystal Prism community can create an account to stor
     "about": "", // User-entered blurb that appears on public profile
     "admin": false, // Admin status
     "background_color": "#ffffff", // User-chosen background color of public profile
-    "comment_number": 0, // Number of user's Thought Writer comments on posts
-    "drawing_number": 1, // Number of CanvaShare drawings created
+    "comment_count": 0, // Number of user's Thought Writer comments on posts
+    "drawing_count": 1, // Number of CanvaShare drawings created
     "email": "", // User-entered on My Account page
     "email_public": false, // User specifies if email is viewable on public profile
     "first_name": "", // User-entered on My Account page
@@ -330,7 +330,7 @@ Users who want to join the Crystal Prism community can create an account to stor
     "member_since": "2017-10-04T00:00:00.000000+00:00", // UTC timestamp of when user created account
     "name_public": false, // User specifies if name is viewable on public profile
     "password": "$2b$12$GD0XvyXV/8i9G1...", // Password hashed with bcrypt algorithm
-    "post_number": 1, // Number of user's Thought Writer posts
+    "post_count": 1, // Number of user's Thought Writer posts
     "rhythm_high_lifespan": "00:00:00", // High lifespan in Rhythm of Life
     "rhythm_high_score": 0, // High score in Rhythm of Life (lifespan converted to integer)
     "rhythm_plays": 0, // Number of Rhythm of Life game plays
@@ -371,13 +371,13 @@ Users who want to join the Crystal Prism community can create an account to stor
 {
     "about": "",
     "background_color": "#ffffff",
-    "comment_number": 0,
-    "drawing_number": 1,
+    "comment_count": 0,
+    "drawing_count": 1,
     "email": "",
     "icon_color": "#000000",
     "member_since": "2017-10-04T00:00:00.000000+00:00",
     "name": "",
-    "post_number": 0,
+    "post_count": 0,
     "rhythm_high_lifespan": "00:00:00",
     "shapes_high_score": 0,
     "username": "user"

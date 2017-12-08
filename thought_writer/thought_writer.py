@@ -32,14 +32,7 @@ def create_post(requester):
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
                 writer = user_data['member_id']
-                user_data['post_number'] += 1
-
-    with open('user/users.json', 'w') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
-        json.dump(users, users_file)
-        # Release lock on file
-        fcntl.flock(users_file, fcntl.LOCK_UN)
+                user_data['post_count'] += 1
 
     # Add post to private user file if it exists or generate new file for
     # first-time posting
@@ -75,6 +68,15 @@ def create_post(requester):
             json.dump(public_posts, public_file)
             # Release lock on file
             fcntl.flock(public_file, fcntl.LOCK_UN)
+
+    # Write changes to user file to update user's post count if post is
+    # created successfully
+    with open('user/users.json', 'w') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
+        json.dump(users, users_file)
+        # Release lock on file
+        fcntl.flock(users_file, fcntl.LOCK_UN)
 
     return make_response(timestamp, 200)
 
@@ -146,7 +148,8 @@ def update_post(requester):
             # Release lock on file
             fcntl.flock(public_file, fcntl.LOCK_UN)
 
-    # Remove post from public file if it was previously public but is now private
+    # Remove post from public file if it was previously public but is now
+    # private
     if data['public'] == False and previously_public == True:
         with open('thought_writer/public/public.json', 'r') as public_file:
             public_posts = json.load(public_file)
@@ -175,14 +178,7 @@ def delete_post(requester):
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
                 writer = user_data['member_id']
-                user_data['post_number'] -= 1
-
-    with open('user/users.json', 'w') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
-        json.dump(users, users_file)
-        # Release lock on file
-        fcntl.flock(users_file, fcntl.LOCK_UN)
+                user_data['post_count'] -= 1
 
     # Remove post from user's private file
     with open('thought_writer/' + writer + '.json', 'r') as private_file:
@@ -216,6 +212,15 @@ def delete_post(requester):
             json.dump(public_posts, public_file)
             # Release lock on file
             fcntl.flock(public_file, fcntl.LOCK_UN)
+
+    # Write changes to user file to update user's post count if post is
+    # deleted successfully
+    with open('user/users.json', 'w') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
+        json.dump(users, users_file)
+        # Release lock on file
+        fcntl.flock(users_file, fcntl.LOCK_UN)
 
     return make_response('Success', 200)
 
@@ -289,17 +294,10 @@ def create_comment(requester, writer_name, post_timestamp):
             # increase comment number
             if user_data['username'].lower() == requester.lower():
                 commenter = user_data['member_id']
-                user_data['comment_number'] += 1
+                user_data['comment_count'] += 1
             # Convert writer's username to member_id for post retrieval
             if user_data['username'].lower() == writer_name.lower():
                 writer = user_data['member_id']
-
-    with open('user/users.json', 'w') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
-        json.dump(users, users_file)
-        # Release lock on file
-        fcntl.flock(users_file, fcntl.LOCK_UN)
 
     # Store comment entry with commenter, timestamp, and content
     comment = {
@@ -336,6 +334,15 @@ def create_comment(requester, writer_name, post_timestamp):
         # Release lock on file
         fcntl.flock(private_file, fcntl.LOCK_UN)
 
+    # Write changes to user file to update user's comment count if comment is
+    # created successfully
+    with open('user/users.json', 'w') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
+        json.dump(users, users_file)
+        # Release lock on file
+        fcntl.flock(users_file, fcntl.LOCK_UN)
+
     return make_response('Success', 200)
 
 
@@ -362,7 +369,7 @@ def update_comment(requester, writer_name, post_timestamp):
                 writer = user_data['member_id']
 
     # Update comment in post's entry in public file, locating comment by
-    # commenter and previous timestaxmp
+    # commenter and previous timestamp
     with open('thought_writer/public/public.json', 'r') as public_file:
         public_posts = json.load(public_file)
         for post in public_posts:
@@ -416,17 +423,10 @@ def delete_comment(requester, writer_name, post_timestamp):
             # and decrease comment number
             if user_data['username'].lower() == requester.lower():
                 commenter = user_data['member_id']
-                user_data['comment_number'] -= 1
+                user_data['comment_count'] -= 1
             # Convert writer's username to member_id for post retrieval
             if user_data['username'].lower() == writer_name.lower():
                 writer = user_data['member_id']
-
-    with open('user/users.json', 'w') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
-        json.dump(users, users_file)
-        # Release lock on file
-        fcntl.flock(users_file, fcntl.LOCK_UN)
 
     # Remove comment in post's entry in public file, locating comment by
     # commenter and timestamp
@@ -463,6 +463,15 @@ def delete_comment(requester, writer_name, post_timestamp):
         json.dump(private_posts, private_file)
         # Release lock on file
         fcntl.flock(private_file, fcntl.LOCK_UN)
+
+    # Write changes to user file to update user's comment count if comment is
+    # deleted successfully
+    with open('user/users.json', 'w') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
+        json.dump(users, users_file)
+        # Release lock on file
+        fcntl.flock(users_file, fcntl.LOCK_UN)
 
     return make_response('Success', 200)
 
@@ -529,13 +538,13 @@ def read_all_user_posts(writer_name):
                     # Sort posts by timestamp, with newest posts first
                     private_posts.sort(
                         key = itemgetter('timestamp'), reverse = True)
-                    # Replace member_id with commenter's username for each
-                    # retrieved post's comments
                     for post in private_posts[request_start:request_end]:
                         # Sort post comments by timestamp, with newest comments
                         # first
                         post['comments'].sort(
                             key = itemgetter('timestamp'), reverse = True)
+                        # Replace member_id with commenter's username for each
+                        # retrieved post's comments
                         for comment in post['comments']:
                             with open('user/users.json', 'r') as users_file:
                                 users = json.load(users_file)
@@ -553,12 +562,12 @@ def read_all_user_posts(writer_name):
                 if post['public'] == True]
             # Sort posts by timestamp, with newest posts first
             public_posts.sort(key = itemgetter('timestamp'), reverse = True)
-            # Replace member_id with commenter's username for each retrieved
-            # post's comments
             for post in public_posts[request_start:request_end]:
                 # Sort post comments by timestamp, with newest comments first
                 post['comments'].sort(
                     key = itemgetter('timestamp'), reverse = True)
+                # Replace member_id with commenter's username for each retrieved
+                # post's comments
                 for comment in post['comments']:
                     with open('user/users.json','r') as users_file:
                         users = json.load(users_file)

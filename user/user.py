@@ -109,10 +109,10 @@ def create_user():
                  'rhythm_scores': [],
                  'rhythm_high_score': 0,
                  'rhythm_high_lifespan': '00:00:00',
-                 'drawing_number': 0,
+                 'drawing_count': 0,
                  'liked_drawings': [],
-                 'post_number': 0,
-                 'comment_number': 0
+                 'post_count': 0,
+                 'comment_count': 0
                  }
         users.append(entry)
 
@@ -259,9 +259,9 @@ def read_user_public(username):
                         'member_since': user_data['member_since'],
                         'shapes_high_score': user_data['shapes_high_score'],
                         'rhythm_high_lifespan': user_data['rhythm_high_lifespan'],
-                        'drawing_number': user_data['drawing_number'],
-                        'post_number': user_data['post_number'],
-                        'comment_number': user_data['comment_number']
+                        'drawing_count': user_data['drawing_count'],
+                        'post_count': user_data['post_count'],
+                        'comment_count': user_data['comment_count']
                         }
                 return jsonify(data)
 
