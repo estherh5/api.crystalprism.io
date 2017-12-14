@@ -129,8 +129,14 @@ def create_user():
 def read_user(requester):
     with open('user/users.json', 'r') as users_file:
         users = json.load(users_file)
+
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
+
+                # Return error if user account was deleted
+                if user_data['status'] == 'deleted':
+                    return make_response('Username does not exist', 404)
+
                 # Replace artist member_id with username for each drawing the
                 # user liked
                 for i in range(len(user_data['liked_drawings'])):
@@ -139,7 +145,11 @@ def read_user(requester):
                         if artist['member_id'] == liked_file[-2]:
                             user_data['liked_drawings'][i] = str(
                                 artist['username'] + '/' + liked_file[-1])
+
                 return jsonify(user_data)
+
+        # Return error if user account is not found
+        return make_response('Username does not exist', 404)
 
 
 def update_user(requester):
@@ -159,6 +169,8 @@ def update_user(requester):
     username = data['username']
     password = data['password']
 
+    user_found = False # Stores whether user account is found in users file
+
     with open('user/users.json', 'r') as users_file:
         users = json.load(users_file)
 
@@ -170,6 +182,13 @@ def update_user(requester):
 
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
+
+                user_found = True
+
+                # Return error if user account was deleted
+                if user_data['status'] == 'deleted':
+                    return make_response('Username does not exist', 404)
+
                 user_data['username'] = username
 
                 # Store hashed password if user requested change
@@ -202,6 +221,10 @@ def update_user(requester):
                 signature = urlsafe_b64encode(signature)
                 token = message + b'.' + signature
 
+    # Return error if user account is not found
+    if not user_found:
+        return make_response('Username does not exist', 404)
+
     with open('user/users.json', 'w') as users_file:
         # Lock file to prevent overwrite
         fcntl.flock(users_file, fcntl.LOCK_EX)
@@ -213,11 +236,19 @@ def update_user(requester):
 
 
 def delete_user(requester):
+    user_found = False # Stores whether user account is found in users file
+
+    # Set user account status to deleted
     with open('user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
                 user_data['status'] = 'deleted'
+                user_found = True
+
+    # Return error if user account is not found
+    if not user_found:
+        return make_response('Username does not exist', 404)
 
     with open('user/users.json', 'w') as users_file:
         # Lock file to prevent overwrite
@@ -234,17 +265,19 @@ def read_user_public(username):
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == username.lower():
+
+                # Return error if user account is deleted
                 if user_data['status'] == 'deleted':
                     return make_response('Username does not exist', 404)
 
                 # Send user's first and last name if public
-                if user_data['name_public'] == True:
+                if user_data['name_public']:
                     name = user_data['first_name'] + ' ' + user_data['last_name']
                 else:
                     name = ''
 
                 # Send user's email address if public
-                if user_data['email_public'] == True:
+                if user_data['email_public']:
                     email = user_data['email']
                 else:
                     email = ''
@@ -282,6 +315,7 @@ def verify_token():
     # Check if token in Authorization header is properly formatted
     pattern = re.compile(
         r'^[a-zA-Z0-9-_]+={0,2}\.[a-zA-Z0-9-_]+={0,2}\.[a-zA-Z0-9-_]+={0,2}$')
+
     if not pattern.match(token):
         return make_response('Token is incorrect format', 401)
 
@@ -315,5 +349,7 @@ def read_users():
     with open('user/users.json', 'r') as users_file:
         users = json.load(users_file)
         usernames = [user_data['username']
-            for user_data in users[request_start:request_end]]
+            for user_data in users[request_start:request_end]
+            ]
+
         return jsonify(usernames[request_start:request_end])
