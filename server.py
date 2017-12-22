@@ -1,7 +1,7 @@
 import json
 import os
 
-from flask import Flask, request
+from flask import Flask, make_response, request
 from flask_cors import CORS
 
 from canvashare import canvashare
@@ -93,6 +93,12 @@ def login_route():
     # username and password stored for a user account and return JWT if so
     if request.method == 'GET':
         return user.login()
+
+
+@app.route('/api/ping', methods = ['GET'])
+def ping():
+    # Return success response if server is up
+    return make_response('Success', 200)
 
 
 @app.route('/api/rhythm-of-life', methods = ['POST', 'GET'])

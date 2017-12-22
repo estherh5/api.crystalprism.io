@@ -4,6 +4,16 @@ I started programming in January 2017 and am learning Python for back-end server
 ## Setup
 To create your own copy of the Crystal Prism API, first clone this repository on your server. Next, install requirements by running `pip install -r requirements.txt`. Set up the API's necessary environment variables of "SECRET_KEY" for the salt used to generate the signature portion of the JWT for user authentication (set this as a secret key that only you know; it is imperative to keep this private for user account protection) and "ENV_TYPE" for the environment status (set this to "Dev" for testing or "Prod" for live), and start the server by running `flask run` (if you are making changes while the server is running, enter `flask run --reload` instead for instant updates).
 
+## API Status
+To check if the API is online, a client can send a request to the following endpoint.
+
+**GET** /api/ping
+* Retrieve a success message if the server is online. No bearer token is needed in the request Authorization header.
+* Example response body:
+```javascript
+Success
+```
+
 ## CanvaShare API
 #### March 2017 - Present
 [CanvaShare](https://crystalprism.io/canvashare/index.html) is a community drawing gallery that lets users create drawings and post them to a public gallery. Each user has a folder on the server for their drawings, as well as a folder for the drawing's attributes (title, number of likes, number of views, list of liked users). Drawings are stored as PNG files with numeric file names (*1.png*, *2.png*, etc.), and drawing information files are stored as JSON files with the same numeric file names (*1.json*, *2.json*, etc.).
