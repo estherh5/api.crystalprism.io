@@ -22,7 +22,7 @@ elif os.environ['ENV_TYPE'] == 'Dev':
     app.config['DEBUG'] = True
 
 
-@app.route('/api/canvashare/drawing', methods = ['POST'])
+@app.route('/api/canvashare/drawing', methods = ['POST', 'OPTIONS'])
 def drawing():
     # Post a drawing when client sends the jsonified drawing data URI in base64
     # format and drawing title in the request body and a verified bearer token
@@ -41,7 +41,7 @@ def drawing():
 
 
 @app.route('/api/canvashare/drawing/<artist_name>/<drawing_file>',
-    methods = ['GET'])
+    methods = ['GET', 'OPTIONS'])
 def get_drawing(artist_name, drawing_file):
     # Retrieve a drawing PNG file when client sends the artist's username and
     # drawing file name (e.g., '1.png') in the request URL; no bearer token
@@ -51,7 +51,7 @@ def get_drawing(artist_name, drawing_file):
 
 
 @app.route('/api/canvashare/drawing-info/<artist_name>/<drawing_id>',
-    methods = ['GET', 'PATCH'])
+    methods = ['GET', 'PATCH', 'OPTIONS'])
 def drawing_info(artist_name, drawing_id):
     # Retrieve an artist's drawing's attributes when client sends the artist's
     # username and drawing file name without the extension (e.g., '1') in the
@@ -68,7 +68,7 @@ def drawing_info(artist_name, drawing_id):
         return canvashare.update_drawing_info(artist_name, drawing_id)
 
 
-@app.route('/api/canvashare/gallery', methods = ['GET'])
+@app.route('/api/canvashare/gallery', methods = ['GET', 'OPTIONS'])
 def gallery():
     # Retrieve all drawing file paths as '[artist_name]/[drawing_id].png', in
     # order of newest to oldest drawings; no bearer token needed; query params
@@ -77,7 +77,8 @@ def gallery():
         return canvashare.read_drawings()
 
 
-@app.route('/api/canvashare/gallery/<artist_name>', methods = ['GET'])
+@app.route('/api/canvashare/gallery/<artist_name>', methods = ['GET',
+    'OPTIONS'])
 def user_gallery(artist_name):
     # Retrieve user's drawing file paths as '[artist_name]/[drawing_name].png',
     # in order of newest to oldest drawings, when client sends the artist's
@@ -87,7 +88,7 @@ def user_gallery(artist_name):
         return canvashare.read_drawings_for_one_user(artist_name)
 
 
-@app.route('/api/login', methods = ['GET'])
+@app.route('/api/login', methods = ['GET', 'OPTIONS'])
 def login_route():
     # Check if username and password in request Authorization header match
     # username and password stored for a user account and return JWT if so
@@ -95,13 +96,13 @@ def login_route():
         return user.login()
 
 
-@app.route('/api/ping', methods = ['GET'])
+@app.route('/api/ping', methods = ['GET', 'OPTIONS'])
 def ping():
     # Return success response if server is up
     return make_response('Success', 200)
 
 
-@app.route('/api/rhythm-of-life', methods = ['POST', 'GET'])
+@app.route('/api/rhythm-of-life', methods = ['POST', 'GET', 'OPTIONS'])
 def rhythm_leaders():
     # Post a game score for a user when client sends the jsonified score and
     # lifespan in the request body and verified bearer token in request
@@ -124,7 +125,7 @@ def rhythm_leaders():
         return rhythm_of_life.read_leaders()
 
 
-@app.route('/api/shapes-in-rain', methods = ['POST', 'GET'])
+@app.route('/api/shapes-in-rain', methods = ['POST', 'GET', 'OPTIONS'])
 def shapes_leaders():
     # Post a game score for a user when client sends the jsonified score in the
     # request body and verified bearer token in request Authorization header
@@ -146,7 +147,8 @@ def shapes_leaders():
         return shapes_in_rain.read_leaders()
 
 
-@app.route('/api/thought-writer/post', methods = ['POST', 'PATCH', 'DELETE'])
+@app.route('/api/thought-writer/post', methods = ['POST', 'PATCH', 'DELETE',
+    'OPTIONS'])
 def post():
     # Post a thought post when client sends the jsonified post content, title,
     # and public status ('true' or 'false') in the request body and a verified
@@ -196,7 +198,7 @@ def post():
 
 
 @app.route('/api/thought-writer/post/<writer_name>/<post_timestamp>',
-    methods = ['GET'])
+    methods = ['GET', 'OPTIONS'])
 def get_post(writer_name, post_timestamp):
     # Retrieve a user's thought post when client sends the writer's username and
     # the thought post's URI-encoded creation timestamp (UTC) in the request
@@ -207,7 +209,7 @@ def get_post(writer_name, post_timestamp):
 
 
 @app.route('/api/thought-writer/comment/<writer_name>/<post_timestamp>',
-    methods = ['POST', 'PATCH', 'DELETE'])
+    methods = ['POST', 'PATCH', 'DELETE', 'OPTIONS'])
 def comment(writer_name, post_timestamp):
     # Post a comment to a thought post when client sends the post writer's
     # username and the thought post's URI-encoded creation timestamp (UTC) in
@@ -262,7 +264,7 @@ def comment(writer_name, post_timestamp):
             post_timestamp)
 
 
-@app.route('/api/thought-writer/post-board', methods = ['GET'])
+@app.route('/api/thought-writer/post-board', methods = ['GET', 'OPTIONS'])
 def post_board():
     # Retrieve all users' public thought posts; no bearer token needed; query
     # params specify number of posts
@@ -270,7 +272,8 @@ def post_board():
         return thought_writer.read_posts()
 
 
-@app.route('/api/thought-writer/post-board/<writer_name>', methods = ['GET'])
+@app.route('/api/thought-writer/post-board/<writer_name>', methods = ['GET',
+    'OPTIONS'])
 def user_post_board(writer_name):
     # Retrieve all of a single user's thought posts by specifying the writer's
     # username in the request URL; verified bearer token for the writer is
@@ -281,7 +284,7 @@ def user_post_board(writer_name):
         return thought_writer.read_posts_for_one_user(writer_name)
 
 
-@app.route('/api/user', methods = ['POST', 'GET', 'PATCH', 'DELETE'])
+@app.route('/api/user', methods = ['POST', 'GET', 'PATCH', 'DELETE', 'OPTIONS'])
 def user_info_private():
     # Create a user account when client sends the jsonified username and
     # password in the request body
@@ -332,14 +335,14 @@ def user_info_private():
         return user.delete_user(requester)
 
 
-@app.route('/api/user/<username>', methods = ['GET'])
+@app.route('/api/user/<username>', methods = ['GET', 'OPTIONS'])
 def user_info_public(username):
     # Retrieve a user's limited account information; no bearer token needed
     if request.method == 'GET':
         return user.read_user_public(username)
 
 
-@app.route('/api/user/verify', methods = ['GET'])
+@app.route('/api/user/verify', methods = ['GET', 'OPTIONS'])
 def verify_user_token():
     # Check if bearer token in request Authorization header is valid and
     # return the expiration time (in seconds since epoch) if so
@@ -347,7 +350,7 @@ def verify_user_token():
         return user.verify_token()
 
 
-@app.route('/api/users', methods = ['GET'])
+@app.route('/api/users', methods = ['GET', 'OPTIONS'])
 def users_info():
     # Retrieve all users' usernames if there is a verified bearer token in the
     # Authorization header; query params specify number of users
