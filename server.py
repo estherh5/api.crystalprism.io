@@ -15,7 +15,7 @@ app = Flask(__name__)
 # Only allow Production server access for requests coming from
 # api.crystalprism.io
 if os.environ['ENV_TYPE'] == 'Prod':
-    prod_resource = {r"/api/*": {"origins": r"https://api.crystalprism.io"}}
+    prod_resource = {r"/api/*": {"origins": r"https://crystalprism.io"}}
     cors = CORS(app, resources = prod_resource)
 elif os.environ['ENV_TYPE'] == 'Dev':
     cors = CORS(app, resources = {r"/api/*": {"origins": "*"}})
