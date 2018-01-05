@@ -101,7 +101,7 @@ Success
 
 ## Rhythm of Life API
 #### July 2017 - Present
-[Rhythm of Life](http://crystalprism.io/rhythm-of-life/index.html) is an educational take on the classic game Snake, involving moving a heart to avoid stressors and seek relievers to maintain a healthy blood pressure.
+[Rhythm of Life](https://crystalprism.io/rhythm-of-life/index.html) is an educational take on the classic game Snake, involving moving a heart to avoid stressors and seek relievers to maintain a healthy blood pressure.
 
 **POST** /api/rhythm-of-life
 * Post a score by sending the jsonified score and lifespan in the request body. Note that there must be a verified bearer token in the request Authorization header.

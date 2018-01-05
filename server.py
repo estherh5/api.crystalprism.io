@@ -13,7 +13,7 @@ from user import user
 app = Flask(__name__)
 
 # Only allow Production server access for requests coming from
-# api.crystalprism.io
+# https://crystalprism.io
 if os.environ['ENV_TYPE'] == 'Prod':
     prod_resource = {r"/api/*": {"origins": r"https://crystalprism.io"}}
     cors = CORS(app, resources = prod_resource)
