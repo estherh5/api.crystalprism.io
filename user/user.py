@@ -13,6 +13,8 @@ from math import floor
 from time import time
 from uuid import uuid4
 
+cwd = os.path.dirname(__file__)
+
 
 def login():
     # Request should contain Authorization header:
@@ -28,7 +30,7 @@ def login():
             {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
     # Check that request credentials are correct
-    with open('user/users.json', 'r') as users_file:
+    with open(cwd + '/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
 
@@ -72,7 +74,7 @@ def create_user():
 
     username = data['username']
 
-    with open('user/users.json', 'r') as users_file:
+    with open(cwd + '/users.json', 'r') as users_file:
         users = json.load(users_file)
 
         # Check if username already exists
@@ -116,7 +118,7 @@ def create_user():
                  }
         users.append(entry)
 
-    with open('user/users.json', 'w') as users_file:
+    with open(cwd + '/users.json', 'w') as users_file:
         # Lock file to prevent overwrite
         fcntl.flock(users_file, fcntl.LOCK_EX)
         json.dump(users, users_file)
@@ -127,7 +129,7 @@ def create_user():
 
 
 def read_user(requester):
-    with open('user/users.json', 'r') as users_file:
+    with open(cwd + '/users.json', 'r') as users_file:
         users = json.load(users_file)
 
         for user_data in users:
@@ -171,7 +173,7 @@ def update_user(requester):
 
     user_found = False # Stores whether user account is found in users file
 
-    with open('user/users.json', 'r') as users_file:
+    with open(cwd + '/users.json', 'r') as users_file:
         users = json.load(users_file)
 
         # Check if username already exists if user requests to update it
@@ -225,7 +227,7 @@ def update_user(requester):
     if not user_found:
         return make_response('Username does not exist', 404)
 
-    with open('user/users.json', 'w') as users_file:
+    with open(cwd + '/users.json', 'w') as users_file:
         # Lock file to prevent overwrite
         fcntl.flock(users_file, fcntl.LOCK_EX)
         json.dump(users, users_file)
@@ -239,7 +241,7 @@ def delete_user(requester):
     user_found = False # Stores whether user account is found in users file
 
     # Set user account status to deleted
-    with open('user/users.json', 'r') as users_file:
+    with open(cwd + '/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
@@ -250,7 +252,7 @@ def delete_user(requester):
     if not user_found:
         return make_response('Username does not exist', 404)
 
-    with open('user/users.json', 'w') as users_file:
+    with open(cwd + '/users.json', 'w') as users_file:
         # Lock file to prevent overwrite
         fcntl.flock(users_file, fcntl.LOCK_EX)
         json.dump(users, users_file)
@@ -261,7 +263,7 @@ def delete_user(requester):
 
 
 def read_user_public(username):
-    with open('user/users.json', 'r') as users_file:
+    with open(cwd + '/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == username.lower():
@@ -346,7 +348,7 @@ def read_users():
     request_end = int(request.args.get('end', request_start + 10))
 
     # Return list of requested number of usernames
-    with open('user/users.json', 'r') as users_file:
+    with open(cwd + '/users.json', 'r') as users_file:
         users = json.load(users_file)
         usernames = [user_data['username']
             for user_data in users[request_start:request_end]
