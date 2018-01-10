@@ -9,6 +9,8 @@ from glob import glob
 
 from user import user
 
+cwd = os.path.dirname(__file__)
+
 
 def create_drawing(requester):
     # Request should contain:
@@ -18,7 +20,7 @@ def create_drawing(requester):
 
     # Convert username to member_id for drawing storage and increase user's
     # drawing count
-    with open('user/users.json', 'r') as users_file:
+    with open(cwd + '/../user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
@@ -28,11 +30,11 @@ def create_drawing(requester):
                 drawing_number = str(user_data['drawing_count'])
 
     # Create folder for artist's drawings if one does not already exist
-    if not os.path.exists('canvashare/drawings/' + artist_id):
-        os.makedirs('canvashare/drawings/' + artist_id)
+    if not os.path.exists(cwd + '/drawings/' + artist_id):
+        os.makedirs(cwd + '/drawings/' + artist_id)
 
     # Save drawing as PNG file in artist's drawings folder
-    with open('canvashare/drawings/' + artist_id + '/' + drawing_number
+    with open(cwd + '/drawings/' + artist_id + '/' + drawing_number
         + '.png', 'wb') as drawing_file:
         # Remove 'data:image/png;base64' from image data URL
         drawing = data['drawing'].split(',')[1].encode('utf-8')
@@ -40,11 +42,11 @@ def create_drawing(requester):
 
     # Create folder for artist's drawing information if one does not already
     # exist
-    if not os.path.exists('canvashare/drawing_info/' + artist_id):
-        os.makedirs('canvashare/drawing_info/' + artist_id)
+    if not os.path.exists(cwd + '/drawing_info/' + artist_id):
+        os.makedirs(cwd + '/drawing_info/' + artist_id)
 
     # Save drawing information as JSON file in artist's drawing_info folder
-    with open('canvashare/drawing_info/' + artist_id + '/' + drawing_number
+    with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_number
         + '.json', 'w') as info_file:
         drawing_info = {
             'title': data['title'],
@@ -57,7 +59,7 @@ def create_drawing(requester):
 
     # Write changes to user file to update user's drawing count if drawing is
     # created successfully
-    with open('user/users.json', 'w') as users_file:
+    with open(cwd + '/../user/users.json', 'w') as users_file:
         # Lock file to prevent overwrite
         fcntl.flock(users_file, fcntl.LOCK_EX)
         json.dump(users, users_file)
@@ -69,14 +71,14 @@ def create_drawing(requester):
 
 def read_drawing(artist_name, drawing_file):
     # Convert artist's username to member_id for drawing information retrieval
-    with open('user/users.json', 'r') as users_file:
+    with open(cwd + '/../user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == artist_name.lower():
                 artist_id = user_data['member_id']
 
     # Send drawing PNG file to client
-    return send_file('canvashare/drawings/' + artist_id + '/' + drawing_file)
+    return send_file(cwd + '/drawings/' + artist_id + '/' + drawing_file)
 
 
 def read_drawing_info(artist_name, drawing_id):
@@ -88,14 +90,14 @@ def read_drawing_info(artist_name, drawing_id):
                 artist_id = user_data['member_id']
 
     # Return specified drawing information file by drawing name
-    with open('canvashare/drawing_info/' + artist_id + '/' + drawing_id
+    with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id
         + '.json', 'r') as info_file:
         drawing_info = json.load(info_file)
 
         # Replace member_id with username for each user in drawing's liked
         # users list
         for i in range(len(drawing_info['liked_users'])):
-            with open('user/users.json', 'r') as users_file:
+            with open(cwd + '/../user/users.json', 'r') as users_file:
                 users = json.load(users_file)
                 for user_data in users:
                     if user_data['member_id'] == drawing_info['liked_users'][i]:
@@ -116,7 +118,7 @@ def update_drawing_info(artist_name, drawing_id):
     # drawing) <str>
     requester = ''
 
-    with open('user/users.json', 'r') as users_file:
+    with open(cwd + '/../user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             # Convert artist's username to member_id for drawing retrieval
@@ -130,13 +132,13 @@ def update_drawing_info(artist_name, drawing_id):
     # If request is for viewing the drawing, increase view count without
     # requiring user to be logged in
     if data['request'] == 'view':
-        with open('canvashare/drawing_info/' + artist_id + '/' + drawing_id
+        with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id
             + '.json', 'r') as info_file:
             drawing_info = json.load(info_file)
             # Increment drawing's views by 1
             drawing_info['views'] += 1
 
-        with open('canvashare/drawing_info/' + artist_id + '/' + drawing_id
+        with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id
             + '.json', 'w') as info_file:
             # Lock file to prevent overwrite
             fcntl.flock(info_file, fcntl.LOCK_EX)
@@ -160,7 +162,7 @@ def update_drawing_info(artist_name, drawing_id):
     payload = json.loads(verification.data.decode())
     requester = payload['username']
 
-    with open('canvashare/drawing_info/' + artist_id + '/' + drawing_id
+    with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id
         + '.json', 'r') as info_file:
         drawing_info = json.load(info_file)
 
@@ -176,14 +178,14 @@ def update_drawing_info(artist_name, drawing_id):
                 drawing_info['liked_users'].remove(liker_id)
 
                 # Remove drawing from liker's liked drawings list
-                with open('user/users.json', 'r') as users_file:
+                with open(cwd + '/../user/users.json', 'r') as users_file:
                     users = json.load(users_file)
                     for user_data in users:
                         if user_data['member_id'] == liker_id:
                             user_data['liked_drawings'].remove(
                                 artist_id + '/' + drawing_id + '.png')
 
-                with open('canvashare/drawing_info/' + artist_id + '/'
+                with open(cwd + '/drawing_info/' + artist_id + '/'
                     + drawing_id + '.json', 'w') as info_file:
                     # Lock file to prevent overwrite
                     fcntl.flock(info_file, fcntl.LOCK_EX)
@@ -193,7 +195,7 @@ def update_drawing_info(artist_name, drawing_id):
 
                 # Write changes to user file to update user's liked drawings
                 # list if drawing is unliked successfully
-                with open('user/users.json', 'w') as users_file:
+                with open(cwd + '/../user/users.json', 'w') as users_file:
                     # Lock file to prevent overwrite
                     fcntl.flock(users_file, fcntl.LOCK_EX)
                     json.dump(users, users_file)
@@ -215,14 +217,14 @@ def update_drawing_info(artist_name, drawing_id):
                 drawing_info['liked_users'].insert(0, liker_id)
 
                 # Add drawing to liker's liked drawings list
-                with open('user/users.json', 'r') as users_file:
+                with open(cwd + '/../user/users.json', 'r') as users_file:
                     users = json.load(users_file)
                     for user_data in users:
                         if user_data['member_id'] == liker_id:
                             user_data['liked_drawings'].insert(
                                 0, artist_id + '/' + drawing_id + '.png')
 
-                with open('canvashare/drawing_info/' + artist_id + '/'
+                with open(cwd + '/drawing_info/' + artist_id + '/'
                     + drawing_id + '.json', 'w') as info_file:
                     # Lock file to prevent overwrite
                     fcntl.flock(info_file, fcntl.LOCK_EX)
@@ -232,7 +234,7 @@ def update_drawing_info(artist_name, drawing_id):
 
                 # Write changes to user file to update user's liked drawings
                 # list if drawing is liked successfully
-                with open('user/users.json', 'w') as users_file:
+                with open(cwd + '/../user/users.json', 'w') as users_file:
                     # Lock file to prevent overwrite
                     fcntl.flock(users_file, fcntl.LOCK_EX)
                     json.dump(users, users_file)
@@ -253,7 +255,7 @@ def read_drawings():
     request_end = int(request.args.get('end', request_start + 10))
 
     # Get all drawings from all artists' folders
-    all_drawings = glob('canvashare/drawings/*/*', recursive = True)
+    all_drawings = glob(cwd + '/drawings/*/*', recursive = True)
 
     # Sort all drawings from newest to oldest creation time
     all_drawings.sort(key = os.path.getctime, reverse = True)
@@ -263,7 +265,7 @@ def read_drawings():
 
     for drawing in all_drawings[request_start:request_end]:
         # Replace artist member_id with username
-        with open('user/users.json', 'r') as users_file:
+        with open(cwd + '/../user/users.json', 'r') as users_file:
             users = json.load(users_file)
             for user_data in users:
                 if user_data['member_id'] == drawing.split('/')[-2]:
@@ -281,15 +283,14 @@ def read_drawings_for_one_user(artist_name):
     request_end = int(request.args.get('end', request_start + 10))
 
     # Convert artist's username to member_id for drawing retrieval
-    with open('user/users.json', 'r') as users_file:
+    with open(cwd + '/../user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == artist_name.lower():
                 artist_id = user_data['member_id']
 
     # Get all drawings from artist's drawings folder
-    all_drawings = glob(
-        'canvashare/drawings/' + artist_id + '/*', recursive = True)
+    all_drawings = glob(cwd + '/drawings/' + artist_id + '/*', recursive = True)
 
     # Sort all drawings from newest to oldest creation time
     all_drawings.sort(key = os.path.getctime, reverse = True)

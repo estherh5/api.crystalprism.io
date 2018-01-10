@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from flask import jsonify, make_response, request
 from operator import itemgetter
 
+cwd = os.path.dirname(__file__)
+
 
 def create_leader(requester):
     # Request should contain:
@@ -16,7 +18,7 @@ def create_leader(requester):
     timestamp = datetime.now(timezone.utc).isoformat()
 
     # Update player's user account with score data
-    with open('user/users.json', 'r') as users_file:
+    with open(cwd + '/../user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == requester.lower():
@@ -41,7 +43,7 @@ def create_leader(requester):
                 user_data['shapes_scores'].sort(
                     key = itemgetter('score'), reverse = True)
 
-    with open('user/users.json', 'w') as users_file:
+    with open(cwd + '/../user/users.json', 'w') as users_file:
         # Lock file to prevent overwrite
         fcntl.flock(users_file, fcntl.LOCK_EX)
         json.dump(users, users_file)
@@ -49,7 +51,7 @@ def create_leader(requester):
         fcntl.flock(users_file, fcntl.LOCK_UN)
 
     # Add score to game leaders file
-    with open('shapes_in_rain/leaders.json', 'r') as leaders_file:
+    with open(cwd + '/leaders.json', 'r') as leaders_file:
         leaders = json.load(leaders_file)
         leaders.append({
             'timestamp': timestamp,
@@ -57,7 +59,7 @@ def create_leader(requester):
             'player': player
             })
 
-    with open('shapes_in_rain/leaders.json', 'w') as leaders_file:
+    with open(cwd + '/leaders.json', 'w') as leaders_file:
         # Lock file to prevent overwrite
         fcntl.flock(leaders_file, fcntl.LOCK_EX)
         json.dump(leaders, leaders_file)
@@ -74,7 +76,7 @@ def read_leaders():
     request_end = int(request.args.get('end', request_start + 5))
 
     # Return requested game leaders
-    with open('shapes_in_rain/leaders.json', 'r') as leaders_file:
+    with open(cwd + '/leaders.json', 'r') as leaders_file:
         leaders = json.load(leaders_file)
 
         # Sort game leaders by highest to lowest score
@@ -82,7 +84,7 @@ def read_leaders():
 
         # Replace each player's member_id with username
         for entry in leaders[request_start:request_end]:
-            with open('user/users.json', 'r') as users_file:
+            with open(cwd + '/../user/users.json', 'r') as users_file:
                 users = json.load(users_file)
                 for user_data in users:
                     if user_data['member_id'] == entry['player']:
