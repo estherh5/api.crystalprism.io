@@ -83,7 +83,7 @@ def read_drawing(artist_name, drawing_file):
 
 def read_drawing_info(artist_name, drawing_id):
     # Convert artist's username to member_id for drawing information retrieval
-    with open('user/users.json', 'r') as users_file:
+    with open(cwd + '/../user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == artist_name.lower():
