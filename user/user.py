@@ -21,13 +21,13 @@ def login():
     # 'Basic <username:password>' <base64>
     data = request.authorization
 
-    username = data.username
-    password = data.password
-
     # Check that authorization request contains required data
     if not data or not data.username or not data.password:
         return make_response('Could not verify', 401,
             {'WWW-Authenticate': 'Basic realm="Login required!"'})
+
+    username = data.username
+    password = data.password
 
     # Check that request credentials are correct
     with open(cwd + '/users.json', 'r') as users_file:
