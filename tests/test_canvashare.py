@@ -2,11 +2,14 @@ import json
 import unittest
 
 from server import app
+from utils.tests import CrystalPrismTestCase
 
 
-class TestGallery(unittest.TestCase):
+# Test /api/canvashare/gallery endpoint [GET]
+class TestGallery(CrystalPrismTestCase):
     def setUp(self):
-        self.client = app.test_client()
+        super(TestGallery, self).setUp()
+
 
     def test_gallery_get(self):
         # Act
