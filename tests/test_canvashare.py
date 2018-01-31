@@ -148,7 +148,6 @@ class TestGallery(CrystalPrismTestCase):
     def setUp(self):
         super(TestGallery, self).setUp()
 
-
     def test_gallery_get(self):
         # Act
         response = self.client.get('/api/canvashare/gallery')
@@ -162,7 +161,6 @@ class TestGallery(CrystalPrismTestCase):
         pattern = re.compile(r'^[a-zA-Z0-9-_]*[/]\d{1,}\.png$')
         filtered_response = filter(pattern.match, response_data)
         self.assertEqual(len([i for i in filtered_response]), 10)
-
 
     def test_gallery_get_none(self):
         # Arrange
@@ -178,7 +176,6 @@ class TestGallery(CrystalPrismTestCase):
         # Assert
         self.assertEqual(response_data, [])
 
-
     def test_gallery_get_partial(self):
         # Arrange
         data = {'end': 5}
@@ -193,7 +190,6 @@ class TestGallery(CrystalPrismTestCase):
         # Assert
         self.assertEqual(len(response_data), 5)
 
-
     def test_gallery_get_error(self):
         # Arrange
         data = {'start': 5, 'end': 0}
@@ -201,6 +197,68 @@ class TestGallery(CrystalPrismTestCase):
         # Act
         response = self.client.get(
             '/api/canvashare/gallery',
+            query_string=data
+            )
+        response_data = json.loads(response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(response_data, [])
+
+    def test_user_gallery_get(self):
+        # Arrange
+        artist_name = 'user'
+
+        # Act
+        response = self.client.get('/api/canvashare/gallery/' + artist_name)
+        response_data = json.loads(response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response_data), 10)
+
+        # Ensure response is a list of drawing file paths from artist's folder
+        pattern = re.compile(r'^' + artist_name + r'[/]\d{1,}\.png$')
+        filtered_response = filter(pattern.match, response_data)
+        self.assertEqual(len([i for i in filtered_response]), 10)
+
+    def test_user_gallery_get_none(self):
+        # Arrange
+        artist_name = 'user'
+        data = {'start': 100}
+
+        # Act
+        response = self.client.get(
+            '/api/canvashare/gallery/' + artist_name,
+            query_string=data
+            )
+        response_data = json.loads(response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(response_data, [])
+
+    def test_user_gallery_get_partial(self):
+        # Arrange
+        artist_name = 'user'
+        data = {'end': 5}
+
+        # Act
+        response = self.client.get(
+            '/api/canvashare/gallery/' + artist_name,
+            query_string=data
+            )
+        response_data = json.loads(response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(len(response_data), 5)
+
+    def test_user_gallery_get_error(self):
+        # Arrange
+        artist_name = 'user'
+        data = {'start': 5, 'end': 0}
+
+        # Act
+        response = self.client.get(
+            '/api/canvashare/gallery/' + artist_name,
             query_string=data
             )
         response_data = json.loads(response.get_data(as_text=True))
