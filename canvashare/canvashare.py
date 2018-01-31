@@ -2,7 +2,7 @@ import fcntl
 import json
 import os
 
-from base64 import decodestring
+from base64 import decodebytes
 from datetime import datetime, timezone
 from flask import jsonify, make_response, request, send_file
 from glob import glob
@@ -38,7 +38,7 @@ def create_drawing(requester):
         + '.png', 'wb') as drawing_file:
         # Remove 'data:image/png;base64' from image data URL
         drawing = data['drawing'].split(',')[1].encode('utf-8')
-        drawing_file.write(decodestring(drawing))
+        drawing_file.write(decodebytes(drawing))
 
     # Create folder for artist's drawing information if one does not already
     # exist
