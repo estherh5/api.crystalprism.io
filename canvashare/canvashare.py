@@ -114,20 +114,12 @@ def update_drawing_info(artist_name, drawing_id):
     # request <str; 'view', 'like', 'unlike'>
     data = request.get_json()
 
-    # Define requester variable as user who sent request (for liking/unliking
-    # drawing) <str>
-    requester = ''
-
+    # Convert artist's username to member_id for drawing retrieval
     with open(cwd + '/../user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
-            # Convert artist's username to member_id for drawing retrieval
             if user_data['username'].lower() == artist_name.lower():
                 artist_id = user_data['member_id']
-
-            # Convert requester's username to member_id for liker storage
-            if user_data['username'].lower() == requester.lower():
-                liker_id = user_data['member_id']
 
     # If request is for viewing the drawing, increase view count without
     # requiring user to be logged in
@@ -161,6 +153,13 @@ def update_drawing_info(artist_name, drawing_id):
     # Get username from payload if user is logged in
     payload = json.loads(verification.data.decode())
     requester = payload['username']
+
+    # Convert requester's username to member_id for liker storage
+    with open(cwd + '/../user/users.json', 'r') as users_file:
+        users = json.load(users_file)
+        for user_data in users:
+            if user_data['username'].lower() == requester.lower():
+                liker_id = user_data['member_id']
 
     with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id
         + '.json', 'r') as info_file:

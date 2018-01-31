@@ -12,7 +12,6 @@ class TestDrawing(CrystalPrismTestCase):
     def setUp(self):
         super(TestDrawing, self).setUp()
 
-
     def test_drawing_post_and_get(self):
         # Arrange
         # Create user and login to get token for Authorization header
@@ -41,6 +40,107 @@ class TestDrawing(CrystalPrismTestCase):
         # Assert
         self.assertEqual(post_response.status_code, 201)
         self.assertEqual(get_response.mimetype, 'image/png')
+
+
+# Test /api/canvashare/drawing-info endpoint [GET, PATCH]
+class TestDrawingInfo(CrystalPrismTestCase):
+    def setUp(self):
+        super(TestDrawingInfo, self).setUp()
+
+    def test_drawing_info_get(self):
+        # Arrange
+        artist_name = 'user'
+        drawing_id = '1'
+        title = '1'
+
+        # Act
+        response = self.client.get(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id
+            )
+        response_data = json.loads(response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response_data['title'], title)
+
+    def test_drawing_info_patch_view(self):
+        # Arrange
+        artist_name = 'user'
+        drawing_id = '1'
+        data = {'request': 'view'}
+
+        # Get current number of views from drawing info file
+        initial_response = self.client.get(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id
+            )
+        response_data = json.loads(initial_response.get_data(as_text=True))
+        views = response_data['views']
+
+        # Act
+        patch_response = self.client.patch(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+
+        get_response = self.client.get(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id
+            )
+        response_data = json.loads(get_response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(patch_response.status_code, 200)
+        self.assertEqual(response_data['views'], views + 1)
+
+    def test_drawing_info_patch_like_and_unlike(self):
+        # Arrange (for liking drawing)
+        # Create user and login to get token for Authorization header
+        artist_name = 'user'
+        drawing_id = '1'
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        data = {'request': 'like'}
+
+        # Act (for liking drawing)
+        patch_response = self.client.patch(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id,
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+
+        get_response = self.client.get(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id
+            )
+        response_data = json.loads(get_response.get_data(as_text=True))
+
+        # Assert (for liking drawing)
+        self.assertEqual(patch_response.status_code, 200)
+        self.assertEqual(response_data['likes'], 1)
+        self.assertEqual(response_data['liked_users'], [self.username])
+
+        # Arrange (for unliking drawing)
+        data = {'request': 'unlike'}
+
+        # Act (for unliking drawing)
+        patch_response = self.client.patch(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id,
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+
+        get_response = self.client.get(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id
+            )
+        response_data = json.loads(get_response.get_data(as_text=True))
+
+        # Assert (for unliking drawing)
+        self.assertEqual(patch_response.status_code, 200)
+        self.assertEqual(response_data['likes'], 0)
+        self.assertEqual(response_data['liked_users'], [])
 
 
 # Test /api/canvashare/gallery endpoint [GET]
