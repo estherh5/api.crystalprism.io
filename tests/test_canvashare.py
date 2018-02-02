@@ -51,7 +51,7 @@ class TestDrawingInfo(CrystalPrismTestCase):
         # Arrange
         artist_name = 'user'
         drawing_id = '1'
-        title = '1'
+        title = 'Welcome'
 
         # Act
         response = self.client.get(
