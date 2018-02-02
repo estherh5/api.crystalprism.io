@@ -1,0 +1,12 @@
+sudo: false
+dist: trusty
+language: python
+python:
+  - "3.6"
+  - "nightly"
+script:
+  - python -m unittest discover tests
+env:
+  global:
+    - ENV_TYPE=Prod
+    - SECRET_KEY=test
