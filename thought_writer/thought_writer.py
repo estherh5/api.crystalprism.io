@@ -22,12 +22,12 @@ def create_post(requester):
     timestamp = datetime.now(timezone.utc).isoformat()
 
     post = {
-            'title': data['title'],
-            'timestamp': timestamp,
-            'content': data['content'],
-            'public': data['public'],
-            'comments': []
-            }
+        'title': data['title'],
+        'timestamp': timestamp,
+        'content': data['content'],
+        'public': data['public'],
+        'comments': []
+        }
 
     # Convert username to member_id for post storage and increase post count
     with open(cwd + '/../user/users.json', 'r') as users_file:
@@ -56,12 +56,12 @@ def create_post(requester):
     # Add post to public file if marked as public
     if data['public']:
         post = {
-                'writer': writer_id,
-                'title': data['title'],
-                'timestamp': timestamp,
-                'content': data['content'],
-                'comments': []
-                }
+            'writer': writer_id,
+            'title': data['title'],
+            'timestamp': timestamp,
+            'content': data['content'],
+            'comments': []
+            }
 
         with open(cwd + '/public/public.json', 'r') as public_file:
             public_posts = json.load(public_file)
@@ -101,12 +101,11 @@ def update_post(requester):
             if user_data['username'].lower() == requester.lower():
                 writer_id = user_data['member_id']
 
-    post_found = False # Stores whether post is found in private file
+    post_found = False  # Stores whether post is found in private file
 
     # Update post in user's private file
     with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
         private_posts = json.load(private_file)
-
 
         for post in private_posts:
             if post['timestamp'] == data['timestamp']:
@@ -140,20 +139,20 @@ def update_post(requester):
             # Update post in public file if it was already public
             if previously_public:
                 for post in public_posts:
-                    if (post['writer'] == writer_id
-                        and post['timestamp'] == data['timestamp']):
+                    if (post['writer'] == writer_id and
+                        post['timestamp'] == data['timestamp']):
                         post['title'] = data['title']
                         post['content'] = data['content']
 
             # Add post to public file if it was not public previously
             else:
                 post = {
-                        'writer': writer_id,
-                        'title': data['title'],
-                        'timestamp': data['timestamp'],
-                        'content': data['content'],
-                        'comments': comments
-                        }
+                    'writer': writer_id,
+                    'title': data['title'],
+                    'timestamp': data['timestamp'],
+                    'content': data['content'],
+                    'comments': comments
+                    }
                 public_posts.append(post)
 
         with open(cwd + '/public/public.json', 'w') as public_file:
@@ -169,8 +168,8 @@ def update_post(requester):
         with open(cwd + '/public/public.json', 'r') as public_file:
             public_posts = json.load(public_file)
             public_posts = [post for post in public_posts
-                if not (post['writer'] == writer_id
-                        and post['timestamp'] == data['timestamp'])
+                if not (post['writer'] == writer_id and
+                        post['timestamp'] == data['timestamp'])
                 ]
 
         with open(cwd + '/public/public.json', 'w') as public_file:
@@ -196,7 +195,7 @@ def delete_post(requester):
                 writer_id = user_data['member_id']
                 user_data['post_count'] -= 1
 
-    post_found = False # Stores whether post is found in private file
+    post_found = False  # Stores whether post is found in private file
 
     # Remove post from user's private file
     with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
@@ -229,8 +228,8 @@ def delete_post(requester):
         with open(cwd + '/public/public.json', 'r') as public_file:
             public_posts = json.load(public_file)
             public_posts = [post for post in public_posts
-                if not (post['writer'] == writer_id
-                        and post['timestamp'] == data['timestamp'])
+                if not (post['writer'] == writer_id and
+                        post['timestamp'] == data['timestamp'])
                 ]
 
         with open(cwd + '/public/public.json', 'w') as public_file:
@@ -265,8 +264,8 @@ def read_post(writer_name, post_timestamp):
 
     # Retrieve post from private user file if user token is verified and
     # requester is the post writer
-    if (verification.status_code == 200
-        and json.loads(verification.data.decode())['username']
+    if (verification.status_code == 200 and
+        json.loads(verification.data.decode())['username']
         .lower() == writer_name.lower()):
 
         with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
@@ -295,8 +294,8 @@ def read_post(writer_name, post_timestamp):
         # Replace member_ids with writer's username and with commenter's
         # username for each retrieved post's comments
         for post in public_posts:
-            if (post['writer'] == writer_id
-                and post['timestamp'] == post_timestamp):
+            if (post['writer'] == writer_id and
+                post['timestamp'] == post_timestamp):
                 post['writer'] = writer_name
                 for comment in post['comments']:
                     with open(cwd + '/../user/users.json', 'r') as users_file:
@@ -335,20 +334,20 @@ def create_comment(requester, writer_name, post_timestamp):
 
     # Store comment entry with commenter, timestamp, and content
     comment = {
-               'commenter': commenter_id,
-               'timestamp': timestamp,
-               'content': data['content']
-               }
+        'commenter': commenter_id,
+        'timestamp': timestamp,
+        'content': data['content']
+        }
 
-    post_found = False # Stores whether post is found in public file
+    post_found = False  # Stores whether post is found in public file
 
     # Add comment to post's entry in public file
     with open(cwd + '/public/public.json', 'r') as public_file:
         public_posts = json.load(public_file)
 
         for post in public_posts:
-            if (post['writer'] == writer_id
-                and post['timestamp'] == post_timestamp):
+            if (post['writer'] == writer_id and
+                post['timestamp'] == post_timestamp):
                 post['comments'].append(comment)
                 post_found = True
 
@@ -363,7 +362,7 @@ def create_comment(requester, writer_name, post_timestamp):
         # Release lock on file
         fcntl.flock(public_file, fcntl.LOCK_UN)
 
-    post_found = False # Stores whether post is found in private file
+    post_found = False  # Stores whether post is found in private file
 
     # Add comment to post's entry in private file
     with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
@@ -420,7 +419,7 @@ def update_comment(requester, writer_name, post_timestamp):
             if user_data['username'].lower() == writer_name.lower():
                 writer_id = user_data['member_id']
 
-    post_found = False # Stores whether post is found in public file
+    post_found = False  # Stores whether post is found in public file
 
     # Update comment in post's entry in public file, locating comment by
     # commenter and previous timestamp
@@ -428,13 +427,13 @@ def update_comment(requester, writer_name, post_timestamp):
         public_posts = json.load(public_file)
 
         for post in public_posts:
-            if (post['writer'] == writer_id
-                and post['timestamp'] == post_timestamp):
+            if (post['writer'] == writer_id and
+                post['timestamp'] == post_timestamp):
                 post_found = True
 
                 for comment in post['comments']:
-                    if (comment['commenter'] == commenter_id
-                        and comment['timestamp'] == old_timestamp):
+                    if (comment['commenter'] == commenter_id and
+                        comment['timestamp'] == old_timestamp):
                         # Update comment's timestamp to timestamp of update
                         comment['timestamp'] = new_timestamp
                         comment['content'] = data['content']
@@ -450,7 +449,7 @@ def update_comment(requester, writer_name, post_timestamp):
         # Release lock on file
         fcntl.flock(public_file, fcntl.LOCK_UN)
 
-    post_found = False # Stores whether post is found in private file
+    post_found = False  # Stores whether post is found in private file
 
     # Update comment in post's entry in private file, locating comment by
     # commenter and previous timestamp
@@ -462,8 +461,8 @@ def update_comment(requester, writer_name, post_timestamp):
                 post_found = True
 
                 for comment in post['comments']:
-                    if (comment['commenter'] == commenter_id
-                        and comment['timestamp'] == old_timestamp):
+                    if (comment['commenter'] == commenter_id and
+                        comment['timestamp'] == old_timestamp):
                         # Update comment's timestamp to timestamp of update
                         comment['timestamp'] = new_timestamp
                         comment['content'] = data['content']
@@ -500,7 +499,7 @@ def delete_comment(requester, writer_name, post_timestamp):
             if user_data['username'].lower() == writer_name.lower():
                 writer_id = user_data['member_id']
 
-    post_found = False # Stores whether post is found in public file
+    post_found = False  # Stores whether post is found in public file
 
     # Remove comment in post's entry in public file, locating comment by
     # commenter and timestamp
@@ -508,13 +507,13 @@ def delete_comment(requester, writer_name, post_timestamp):
         public_posts = json.load(public_file)
 
         for post in public_posts:
-            if (post['writer'] == writer_id
-                and post['timestamp'] == post_timestamp):
+            if (post['writer'] == writer_id and
+                post['timestamp'] == post_timestamp):
                 post_found = True
 
                 post['comments'] = [comment for comment in post['comments']
-                    if not (comment['commenter'] == commenter_id
-                            and comment['timestamp'] == data['timestamp'])
+                    if not (comment['commenter'] == commenter_id and
+                            comment['timestamp'] == data['timestamp'])
                     ]
 
     # If post is not found, return error to client
@@ -528,11 +527,11 @@ def delete_comment(requester, writer_name, post_timestamp):
         # Release lock on file
         fcntl.flock(public_file, fcntl.LOCK_UN)
 
-    post_found = False # Stores whether post is found in private file
+    post_found = False  # Stores whether post is found in private file
 
     # Remove comment in post's entry in private file, locating comment by
     # commenter and timestamp
-    with open(cwd + '/' + writer_id + '.json','r') as private_file:
+    with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
         private_posts = json.load(private_file)
 
         for post in private_posts:
@@ -540,8 +539,8 @@ def delete_comment(requester, writer_name, post_timestamp):
                 post_found = True
 
                 post['comments'] = [comment for comment in post['comments']
-                    if not (comment['commenter'] == commenter_id
-                            and comment['timestamp'] == data['timestamp'])
+                    if not (comment['commenter'] == commenter_id and
+                            comment['timestamp'] == data['timestamp'])
                     ]
 
     # If post is not found, return error to client
@@ -582,11 +581,11 @@ def read_posts():
         public_posts = json.load(public_file)
 
         # Sort posts by timestamp, with newest posts first
-        public_posts.sort(key = itemgetter('timestamp'), reverse = True)
+        public_posts.sort(key=itemgetter('timestamp'), reverse=True)
         for post in public_posts[request_start:request_end]:
 
             # Sort post comments by timestamp, with newest comments first
-            post['comments'].sort(key = itemgetter('timestamp'), reverse = True)
+            post['comments'].sort(key=itemgetter('timestamp'), reverse=True)
 
             # Replace member_id with writer's username for each retrieved post
             with open(cwd + '/../user/users.json', 'r') as users_file:
@@ -628,8 +627,8 @@ def read_posts_for_one_user(writer_name):
 
     # Return specified number of posts from writer's private file if user
     # token is verified and requester is the post writer
-    if (verification.status_code == 200
-        and json.loads(verification.data.decode())['username']
+    if (verification.status_code == 200 and
+        json.loads(verification.data.decode())['username']
         .lower() == writer_name.lower()):
 
         if os.path.exists(cwd + '/' + writer_id + '.json'):
@@ -639,13 +638,13 @@ def read_posts_for_one_user(writer_name):
 
                 # Sort posts by timestamp, with newest posts first
                 private_posts.sort(
-                    key = itemgetter('timestamp'), reverse = True)
+                    key=itemgetter('timestamp'), reverse=True)
 
                 for post in private_posts[request_start:request_end]:
                     # Sort post comments by timestamp, with newest comments
                     # first
                     post['comments'].sort(
-                        key = itemgetter('timestamp'), reverse = True)
+                        key=itemgetter('timestamp'), reverse=True)
 
                     # Replace member_id with commenter's username for each
                     # retrieved post's comments
@@ -668,16 +667,16 @@ def read_posts_for_one_user(writer_name):
                 ]
 
             # Sort posts by timestamp, with newest posts first
-            public_posts.sort(key = itemgetter('timestamp'), reverse = True)
+            public_posts.sort(key=itemgetter('timestamp'), reverse=True)
 
             for post in public_posts[request_start:request_end]:
                 # Sort post comments by timestamp, with newest comments first
                 post['comments'].sort(
-                    key = itemgetter('timestamp'), reverse = True)
+                    key=itemgetter('timestamp'), reverse=True)
                 # Replace member_id with commenter's username for each
                 # retrieved post's comments
                 for comment in post['comments']:
-                    with open(cwd + '/../user/users.json','r') as users_file:
+                    with open(cwd + '/../user/users.json', 'r') as users_file:
                         users = json.load(users_file)
                         for user_data in users:
                             if user_data['member_id'] == comment['commenter']:
