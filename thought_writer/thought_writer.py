@@ -573,6 +573,10 @@ def read_posts():
     request_start = int(request.args.get('start', 0))
     request_end = int(request.args.get('end', request_start + 10))
 
+    # Return error if start query parameter is greater than end
+    if request_start > request_end:
+        return make_response('Start param cannot be greater than end', 400)
+
     # Return specified number of posts from public file
     with open(cwd + '/public/public.json', 'r') as public_file:
         public_posts = json.load(public_file)
@@ -607,6 +611,10 @@ def read_posts_for_one_user(writer_name):
     # null
     request_start = int(request.args.get('start', 0))
     request_end = int(request.args.get('end', request_start + 10))
+
+    # Return error if start query parameter is greater than end
+    if request_start > request_end:
+        return make_response('Start param cannot be greater than end', 400)
 
     # Convert writer's username to member_id for post retrieval
     with open(cwd + '/../user/users.json', 'r') as users_file:
