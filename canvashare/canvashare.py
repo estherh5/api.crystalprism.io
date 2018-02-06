@@ -34,8 +34,8 @@ def create_drawing(requester):
         os.makedirs(cwd + '/drawings/' + artist_id)
 
     # Save drawing as PNG file in artist's drawings folder
-    with open(cwd + '/drawings/' + artist_id + '/' + drawing_number
-        + '.png', 'wb') as drawing_file:
+    with open(cwd + '/drawings/' + artist_id + '/' + drawing_number +
+        '.png', 'wb') as drawing_file:
         # Remove 'data:image/png;base64' from image data URL
         drawing = data['drawing'].split(',')[1].encode('utf-8')
         drawing_file.write(decodebytes(drawing))
@@ -46,8 +46,8 @@ def create_drawing(requester):
         os.makedirs(cwd + '/drawing_info/' + artist_id)
 
     # Save drawing information as JSON file in artist's drawing_info folder
-    with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_number
-        + '.json', 'w') as info_file:
+    with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_number +
+        '.json', 'w') as info_file:
         drawing_info = {
             'title': data['title'],
             'timestamp': datetime.now(timezone.utc).isoformat(),
@@ -90,8 +90,8 @@ def read_drawing_info(artist_name, drawing_id):
                 artist_id = user_data['member_id']
 
     # Return specified drawing information file by drawing name
-    with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id
-        + '.json', 'r') as info_file:
+    with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
+        '.json', 'r') as info_file:
         drawing_info = json.load(info_file)
 
         # Replace member_id with username for each user in drawing's liked
@@ -124,14 +124,14 @@ def update_drawing_info(artist_name, drawing_id):
     # If request is for viewing the drawing, increase view count without
     # requiring user to be logged in
     if data['request'] == 'view':
-        with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id
-            + '.json', 'r') as info_file:
+        with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
+            '.json', 'r') as info_file:
             drawing_info = json.load(info_file)
             # Increment drawing's views by 1
             drawing_info['views'] += 1
 
-        with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id
-            + '.json', 'w') as info_file:
+        with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
+            '.json', 'w') as info_file:
             # Lock file to prevent overwrite
             fcntl.flock(info_file, fcntl.LOCK_EX)
             json.dump(drawing_info, info_file)
@@ -161,8 +161,8 @@ def update_drawing_info(artist_name, drawing_id):
             if user_data['username'].lower() == requester.lower():
                 liker_id = user_data['member_id']
 
-    with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id
-        + '.json', 'r') as info_file:
+    with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
+        '.json', 'r') as info_file:
         drawing_info = json.load(info_file)
 
         # Decrement drawing's likes by 1 and remove liker from the drawing's
@@ -184,8 +184,8 @@ def update_drawing_info(artist_name, drawing_id):
                             user_data['liked_drawings'].remove(
                                 artist_id + '/' + drawing_id + '.png')
 
-                with open(cwd + '/drawing_info/' + artist_id + '/'
-                    + drawing_id + '.json', 'w') as info_file:
+                with open(cwd + '/drawing_info/' + artist_id + '/' +
+                    drawing_id + '.json', 'w') as info_file:
                     # Lock file to prevent overwrite
                     fcntl.flock(info_file, fcntl.LOCK_EX)
                     json.dump(drawing_info, info_file)
@@ -223,8 +223,8 @@ def update_drawing_info(artist_name, drawing_id):
                             user_data['liked_drawings'].insert(
                                 0, artist_id + '/' + drawing_id + '.png')
 
-                with open(cwd + '/drawing_info/' + artist_id + '/'
-                    + drawing_id + '.json', 'w') as info_file:
+                with open(cwd + '/drawing_info/' + artist_id + '/' +
+                    drawing_id + '.json', 'w') as info_file:
                     # Lock file to prevent overwrite
                     fcntl.flock(info_file, fcntl.LOCK_EX)
                     json.dump(drawing_info, info_file)
@@ -258,10 +258,10 @@ def read_drawings():
         return make_response('Start param cannot be greater than end', 400)
 
     # Get all drawings from all artists' folders
-    all_drawings = glob(cwd + '/drawings/*/*', recursive = True)
+    all_drawings = glob(cwd + '/drawings/*/*', recursive=True)
 
     # Sort all drawings from newest to oldest creation time
-    all_drawings.sort(key = os.path.getctime, reverse = True)
+    all_drawings.sort(key=os.path.getctime, reverse=True)
 
     # Return requested drawings' file paths as '[artist_name]/[drawing_id].png'
     requested_drawings = []
@@ -297,13 +297,13 @@ def read_drawings_for_one_user(artist_name):
                 artist_id = user_data['member_id']
 
     # Get all drawings from artist's drawings folder
-    all_drawings = glob(cwd + '/drawings/' + artist_id + '/*', recursive = True)
+    all_drawings = glob(cwd + '/drawings/' + artist_id + '/*', recursive=True)
 
     # Sort all drawings from newest to oldest creation time
-    all_drawings.sort(key = os.path.getctime, reverse = True)
+    all_drawings.sort(key=os.path.getctime, reverse=True)
 
-    # Return requested drawings' file paths as '[artist_name]/[drawing_id].png',
-    # replacing artist's member_id with username
+    # Return requested drawings' file paths as '[artist_name]/[drawing_id].png'
+    # and replace artist's member_id with username
     requested_drawings = [
         artist_name + '/' + drawing.split('/')[-1]
         for drawing in all_drawings[request_start:request_end]
