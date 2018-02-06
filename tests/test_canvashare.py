@@ -202,7 +202,7 @@ class TestGallery(CrystalPrismTestCase):
         response_data = json.loads(response.get_data(as_text=True))
 
         # Assert
-        self.assertEqual(response_data, [])
+        self.assertEqual(response.status_code, 400)
 
     def test_user_gallery_get(self):
         # Arrange
@@ -264,4 +264,4 @@ class TestGallery(CrystalPrismTestCase):
         response_data = json.loads(response.get_data(as_text=True))
 
         # Assert
-        self.assertEqual(response_data, [])
+        self.assertEqual(response.status_code, 400)
