@@ -50,13 +50,13 @@ def login():
                     payload = urlsafe_b64encode(
                         json.dumps({
                             'username': username,
-                            'exp': floor(time() + (60 * 60)) # in seconds
+                            'exp': floor(time() + (60 * 60))  # in seconds
                             }).encode()
                         )
                     secret = os.environ['SECRET_KEY'].encode()
                     message = header + b'.' + payload
                     signature = hmac.new(secret, message,
-                        digestmod = sha256).digest()
+                        digestmod=sha256).digest()
                     signature = urlsafe_b64encode(signature)
                     token = message + b'.' + signature
                     return make_response(token.decode(), 200)
@@ -90,32 +90,32 @@ def create_user():
         hashed_password = bcrypt.hashpw(password, bcrypt.gensalt())
 
         entry = {
-                 'member_id': member_id,
-                 'status': 'active',
-                 'username': username,
-                 'password': hashed_password.decode(),
-                 'admin': False,
-                 'member_since': datetime.now(timezone.utc).isoformat(),
-                 'first_name': '',
-                 'last_name': '',
-                 'name_public': False,
-                 'email': '',
-                 'email_public': False,
-                 'background_color': '#ffffff',
-                 'icon_color': '#000000',
-                 'about': '',
-                 'shapes_plays': 0,
-                 'shapes_scores': [],
-                 'shapes_high_score': 0,
-                 'rhythm_plays': 0,
-                 'rhythm_scores': [],
-                 'rhythm_high_score': 0,
-                 'rhythm_high_lifespan': '00:00:00',
-                 'drawing_count': 0,
-                 'liked_drawings': [],
-                 'post_count': 0,
-                 'comment_count': 0
-                 }
+            'member_id': member_id,
+            'status': 'active',
+            'username': username,
+            'password': hashed_password.decode(),
+            'admin': False,
+            'member_since': datetime.now(timezone.utc).isoformat(),
+            'first_name': '',
+            'last_name': '',
+            'name_public': False,
+            'email': '',
+            'email_public': False,
+            'background_color': '#ffffff',
+            'icon_color': '#000000',
+            'about': '',
+            'shapes_plays': 0,
+            'shapes_scores': [],
+            'shapes_high_score': 0,
+            'rhythm_plays': 0,
+            'rhythm_scores': [],
+            'rhythm_high_score': 0,
+            'rhythm_high_lifespan': '00:00:00',
+            'drawing_count': 0,
+            'liked_drawings': [],
+            'post_count': 0,
+            'comment_count': 0
+            }
         users.append(entry)
 
     with open(cwd + '/users.json', 'w') as users_file:
@@ -171,7 +171,7 @@ def update_user(requester):
     username = data['username']
     password = data['password']
 
-    user_found = False # Stores whether user account is found in users file
+    user_found = False  # Stores whether user account is found in users file
 
     with open(cwd + '/users.json', 'r') as users_file:
         users = json.load(users_file)
@@ -213,13 +213,13 @@ def update_user(requester):
                 payload = urlsafe_b64encode(
                     json.dumps({
                         'username': username,
-                        'exp': floor(time() + (60 * 60)) # in seconds
+                        'exp': floor(time() + (60 * 60))  # in seconds
                         }).encode()
                     )
                 secret = os.environ['SECRET_KEY'].encode()
                 message = header + b'.' + payload
                 signature = hmac.new(secret, message,
-                    digestmod = sha256).digest()
+                    digestmod=sha256).digest()
                 signature = urlsafe_b64encode(signature)
                 token = message + b'.' + signature
 
@@ -238,7 +238,7 @@ def update_user(requester):
 
 
 def delete_user(requester):
-    user_found = False # Stores whether user account is found in users file
+    user_found = False  # Stores whether user account is found in users file
 
     # Set user account status to deleted
     with open(cwd + '/users.json', 'r') as users_file:
@@ -285,19 +285,19 @@ def read_user_public(username):
                     email = ''
 
                 data = {
-                        'username': user_data['username'],
-                        'name': name,
-                        'email': email,
-                        'background_color': user_data['background_color'],
-                        'icon_color': user_data['icon_color'],
-                        'about': user_data['about'],
-                        'member_since': user_data['member_since'],
-                        'shapes_high_score': user_data['shapes_high_score'],
-                        'rhythm_high_lifespan': user_data['rhythm_high_lifespan'],
-                        'drawing_count': user_data['drawing_count'],
-                        'post_count': user_data['post_count'],
-                        'comment_count': user_data['comment_count']
-                        }
+                    'username': user_data['username'],
+                    'name': name,
+                    'email': email,
+                    'background_color': user_data['background_color'],
+                    'icon_color': user_data['icon_color'],
+                    'about': user_data['about'],
+                    'member_since': user_data['member_since'],
+                    'shapes_high_score': user_data['shapes_high_score'],
+                    'rhythm_high_lifespan': user_data['rhythm_high_lifespan'],
+                    'drawing_count': user_data['drawing_count'],
+                    'post_count': user_data['post_count'],
+                    'comment_count': user_data['comment_count']
+                    }
                 return jsonify(data)
 
         return make_response('Username does not exist', 404)
@@ -334,7 +334,7 @@ def verify_token():
     # header
     secret = os.environ['SECRET_KEY'].encode()
     message = header + b'.' + urlsafe_b64encode(json.dumps(payload).encode())
-    signature_check = hmac.new(secret, message, digestmod = sha256).digest()
+    signature_check = hmac.new(secret, message, digestmod=sha256).digest()
     if signature != signature_check:
         return make_response('Token compromised', 401)
 

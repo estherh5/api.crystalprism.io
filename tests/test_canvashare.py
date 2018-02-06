@@ -199,7 +199,6 @@ class TestGallery(CrystalPrismTestCase):
             '/api/canvashare/gallery',
             query_string=data
             )
-        response_data = json.loads(response.get_data(as_text=True))
 
         # Assert
         self.assertEqual(response.status_code, 400)
@@ -261,7 +260,6 @@ class TestGallery(CrystalPrismTestCase):
             '/api/canvashare/gallery/' + artist_name,
             query_string=data
             )
-        response_data = json.loads(response.get_data(as_text=True))
 
         # Assert
         self.assertEqual(response.status_code, 400)
