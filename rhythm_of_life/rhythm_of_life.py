@@ -44,7 +44,7 @@ def create_leader(requester):
                     })
 
                 user_data['rhythm_scores'].sort(
-                    key = itemgetter('score'), reverse = True)
+                    key=itemgetter('score'), reverse=True)
 
     with open(cwd + '/../user/users.json', 'w') as users_file:
         # Lock file to prevent overwrite
@@ -88,7 +88,7 @@ def read_leaders():
         leaders = json.load(leaders_file)
 
         # Sort game leaders by highest to lowest score
-        leaders.sort(key = itemgetter('score'), reverse = True)
+        leaders.sort(key=itemgetter('score'), reverse=True)
 
         # Replace each player's member_id with username
         for entry in leaders[request_start:request_end]:

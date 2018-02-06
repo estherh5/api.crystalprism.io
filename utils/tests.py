@@ -6,15 +6,14 @@ from base64 import b64encode
 from server import app
 
 
-now = str(round(time.time())) # Current time in ms
+now = str(round(time.time()))  # Current time in ms
 
 
 class CrystalPrismTestCase(unittest.TestCase):
     def setUp(self):
         self.client = app.test_client()
-        self.token = '' # Login JWT token
-        self.username = '' # Username of test user
-
+        self.token = ''  # Login JWT token
+        self.username = ''  # Username of test user
 
     # Create test user
     def create_user(self, username='test' + now, password='password'):
@@ -27,10 +26,10 @@ class CrystalPrismTestCase(unittest.TestCase):
             content_type='application/json'
         )
 
-
     # Login as test user and receive JWT token
     def login(self, username='test' + now, password='password'):
-        b64_user_pass = str(b64encode((username + ':' + password).encode()).decode())
+        b64_user_pass = str(b64encode((username + ':' + password).encode())
+            .decode())
         header = {'Authorization': 'Basic ' + b64_user_pass}
 
         response = self.client.get(
@@ -38,7 +37,6 @@ class CrystalPrismTestCase(unittest.TestCase):
             headers=header
         )
         self.token = response.get_data(as_text=True)
-
 
     # Delete test user
     def delete_user(self):
