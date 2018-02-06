@@ -347,6 +347,10 @@ def read_users():
     request_start = int(request.args.get('start', 0))
     request_end = int(request.args.get('end', request_start + 10))
 
+    # Return error if start query parameter is greater than end
+    if request_start > request_end:
+        return make_response('Start param cannot be greater than end', 400)
+
     # Return list of requested number of usernames
     with open(cwd + '/users.json', 'r') as users_file:
         users = json.load(users_file)
