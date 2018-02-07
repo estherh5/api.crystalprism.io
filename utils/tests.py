@@ -15,6 +15,9 @@ class CrystalPrismTestCase(unittest.TestCase):
         self.token = ''  # Login JWT token
         self.username = ''  # Username of test user
 
+    def tearDown(self):
+        self.delete_user()
+
     # Create test user
     def create_user(self, username='test' + now, password='password'):
         self.username = username
@@ -39,12 +42,12 @@ class CrystalPrismTestCase(unittest.TestCase):
         self.token = response.get_data(as_text=True)
 
     # Delete test user
-    def delete_user(self):
-        self.login()
+    def delete_user(self, username='test' + now, password='password'):
+        self.login(username, password)
 
         header = {'Authorization': 'Bearer ' + self.token}
 
         response = self.client.delete(
-            '/api/user',
+            '/api/user/' + username,
             headers=header
         )
