@@ -21,6 +21,8 @@ elif os.environ['ENV_TYPE'] == 'Dev':
     cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
     app.config['DEBUG'] = True
 
+cwd = os.path.dirname(__file__)
+
 
 @app.route('/api/canvashare/drawing', methods=['POST'])
 def drawing():
@@ -329,14 +331,39 @@ def user_info_private():
         payload = json.loads(verification.data.decode())
         requester = payload['username']
 
-        return user.delete_user(requester)
+        return user.delete_user_soft(requester)
 
 
-@app.route('/api/user/<username>', methods=['GET'])
+@app.route('/api/user/<username>', methods=['GET', 'DELETE'])
 def user_info_public(username):
     # Retrieve a user's limited account information; no bearer token needed
     if request.method == 'GET':
         return user.read_user_public(username)
+
+    # Delete all of a user's account data and set status to deleted when there
+    # is a verified bearer token for the user or for an admin in the request
+    # Authorization header
+    if request.method == 'DELETE':
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        # Hard-delete user's account if user requested this his/herself
+        if username.lower() == requester.lower():
+            return user.delete_user_hard(username)
+
+        # Hard-delete user's account if user is an admin user
+        with open(cwd + '/user/users.json', 'r') as users_file:
+            users = json.load(users_file)
+            for user_data in users:
+                if user_data['username'].lower() == requester.lower():
+                    if user_data['admin']:
+                        return user.delete_user_hard(username)
 
 
 @app.route('/api/user/verify', methods=['GET'])
