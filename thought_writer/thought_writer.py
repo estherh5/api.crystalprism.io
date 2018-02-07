@@ -276,11 +276,14 @@ def read_post(writer_name, post_timestamp):
             for post in private_posts:
                 if post['timestamp'] == post_timestamp:
                     for comment in post['comments']:
-                        with open(cwd + '/../user/users.json', 'r') as users_file:
+                        commenter_id = comment['commenter']
+                        with open(cwd + '/../user/users.json',
+                            'r') as users_file:
                             users = json.load(users_file)
                             for user_data in users:
-                                if user_data['member_id'] == comment['commenter']:
-                                    comment['commenter'] = user_data['username']
+                                if user_data['member_id'] == commenter_id:
+                                    commenter_name = user_data['username']
+                                    comment['commenter'] = commenter_name
 
                     return jsonify(post)
 
@@ -649,11 +652,14 @@ def read_posts_for_one_user(writer_name):
                     # Replace member_id with commenter's username for each
                     # retrieved post's comments
                     for comment in post['comments']:
-                        with open(cwd + '/../user/users.json', 'r') as users_file:
+                        commenter_id = comment['commenter']
+                        with open(cwd + '/../user/users.json',
+                            'r') as users_file:
                             users = json.load(users_file)
                             for user_data in users:
-                                if user_data['member_id'] == comment['commenter']:
-                                    comment['commenter'] = user_data['username']
+                                if user_data['member_id'] == commenter_id:
+                                    commenter_name = user_data['username']
+                                    comment['commenter'] = commenter_name
 
                 return jsonify(private_posts[request_start:request_end])
 
