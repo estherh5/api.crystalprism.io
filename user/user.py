@@ -4,6 +4,7 @@ import hmac
 import json
 import os
 import re
+import shutil
 
 from base64 import b64encode, urlsafe_b64decode, urlsafe_b64encode
 from datetime import datetime, timezone
@@ -237,7 +238,7 @@ def update_user(requester):
     return make_response(token.decode(), 200)
 
 
-def delete_user(requester):
+def delete_user_soft(requester):
     user_found = False  # Stores whether user account is found in users file
 
     # Set user account status to deleted
@@ -301,6 +302,130 @@ def read_user_public(username):
                 return jsonify(data)
 
         return make_response('Username does not exist', 404)
+
+
+def delete_user_hard(username):
+    user_found = False  # Stores whether user account is found in users file
+
+    # Remove user account from users file
+    with open(cwd + '/users.json', 'r') as users_file:
+        users = json.load(users_file)
+        for user_data in users:
+            if user_data['username'].lower() == username.lower():
+                user_id = user_data['member_id']
+                liked_drawings = user_data['liked_drawings']
+                user_data['username'] = '[deleted]'
+                user_data['password'] = '[deleted]'
+                user_data['first_name'] = ''
+                user_data['last_name'] = ''
+                user_data['email'] = ''
+                user_data['about'] = ''
+                user_data['status'] = 'deleted'
+                user_found = True
+
+    # Return error if user account is not found
+    if not user_found:
+        return make_response('Username does not exist', 404)
+
+    with open(cwd + '/users.json', 'w') as users_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(users_file, fcntl.LOCK_EX)
+        json.dump(users, users_file)
+        # Release lock on file
+        fcntl.flock(users_file, fcntl.LOCK_UN)
+
+    # Delete user's drawings and drawing info files
+    if os.path.exists(cwd + '/../canvashare/drawings/' + user_id):
+        user_drawings = os.listdir(cwd + '/../canvashare/drawings/' + user_id)
+        user_drawings = [user_id + '/' + drawing for drawing in user_drawings]
+        shutil.rmtree(cwd + '/../canvashare/drawings/' + user_id)
+        shutil.rmtree(cwd + '/../canvashare/drawing_info/' + user_id)
+
+    else:
+        user_drawings = []
+
+    # Remove user's drawings from others' liked drawings list if user created
+    # drawings
+    if user_drawings:
+        with open(cwd + '/users.json', 'r') as users_file:
+            users = json.load(users_file)
+            for user_data in users:
+                for drawing in user_data['liked_drawings']:
+                    if drawing in user_drawings:
+                        user_data['liked_drawings'].remove(drawing)
+
+        with open(cwd + '/users.json', 'w') as users_file:
+            # Lock file to prevent overwrite
+            fcntl.flock(users_file, fcntl.LOCK_EX)
+            json.dump(users, users_file)
+            # Release lock on file
+            fcntl.flock(users_file, fcntl.LOCK_UN)
+
+    # Remove user as liker from other users' drawings
+    for liked_drawing in liked_drawings:
+        liked_drawing_file = liked_drawing.replace('png', 'json')
+        with open(cwd + '/../canvashare/drawing_info/' + liked_drawing_file,
+            'r') as info_file:
+            drawing_info = json.load(info_file)
+            drawing_info['liked_users'].remove(user_id)
+            drawing_info['likes'] -= 1
+
+        with open(cwd + '/../canvashare/drawing_info/' + liked_drawing_file,
+            'w') as info_file:
+            # Lock file to prevent overwrite
+            fcntl.flock(info_file, fcntl.LOCK_EX)
+            json.dump(drawing_info, info_file)
+            # Release lock on file
+            fcntl.flock(info_file, fcntl.LOCK_UN)
+
+    # Delete user's private and public posts if user had posts
+    if os.path.exists(cwd + '/../thought_writer/' + user_id + '.json'):
+        os.remove(cwd + '/../thought_writer/' + user_id + '.json')
+
+        with open(cwd + '/../thought_writer/public/public.json',
+            'r') as public_file:
+            public_posts = json.load(public_file)
+            for post in public_posts:
+                if post['writer'] == user_id:
+                    public_posts.remove(post)
+
+        with open(cwd + '/../thought_writer/public/public.json',
+            'w') as public_file:
+            # Lock file to prevent overwrite
+            fcntl.flock(public_file, fcntl.LOCK_EX)
+            json.dump(public_posts, public_file)
+            # Release lock on file
+            fcntl.flock(public_file, fcntl.LOCK_UN)
+
+    # Delete user from leaders file for Shapes in Rain
+    with open(cwd + '/../shapes_in_rain/leaders.json', 'r') as leaders_file:
+        leaders = json.load(leaders_file)
+        for entry in leaders:
+            if entry['player'] == user_id:
+                leaders.remove(entry)
+
+    with open(cwd + '/../shapes_in_rain/leaders.json', 'w') as leaders_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(leaders_file, fcntl.LOCK_EX)
+        json.dump(leaders, leaders_file)
+        # Release lock on file
+        fcntl.flock(leaders_file, fcntl.LOCK_UN)
+
+    # Delete user from leaders file for Rhythm of Life
+    with open(cwd + '/../rhythm_of_life/leaders.json', 'r') as leaders_file:
+        leaders = json.load(leaders_file)
+        for entry in leaders:
+            if entry['player'] == user_id:
+                leaders.remove(entry)
+
+    with open(cwd + '/../rhythm_of_life/leaders.json', 'w') as leaders_file:
+        # Lock file to prevent overwrite
+        fcntl.flock(leaders_file, fcntl.LOCK_EX)
+        json.dump(leaders, leaders_file)
+        # Release lock on file
+        fcntl.flock(leaders_file, fcntl.LOCK_UN)
+
+    return make_response('Success', 200)
 
 
 def verify_token():
