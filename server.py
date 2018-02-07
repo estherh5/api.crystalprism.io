@@ -384,8 +384,4 @@ def users_info():
         if verification.status_code != 200:
             return verification
 
-        # Get username from payload if user is logged in
-        payload = json.loads(verification.data.decode())
-        requester = payload['username']
-
-        return user.read_users(requester)
+        return user.read_users()
