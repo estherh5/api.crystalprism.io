@@ -372,7 +372,7 @@ Users who want to join the Crystal Prism community can create an account to stor
 ```
 
 **DELETE** /api/user
-* Delete a user's account. No request body is needed. Note that there must be a verified bearer token for the user in the request Authorization header.
+* Soft-delete a user's account as the user (i.e., change the account's status to "deleted" while leaving drawings, posts, scores, personal information, etc. intact, in case the user wants to reactivate the account). No request body is needed. Note that there must be a verified bearer token for the user in the request Authorization header.
 
 **GET** /api/user/[username]
 * Retrieve a user's limited account information. No bearer token is needed in the request Authorization header.
@@ -393,6 +393,9 @@ Users who want to join the Crystal Prism community can create an account to stor
     "username": "user"
 }
 ```
+
+**DELETE** /api/user/[username]
+* Hard-delete a user's account as the user or as an admin user (i.e., delete all of the user's drawings, posts, scores, personal information, etc. in addition to changing the account status to "deleted"). No request body is needed. Note that there must be a verified bearer token for the user or for an admin user in the request Authorization header.
 
 **GET** /api/user/verify
 * Check if a bearer token in a request Authorization header is valid and receive the expiration time (in seconds since epoch) if so.
