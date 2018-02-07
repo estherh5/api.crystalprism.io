@@ -97,10 +97,11 @@ def read_drawing_info(artist_name, drawing_id):
         # Replace member_id with username for each user in drawing's liked
         # users list
         for i in range(len(drawing_info['liked_users'])):
+            liked_user = drawing_info['liked_users'][i]
             with open(cwd + '/../user/users.json', 'r') as users_file:
                 users = json.load(users_file)
                 for user_data in users:
-                    if user_data['member_id'] == drawing_info['liked_users'][i]:
+                    if user_data['member_id'] == liked_user:
                         drawing_info['liked_users'][i] = user_data['username']
 
         return jsonify(drawing_info)
