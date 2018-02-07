@@ -275,7 +275,9 @@ def read_user_public(username):
 
                 # Send user's first and last name if public
                 if user_data['name_public']:
-                    name = user_data['first_name'] + ' ' + user_data['last_name']
+                    first_name = user_data['first_name']
+                    last_name = user_data['last_name']
+                    name = first_name + ' ' + last_name
                 else:
                     name = ''
 
