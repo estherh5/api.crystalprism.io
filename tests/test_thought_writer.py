@@ -116,3 +116,112 @@ class TestPost(CrystalPrismTestCase):
         self.assertEqual(post['timestamp'], timestamp)
         self.assertEqual('Welcome to Thought Writer' in post['content'], True)
         self.assertEqual(post['comments'], [])
+
+
+# Test /api/thought-writer/comment endpoint [POST, PATCH, DELETE]
+class TestComment(CrystalPrismTestCase):
+    def test_comment_post_patch_and_delete(self):
+        # Arrange [POST]
+        # Create user and login to get token for Authorization header
+        self.create_user()
+        self.login()
+
+        writer_name = 'user'
+        timestamp = '2017-10-05T00:00:00.000000+00:00'
+
+        header = {'Authorization': 'Bearer ' + self.token}
+        post_data = {'content': 'Test comment'}
+
+        # Act [POST]
+        post_response = self.client.post(
+            '/api/thought-writer/comment/' + writer_name + '/' + timestamp,
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+
+        # Retrieve post to ensure comment is now associated with it
+        get_response = self.client.get(
+            '/api/thought-writer/post/' + writer_name + '/' + timestamp
+            )
+        post = json.loads(get_response.get_data(as_text=True))
+        comment_timestamp = post['comments'][0]['timestamp']
+
+        # Assert [POST]
+        self.assertEqual(post_response.status_code, 201)
+        self.assertEqual(get_response.status_code, 200)
+        self.assertEqual(post['comments'][0]['commenter'], self.username)
+
+        # Ensure timestamp matches UTC format
+        timestamp_pattern = re.compile(
+            r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d.\d{6}\+\d\d:\d\d'
+            )
+        self.assertEqual(
+            bool(timestamp_pattern.match(comment_timestamp)), True
+            )
+
+        self.assertEqual(post['comments'][0]['content'], 'Test comment')
+
+        # Arrange [PATCH]
+        patch_data = {
+            'content': 'Test comment 2',
+            'timestamp': comment_timestamp
+            }
+
+        # Act [PATCH]
+        patch_response = self.client.patch(
+            '/api/thought-writer/comment/' + writer_name + '/' + timestamp,
+            headers=header,
+            data=json.dumps(patch_data),
+            content_type='application/json'
+            )
+
+        # Retrieve post to ensure updated comment is now associated with it
+        patched_get_response = self.client.get(
+            '/api/thought-writer/post/' + writer_name + '/' + timestamp
+            )
+        patched_post = json.loads(patched_get_response.get_data(as_text=True))
+        patched_timestamp = patched_post['comments'][0]['timestamp']
+
+        # Assert [PATCH]
+        self.assertEqual(patch_response.status_code, 200)
+        self.assertEqual(patched_get_response.status_code, 200)
+        self.assertEqual(
+            patched_post['comments'][0]['commenter'], self.username
+            )
+
+        # Ensure timestamp matches UTC format
+        timestamp_pattern = re.compile(
+            r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d.\d{6}\+\d\d:\d\d'
+            )
+        self.assertEqual(
+            bool(timestamp_pattern.match(patched_timestamp)), True
+            )
+
+        self.assertEqual(
+            patched_post['comments'][0]['content'], 'Test comment 2'
+            )
+
+        # Arrange [DELETE]
+        delete_data = {'timestamp': patched_timestamp}
+
+        # Act [DELETE]
+        delete_response = self.client.delete(
+            '/api/thought-writer/comment/' + writer_name + '/' + timestamp,
+            headers=header,
+            data=json.dumps(delete_data),
+            content_type='application/json'
+            )
+
+        # Retrieve post to ensure deleted comment is not associated with it
+        deleted_get_response = self.client.get(
+            '/api/thought-writer/post/' + writer_name + '/' + timestamp
+            )
+        deleted_comment_post = json.loads(
+            deleted_get_response.get_data(as_text=True)
+            )
+
+        # Assert [DELETE]
+        self.assertEqual(delete_response.status_code, 200)
+        self.assertEqual(deleted_get_response.status_code, 200)
+        self.assertEqual(deleted_comment_post['comments'], [])
