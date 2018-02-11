@@ -225,3 +225,151 @@ class TestComment(CrystalPrismTestCase):
         self.assertEqual(delete_response.status_code, 200)
         self.assertEqual(deleted_get_response.status_code, 200)
         self.assertEqual(deleted_comment_post['comments'], [])
+
+
+# Test /api/thought-writer/post-board endpoint [GET]
+class TestPostBoard(CrystalPrismTestCase):
+    def test_post_board_get(self):
+        # Act
+        response = self.client.get('/api/thought-writer/post-board')
+        response_data = json.loads(response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response_data), 10)
+
+        # Ensure writer is a string
+        self.assertEqual(isinstance(response_data[0]['writer'], str), True)
+
+        # Ensure title is a string
+        self.assertEqual(isinstance(response_data[0]['title'], str), True)
+
+        # Ensure timestamp matches UTC format
+        timestamp_pattern = re.compile(
+            r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d.\d{6}\+\d\d:\d\d'
+            )
+        self.assertEqual(
+            bool(timestamp_pattern.match(response_data[0]['timestamp'])), True
+            )
+
+        # Ensure content is a string
+        self.assertEqual(isinstance(response_data[0]['content'], str), True)
+
+        # Ensure comments is a list
+        self.assertEqual(isinstance(response_data[0]['comments'], list), True)
+
+    def test_post_board_get_none(self):
+        # Arrange
+        data = {'start': 100}
+
+        # Act
+        response = self.client.get(
+            '/api/thought-writer/post-board',
+            query_string=data
+            )
+        response_data = json.loads(response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(response_data, [])
+
+    def test_post_board_get_partial(self):
+        # Arrange
+        data = {'end': 5}
+
+        # Act
+        response = self.client.get(
+            '/api/thought-writer/post-board',
+            query_string=data
+            )
+        response_data = json.loads(response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(len(response_data), 5)
+
+    def test_post_board_get_error(self):
+        # Arrange
+        data = {'start': 5, 'end': 0}
+
+        # Act
+        response = self.client.get(
+            '/api/thought-writer/post-board',
+            query_string=data
+            )
+
+        # Assert
+        self.assertEqual(response.status_code, 400)
+
+    def test_user_post_board_get(self):
+        # Arrange
+        writer_name = 'user'
+
+        # Act
+        response = self.client.get(
+            '/api/thought-writer/post-board/' + writer_name
+            )
+        response_data = json.loads(response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response_data), 10)
+
+        # Ensure title is a string
+        self.assertEqual(isinstance(response_data[0]['title'], str), True)
+
+        # Ensure timestamp matches UTC format
+        timestamp_pattern = re.compile(
+            r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d.\d{6}\+\d\d:\d\d'
+            )
+        self.assertEqual(
+            bool(timestamp_pattern.match(response_data[0]['timestamp'])), True
+            )
+
+        # Ensure content is a string
+        self.assertEqual(isinstance(response_data[0]['content'], str), True)
+
+        # Ensure comments is a list
+        self.assertEqual(isinstance(response_data[0]['comments'], list), True)
+
+    def test_user_post_board_get_none(self):
+        # Arrange
+        writer_name = 'user'
+        data = {'start': 100}
+
+        # Act
+        response = self.client.get(
+            '/api/thought-writer/post-board/' + writer_name,
+            query_string=data
+            )
+        response_data = json.loads(response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(response_data, [])
+
+    def test_user_post_board_get_partial(self):
+        # Arrange
+        writer_name = 'user'
+        data = {'end': 5}
+
+        # Act
+        response = self.client.get(
+            '/api/thought-writer/post-board/' + writer_name,
+            query_string=data
+            )
+        response_data = json.loads(response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(len(response_data), 5)
+
+    def test_user_post_board_get_error(self):
+        # Arrange
+        writer_name = 'user'
+        data = {'start': 5, 'end': 0}
+
+        # Act
+        response = self.client.get(
+            '/api/thought-writer/post-board/' + writer_name,
+            query_string=data
+            )
+
+        # Assert
+        self.assertEqual(response.status_code, 400)
