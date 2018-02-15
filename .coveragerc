@@ -1,0 +1,4 @@
+[run]
+omit =
+    # omit files in site-packages folder
+    ~/.virtualenvs/cp/lib/python3.6/site-packages/*
