@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/estherh5/api.crystalprism.io/branch/master/graph/badge.svg)](https://codecov.io/gh/estherh5/api.crystalprism.io)
+
 # api.crystalprism.io
 I started programming in January 2017 and am learning Python for back-end server development. api.crystalprism.io is the API for my website, [Crystal Prism](https://crystalprism.io). The API allows for the storage and retrieval of game scores, user-created drawings and thought posts, as well as user accounts. For user security, I implemented a JWT authentication flow from scratch that includes generating and verifying secure user tokens. To handle race conditions when writing to files, I implemented file locking operations with [`fcntl.flock`](https://docs.python.org/3.6/library/fcntl.html#fcntl.flock).
 

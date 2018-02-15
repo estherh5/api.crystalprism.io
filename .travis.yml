@@ -8,8 +8,10 @@ install:
   - pip install --upgrade pycodestyle
   - pip install -r requirements.txt
   - pip install coverage
+  - pip install codecov
 script:
   - coverage run -m unittest discover tests
+  - codecov
 
   # Run pycodestyle and ignore errors:
   # E123 closing bracket does not match indentation of opening bracket’s line
