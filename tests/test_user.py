@@ -608,7 +608,7 @@ class TestUser(CrystalPrismTestCase):
         deleted_drawing_error = deleted_drawing_response.get_data(as_text=True)
 
         self.assertEqual(deleted_drawing_response.status_code, 404)
-        self.assertEqual(deleted_drawing_error, 'File not found')
+        self.assertEqual(deleted_drawing_error, 'Not found')
 
         # Ensure deleted user's drawing is not in second user's liked drawings
         # list
