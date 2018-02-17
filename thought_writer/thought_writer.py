@@ -253,6 +253,8 @@ def delete_post(requester):
 
 def read_post(writer_name, post_timestamp):
     # Convert username to member_id for post retrieval
+    writer_id = ''
+
     with open(cwd + '/../user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
@@ -287,8 +289,8 @@ def read_post(writer_name, post_timestamp):
 
                     return jsonify(post)
 
-            # If post is not found, return error to client
-            return make_response('Post not found', 404)
+        # If post is not found, return error to client
+        return make_response('Post not found', 404)
 
     # Retrieve post from public file otherwise
     with open(cwd + '/public/public.json', 'r') as public_file:
@@ -309,8 +311,8 @@ def read_post(writer_name, post_timestamp):
 
                 return jsonify(post)
 
-        # If post is not found, return error to client
-        return make_response('Post not found', 404)
+    # If post is not found, return error to client
+    return make_response('Post not found', 404)
 
 
 def create_comment(requester, writer_name, post_timestamp):
