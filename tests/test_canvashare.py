@@ -1,7 +1,6 @@
 import json
 import os
 import re
-import unittest
 
 from server import app
 from utils.tests import CrystalPrismTestCase
@@ -9,9 +8,6 @@ from utils.tests import CrystalPrismTestCase
 
 # Test /api/canvashare/drawing endpoint [POST, GET]
 class TestDrawing(CrystalPrismTestCase):
-    def setUp(self):
-        super(TestDrawing, self).setUp()
-
     def test_drawing_post_and_get(self):
         # Arrange
         # Create user and login to get token for Authorization header
@@ -44,9 +40,6 @@ class TestDrawing(CrystalPrismTestCase):
 
 # Test /api/canvashare/drawing-info endpoint [GET, PATCH]
 class TestDrawingInfo(CrystalPrismTestCase):
-    def setUp(self):
-        super(TestDrawingInfo, self).setUp()
-
     def test_drawing_info_get(self):
         # Arrange
         artist_name = 'user'
@@ -62,6 +55,21 @@ class TestDrawingInfo(CrystalPrismTestCase):
         # Assert
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response_data['title'], title)
+
+    def test_drawing_info_get_error(self):
+        # Arrange
+        artist_name = 'user'
+        drawing_id = '100000'
+
+        # Act
+        response = self.client.get(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id
+            )
+        error = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(error, 'Not found')
 
     def test_drawing_info_patch_view(self):
         # Arrange
@@ -92,11 +100,30 @@ class TestDrawingInfo(CrystalPrismTestCase):
         self.assertEqual(patch_response.status_code, 200)
         self.assertEqual(response_data['views'], views + 1)
 
+    def test_drawing_info_patch_view_error(self):
+        # Arrange
+        artist_name = 'user'
+        drawing_id = '100000'
+        data = {'request': 'view'}
+
+        # Act
+        response = self.client.patch(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        error = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(error, 'Not found')
+
     def test_drawing_info_patch_like_and_unlike(self):
         # Arrange (for liking drawing)
-        # Create user and login to get token for Authorization header
         artist_name = 'user'
         drawing_id = '1'
+
+        # Create user and login to get token for Authorization header
         self.create_user()
         self.login()
         header = {'Authorization': 'Bearer ' + self.token}
@@ -142,12 +169,110 @@ class TestDrawingInfo(CrystalPrismTestCase):
         self.assertEqual(response_data['likes'], 0)
         self.assertEqual(response_data['liked_users'], [])
 
+    def test_drawing_info_patch_verify_error(self):
+        # Arrange
+        artist_name = 'user'
+        drawing_id = '1'
+        data = {'request': 'like'}
+
+        # Act
+        response = self.client.patch(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        error = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
+    def test_drawing_info_patch_like_error(self):
+        # Arrange
+        artist_name = 'user'
+        drawing_id = '1'
+
+        # Create user and login to get token for Authorization header
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        data = {'request': 'like'}
+
+        # Act
+        first_response = self.client.patch(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id,
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+
+        second_response = self.client.patch(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id,
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        second_response_data = second_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(first_response.status_code, 200)
+        self.assertEqual(second_response.status_code, 400)
+        self.assertEqual(second_response_data, 'User already liked drawing')
+
+    def test_drawing_info_patch_unlike_error(self):
+        # Arrange
+        artist_name = 'user'
+        drawing_id = '1'
+
+        # Create user and login to get token for Authorization header
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        data = {'request': 'unlike'}
+
+        # Act
+        response = self.client.patch(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id,
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        response_data = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response_data, 'User did not like drawing')
+
+    def test_drawing_info_patch_not_found_error(self):
+        # Arrange
+        artist_name = 'user'
+        drawing_id = '100000'
+
+        # Create user and login to get token for Authorization header
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        data = {'request': 'like'}
+
+        # Act
+        response = self.client.patch(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id,
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        error = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(error, 'Not found')
+
 
 # Test /api/canvashare/gallery endpoint [GET]
 class TestGallery(CrystalPrismTestCase):
-    def setUp(self):
-        super(TestGallery, self).setUp()
-
     def test_gallery_get(self):
         # Act
         response = self.client.get('/api/canvashare/gallery')
@@ -199,9 +324,11 @@ class TestGallery(CrystalPrismTestCase):
             '/api/canvashare/gallery',
             query_string=data
             )
+        error = response.get_data(as_text=True)
 
         # Assert
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(error, 'Start param cannot be greater than end')
 
     def test_user_gallery_get(self):
         # Arrange
@@ -260,6 +387,8 @@ class TestGallery(CrystalPrismTestCase):
             '/api/canvashare/gallery/' + artist_name,
             query_string=data
             )
+        error = response.get_data(as_text=True)
 
         # Assert
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(error, 'Start param cannot be greater than end')
