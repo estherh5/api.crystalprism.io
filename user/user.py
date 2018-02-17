@@ -24,7 +24,7 @@ def login():
 
     # Check that authorization request contains required data
     if not data or not data.username or not data.password:
-        return make_response('Could not verify', 401,
+        return make_response('Unauthorized', 401,
             {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
     username = data.username
@@ -39,7 +39,7 @@ def login():
 
                 # Reject requests for logging into deleted user accounts
                 if user_data['status'] == 'deleted':
-                    return make_response('Username does not exist', 404)
+                    return make_response('Unauthorized', 401)
 
                 # Check requested password against stored hashed and salted
                 # password
@@ -62,9 +62,9 @@ def login():
                     token = message + b'.' + signature
                     return make_response(token.decode(), 200)
 
-                return make_response('Incorrect password', 401)
+                return make_response('Unauthorized', 401)
 
-        return make_response('Username does not exist', 404)
+        return make_response('Unauthorized', 401)
 
 
 def create_user():
@@ -439,7 +439,7 @@ def verify_token():
     data = request.headers.get('Authorization')
 
     if not data:
-        return make_response('Could not verify', 401,
+        return make_response('Unauthorized', 401,
             {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
     token = data.split(' ')[1]
@@ -449,14 +449,14 @@ def verify_token():
         r'^[a-zA-Z0-9-_]+={0,2}\.[a-zA-Z0-9-_]+={0,2}\.[a-zA-Z0-9-_]+={0,2}$')
 
     if not pattern.match(token):
-        return make_response('Token is incorrect format', 401)
+        return make_response('Unauthorized', 401)
 
     header = token.split('.')[0].encode()
     payload = json.loads(urlsafe_b64decode(token.split('.')[1]).decode())
 
     # Check if token is past expiration time
     if payload['exp'] < time():
-        return make_response('Token expired', 401)
+        return make_response('Unauthorized', 401)
 
     signature = urlsafe_b64decode(token.split('.')[2])
 
@@ -466,7 +466,7 @@ def verify_token():
     message = header + b'.' + urlsafe_b64encode(json.dumps(payload).encode())
     signature_check = hmac.new(secret, message, digestmod=sha256).digest()
     if signature != signature_check:
-        return make_response('Token compromised', 401)
+        return make_response('Unauthorized', 401)
 
     return make_response(json.dumps(payload).encode(), 200)
 
