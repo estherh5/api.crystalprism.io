@@ -8,11 +8,14 @@ from utils.tests import CrystalPrismTestCase
 from uuid import UUID
 
 
+now = str(round(time.time()))  # Current time in ms
+
+
 # Test /api/user endpoint [POST, GET, PATCH, DELETE]
 class TestUser(CrystalPrismTestCase):
     def test_user_post_get_patch_and_soft_delete(self):
         # Arrange [POST]
-        username = 'test1' + str(round(time.time()))
+        username = 'test1' + now
         password = 'password'
         post_data = {
             'username': username,
@@ -80,7 +83,7 @@ class TestUser(CrystalPrismTestCase):
             )
 
         # Arrange [PATCH]
-        updated_username = 'test2' + str(round(time.time()))
+        updated_username = 'test2' + now
         updated_password = 'password2'
         patch_data = {
             'username': updated_username,
@@ -189,10 +192,10 @@ class TestUser(CrystalPrismTestCase):
 
     def test_user_post_already_exists_error(self):
         # Arrange
-        username = 'test3' + str(round(time.time()))
+        username = 'test3' + now
         password = 'password'
-        self.create_user(username, password)
-        self.login(username, password)
+        self.create_user(username)
+        self.login(username)
         header = {'Authorization': 'Bearer ' + self.token}
         post_data = {
             'username': username,
@@ -222,7 +225,7 @@ class TestUser(CrystalPrismTestCase):
 
     def test_user_patch_username_error(self):
         # Arrange
-        username = 'test4' + str(round(time.time()))
+        username = 'test4' + now
         self.create_user(username)
         self.login(username)
         header = {'Authorization': 'Bearer ' + self.token}
@@ -249,7 +252,7 @@ class TestUser(CrystalPrismTestCase):
 
     def test_user_patch_soft_deleted_error(self):
         # Arrange
-        username = 'test5' + str(round(time.time()))
+        username = 'test5' + now
         self.create_user(username)
         self.login(username)
         header = {'Authorization': 'Bearer ' + self.token}
@@ -282,7 +285,7 @@ class TestUser(CrystalPrismTestCase):
 
     def test_user_patch_hard_deleted_error(self):
         # Arrange
-        username = 'test6' + str(round(time.time()))
+        username = 'test6' + now
         self.create_user(username)
         self.login(username)
         header = {'Authorization': 'Bearer ' + self.token}
@@ -312,7 +315,7 @@ class TestUser(CrystalPrismTestCase):
 
     def test_user_get_error(self):
         # Arrange
-        username = 'test7' + str(round(time.time()))
+        username = 'test7' + now
         self.create_user(username)
         self.login(username)
         header = {'Authorization': 'Bearer ' + self.token}
@@ -359,7 +362,7 @@ class TestUser(CrystalPrismTestCase):
         self.assertEqual(user_data['comment_count'], 0)
 
     def test_public_user_get_error(self):
-        username = 'fakeuseraccount' + str(round(time.time()))
+        username = 'fakeuseraccount' + now
 
         # Act
         response = self.client.get('/api/user/' + username)
@@ -371,12 +374,12 @@ class TestUser(CrystalPrismTestCase):
 
     def test_user_hard_delete(self):
         # Arrange - create two user accounts
-        first_username = 'test8' + str(round(time.time()))
+        first_username = 'test8' + now
         self.create_user(first_username)
         self.login(first_username)
         first_user_header = {'Authorization': 'Bearer ' + self.token}
 
-        second_username = 'test9' + str(round(time.time()))
+        second_username = 'test9' + now
         self.create_user(second_username)
         self.login(second_username)
         second_user_header = {'Authorization': 'Bearer ' + self.token}
@@ -610,3 +613,92 @@ class TestVerify(CrystalPrismTestCase):
         # Assert
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response_data, 'Token compromised')
+
+
+# Test /api/users endpoint [GET]
+class TestUsers(CrystalPrismTestCase):
+    def setUp(self):
+        super(TestUsers, self).setUp()
+        for id in range(10, 19):
+            self.create_user('test' + str(id) + now)
+
+    def tearDown(self):
+        super(TestUsers, self).tearDown()
+        for id in range(10, 19):
+            self.create_user('test' + str(id) + now)
+
+    def test_users_get(self):
+        # Arrange
+        self.login('test10' + now)
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Act
+        response = self.client.get(
+            '/api/users',
+            headers=header
+            )
+        response_data = json.loads(response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response_data), 10)
+
+        # Ensure each username is a string
+        self.assertEqual(all(
+            isinstance(user, str) for user in response_data), True
+            )
+
+    def test_users_get_none(self):
+        # Arrange
+        data = {'start': 100000}
+
+        self.login('test10' + now)
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Act
+        response = self.client.get(
+            '/api/users',
+            headers=header,
+            query_string=data
+            )
+        response_data = json.loads(response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(response_data, [])
+
+    def test_users_get_partial(self):
+        # Arrange
+        data = {'end': 5}
+
+        self.login('test10' + now)
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Act
+        response = self.client.get(
+            '/api/users',
+            headers=header,
+            query_string=data
+            )
+        response_data = json.loads(response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(len(response_data), 5)
+
+    def test_users_get_error(self):
+        # Arrange
+        data = {'start': 5, 'end': 0}
+
+        self.login('test10' + now)
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Act
+        response = self.client.get(
+            '/api/users',
+            headers=header,
+            query_string=data
+            )
+        error = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(error, 'Start param cannot be greater than end')

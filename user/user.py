@@ -485,8 +485,7 @@ def read_users():
     with open(cwd + '/users.json', 'r') as users_file:
         users = json.load(users_file)
         usernames = [user_data['username']
-            for user_data in users[request_start:request_end]
-            if user_data['status'] != 'deleted'
+            for user_data in users if user_data['status'] != 'deleted'
             ]
 
         return jsonify(usernames[request_start:request_end])
