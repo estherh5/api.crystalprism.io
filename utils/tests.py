@@ -1,5 +1,7 @@
-import time
+import fcntl
 import json
+import os
+import time
 import unittest
 
 from base64 import b64encode
@@ -17,6 +19,7 @@ class CrystalPrismTestCase(unittest.TestCase):
 
     def tearDown(self):
         self.delete_user()
+        self.delete_admin_user()
 
     # Create test user
     def create_user(self, username='test' + now, password='password'):
@@ -43,6 +46,47 @@ class CrystalPrismTestCase(unittest.TestCase):
 
     # Delete test user
     def delete_user(self, username='test' + now, password='password'):
+        self.login(username, password)
+
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        response = self.client.delete(
+            '/api/user/' + username,
+            headers=header
+        )
+
+    # Delete user as admin
+    def delete_user_admin(self, username_to_delete='test' + now,
+        admin_username='admin' + now, admin_password='password'):
+        self.create_user(admin_username, admin_password)
+
+        # Set 'admin' item in user account to True
+        with open(os.path.dirname(__file__) +
+            '/../user/users.json', 'r') as users_file:
+            users = json.load(users_file)
+
+            for user_data in users:
+                if user_data['username'].lower() == admin_username.lower():
+                    user_data['admin'] = True
+
+        with open(os.path.dirname(__file__) +
+            '/../user/users.json', 'w') as users_file:
+            # Lock file to prevent overwrite
+            fcntl.flock(users_file, fcntl.LOCK_EX)
+            json.dump(users, users_file)
+            # Release lock on file
+            fcntl.flock(users_file, fcntl.LOCK_UN)
+
+        self.login(admin_username, admin_password)
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        response = self.client.delete(
+            '/api/user/' + username_to_delete,
+            headers=header
+        )
+
+    # Delete admin user
+    def delete_admin_user(self, username='admin' + now, password='password'):
         self.login(username, password)
 
         header = {'Authorization': 'Bearer ' + self.token}
