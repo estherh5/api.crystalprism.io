@@ -341,7 +341,6 @@ Users who want to join the Crystal Prism community can create an account to stor
     "member_id": "UUID", // Random universally unique identifier
     "member_since": "2017-10-04T00:00:00.000000+00:00", // UTC timestamp of when user created account
     "name_public": false, // User specifies if name is viewable on public profile
-    "password": "$2b$12$GD0XvyXV/8i9G1...", // Password hashed with bcrypt algorithm
     "post_count": 1, // Number of user's Thought Writer posts
     "rhythm_high_lifespan": "00:00:00", // High lifespan in Rhythm of Life
     "rhythm_high_score": 0, // High score in Rhythm of Life (lifespan converted to integer)
