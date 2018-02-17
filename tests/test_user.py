@@ -3,6 +3,7 @@ import os
 import re
 import time
 
+from base64 import b64encode
 from server import app
 from utils.tests import CrystalPrismTestCase
 from uuid import UUID
@@ -11,11 +12,129 @@ from uuid import UUID
 now = str(round(time.time()))  # Current time in ms
 
 
+# Test /api/login endpoint [GET]
+class TestLogin(CrystalPrismTestCase):
+    def test_login_get(self):
+        # Arrange
+        username = 'test' + now
+        password = 'password'
+        self.create_user(username, password)
+
+        b64_user_pass = str(b64encode((username + ':' + password).encode())
+            .decode())
+        header = {'Authorization': 'Basic ' + b64_user_pass}
+
+        # Act
+        response = self.client.get(
+            '/api/login',
+            headers=header
+        )
+        token = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+
+        # Ensure patched token is correct format
+        token_pattern = re.compile(
+            r'^[a-zA-Z0-9-_]+={0,2}\.[a-zA-Z0-9-_]+={0,2}' +
+            r'\.[a-zA-Z0-9-_]+={0,2}$'
+            )
+        self.assertEqual(bool(token_pattern.match(token)), True)
+
+    def test_login_get_verify_error(self):
+        # Act
+        response = self.client.get('/api/login')
+        error = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
+    def test_login_get_username_error(self):
+        # Arrange
+        username = 'test1' + now
+        password = 'password'
+
+        b64_user_pass = str(b64encode((username + ':' + password).encode())
+            .decode())
+        header = {'Authorization': 'Basic ' + b64_user_pass}
+
+        # Act
+        response = self.client.get(
+            '/api/login',
+            headers=header
+        )
+        error = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
+    def test_login_get_deleted_username_error(self):
+        # Arrange
+        username = 'test2' + now
+        password = 'password'
+
+        # Create user and log in
+        self.create_user(username, password)
+        self.login(username, password)
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Soft-delete user
+        self.client.delete(
+            '/api/user',
+            headers=header
+            )
+
+        # Generate login header for deleted user
+        b64_user_pass = str(b64encode((username + ':' + password).encode())
+            .decode())
+        login_header = {'Authorization': 'Basic ' + b64_user_pass}
+
+        # Act
+        response = self.client.get(
+            '/api/login',
+            headers=login_header
+        )
+        error = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
+        # Hard-delete user for clean-up
+        self.delete_user_admin(username)
+
+    def test_login_get_password_error(self):
+        # Arrange
+        username = 'test3' + now
+        password = 'password'
+        self.create_user(username, password)
+
+        b64_user_pass = str(b64encode((username + ':' + 'incorrect').encode())
+            .decode())
+        header = {'Authorization': 'Basic ' + b64_user_pass}
+
+        # Act
+        response = self.client.get(
+            '/api/login',
+            headers=header
+        )
+        error = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
+        # Delete user for clean-up
+        self.delete_user(username)
+
+
 # Test /api/user endpoint [POST, GET, PATCH, DELETE]
 class TestUser(CrystalPrismTestCase):
     def test_user_post_get_patch_and_soft_delete(self):
         # Arrange [POST]
-        username = 'test1' + now
+        username = 'test4' + now
         password = 'password'
         post_data = {
             'username': username,
@@ -83,7 +202,7 @@ class TestUser(CrystalPrismTestCase):
             )
 
         # Arrange [PATCH]
-        updated_username = 'test2' + now
+        updated_username = 'test5' + now
         updated_password = 'password2'
         patch_data = {
             'username': updated_username,
@@ -192,7 +311,7 @@ class TestUser(CrystalPrismTestCase):
 
     def test_user_post_already_exists_error(self):
         # Arrange
-        username = 'test3' + now
+        username = 'test6' + now
         password = 'password'
         self.create_user(username)
         self.login(username)
@@ -225,7 +344,7 @@ class TestUser(CrystalPrismTestCase):
 
     def test_user_patch_username_error(self):
         # Arrange
-        username = 'test4' + now
+        username = 'test7' + now
         self.create_user(username)
         self.login(username)
         header = {'Authorization': 'Bearer ' + self.token}
@@ -252,7 +371,7 @@ class TestUser(CrystalPrismTestCase):
 
     def test_user_patch_soft_deleted_error(self):
         # Arrange
-        username = 'test5' + now
+        username = 'test8' + now
         self.create_user(username)
         self.login(username)
         header = {'Authorization': 'Bearer ' + self.token}
@@ -285,7 +404,7 @@ class TestUser(CrystalPrismTestCase):
 
     def test_user_patch_hard_deleted_error(self):
         # Arrange
-        username = 'test6' + now
+        username = 'test9' + now
         self.create_user(username)
         self.login(username)
         header = {'Authorization': 'Bearer ' + self.token}
@@ -315,7 +434,7 @@ class TestUser(CrystalPrismTestCase):
 
     def test_user_get_error(self):
         # Arrange
-        username = 'test7' + now
+        username = 'test10' + now
         self.create_user(username)
         self.login(username)
         header = {'Authorization': 'Bearer ' + self.token}
@@ -374,12 +493,12 @@ class TestUser(CrystalPrismTestCase):
 
     def test_user_hard_delete(self):
         # Arrange - create two user accounts
-        first_username = 'test8' + now
+        first_username = 'test11' + now
         self.create_user(first_username)
         self.login(first_username)
         first_user_header = {'Authorization': 'Bearer ' + self.token}
 
-        second_username = 'test9' + now
+        second_username = 'test12' + now
         self.create_user(second_username)
         self.login(second_username)
         second_user_header = {'Authorization': 'Bearer ' + self.token}
@@ -574,7 +693,7 @@ class TestVerify(CrystalPrismTestCase):
 
         # Assert
         self.assertEqual(response.status_code, 401)
-        self.assertEqual(response_data, 'Could not verify')
+        self.assertEqual(response_data, 'Unauthorized')
 
     def test_verify_get_format_error(self):
         # Arrange
@@ -589,7 +708,7 @@ class TestVerify(CrystalPrismTestCase):
 
         # Assert
         self.assertEqual(response.status_code, 401)
-        self.assertEqual(response_data, 'Token is incorrect format')
+        self.assertEqual(response_data, 'Unauthorized')
 
     def test_verify_get_compromised_error(self):
         # Arrange
@@ -612,24 +731,24 @@ class TestVerify(CrystalPrismTestCase):
 
         # Assert
         self.assertEqual(response.status_code, 401)
-        self.assertEqual(response_data, 'Token compromised')
+        self.assertEqual(response_data, 'Unauthorized')
 
 
 # Test /api/users endpoint [GET]
 class TestUsers(CrystalPrismTestCase):
     def setUp(self):
         super(TestUsers, self).setUp()
-        for id in range(10, 19):
+        for id in range(13, 22):
             self.create_user('test' + str(id) + now)
 
     def tearDown(self):
         super(TestUsers, self).tearDown()
-        for id in range(10, 19):
+        for id in range(13, 22):
             self.create_user('test' + str(id) + now)
 
     def test_users_get(self):
         # Arrange
-        self.login('test10' + now)
+        self.login('test13' + now)
         header = {'Authorization': 'Bearer ' + self.token}
 
         # Act
@@ -652,7 +771,7 @@ class TestUsers(CrystalPrismTestCase):
         # Arrange
         data = {'start': 100000}
 
-        self.login('test10' + now)
+        self.login('test13' + now)
         header = {'Authorization': 'Bearer ' + self.token}
 
         # Act
@@ -670,7 +789,7 @@ class TestUsers(CrystalPrismTestCase):
         # Arrange
         data = {'end': 5}
 
-        self.login('test10' + now)
+        self.login('test13' + now)
         header = {'Authorization': 'Bearer ' + self.token}
 
         # Act
@@ -688,7 +807,7 @@ class TestUsers(CrystalPrismTestCase):
         # Arrange
         data = {'start': 5, 'end': 0}
 
-        self.login('test10' + now)
+        self.login('test13' + now)
         header = {'Authorization': 'Bearer ' + self.token}
 
         # Act
