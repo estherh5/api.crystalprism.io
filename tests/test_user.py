@@ -539,3 +539,74 @@ class TestUser(CrystalPrismTestCase):
             '/api/user/' + second_username,
             headers=second_user_header
             )
+
+
+# Test /api/user/verify endpoint [GET]
+class TestVerify(CrystalPrismTestCase):
+    def test_verify_get(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Act
+        response = self.client.get(
+            '/api/user/verify',
+            headers=header
+            )
+        response_data = json.loads(response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response_data['username'], self.username)
+
+        # Ensure expiration time is 10-digit integer
+        self.assertEqual(isinstance(response_data['exp'], int), True)
+        self.assertEqual(len(str(response_data['exp'])), 10)
+
+    def test_verify_get_error(self):
+        # Act
+        response = self.client.get('/api/user/verify')
+        response_data = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response_data, 'Could not verify')
+
+    def test_verify_get_format_error(self):
+        # Arrange
+        header = {'Authorization': 'Bearer token'}
+
+        # Act
+        response = self.client.get(
+            '/api/user/verify',
+            headers=header
+            )
+        response_data = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response_data, 'Token is incorrect format')
+
+    def test_verify_get_compromised_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+
+        # Change first letter in token to compromise it
+        compromised_token = list(self.token)
+        compromised_token[0] = 'f'
+        compromised_token = "".join(compromised_token)
+
+        header = {'Authorization': 'Bearer ' + compromised_token}
+
+        # Act
+        response = self.client.get(
+            '/api/user/verify',
+            headers=header
+            )
+        response_data = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response_data, 'Token compromised')
