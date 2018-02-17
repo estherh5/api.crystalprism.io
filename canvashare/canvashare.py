@@ -70,15 +70,19 @@ def create_drawing(requester):
 
 
 def read_drawing(artist_name, drawing_file):
-    # Convert artist's username to member_id for drawing information retrieval
+    # Convert artist's username to member_id for drawing retrieval
     with open(cwd + '/../user/users.json', 'r') as users_file:
         users = json.load(users_file)
         for user_data in users:
             if user_data['username'].lower() == artist_name.lower():
                 artist_id = user_data['member_id']
 
-    # Send drawing PNG file to client
-    return send_file(cwd + '/drawings/' + artist_id + '/' + drawing_file)
+                # Send drawing PNG file to client
+                return send_file(cwd + '/drawings/' + artist_id + '/' +
+                    drawing_file)
+
+    # Return error if drawing file not found
+    return make_response('File not found', 404)
 
 
 def read_drawing_info(artist_name, drawing_id):
