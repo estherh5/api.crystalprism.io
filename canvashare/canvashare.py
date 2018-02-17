@@ -77,12 +77,15 @@ def read_drawing(artist_name, drawing_file):
             if user_data['username'].lower() == artist_name.lower():
                 artist_id = user_data['member_id']
 
-                # Send drawing PNG file to client
-                return send_file(cwd + '/drawings/' + artist_id + '/' +
-                    drawing_file)
+                # Send drawing PNG file to client if it exists
+                if os.path.exists(cwd + '/drawings/' + artist_id + '/' +
+                    drawing_file):
+
+                    return send_file(cwd + '/drawings/' + artist_id + '/' +
+                        drawing_file)
 
     # Return error if drawing file not found
-    return make_response('File not found', 404)
+    return make_response('Not found', 404)
 
 
 def read_drawing_info(artist_name, drawing_id):
@@ -94,24 +97,28 @@ def read_drawing_info(artist_name, drawing_id):
                 artist_id = user_data['member_id']
 
     # Return specified drawing information file by drawing name
-    with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
-        '.json', 'r') as info_file:
-        drawing_info = json.load(info_file)
+    if os.path.exists(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
+        '.json'):
 
-        # Replace member_id with username for each user in drawing's liked
-        # users list
-        for i in range(len(drawing_info['liked_users'])):
-            liked_user = drawing_info['liked_users'][i]
-            with open(cwd + '/../user/users.json', 'r') as users_file:
-                users = json.load(users_file)
-                for user_data in users:
-                    if user_data['member_id'] == liked_user:
-                        drawing_info['liked_users'][i] = user_data['username']
+        with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
+            '.json', 'r') as info_file:
+            drawing_info = json.load(info_file)
 
-        return jsonify(drawing_info)
+            # Replace member_id with username for each user in drawing's liked
+            # users list
+            for i in range(len(drawing_info['liked_users'])):
+                liked_user = drawing_info['liked_users'][i]
+                with open(cwd + '/../user/users.json', 'r') as users_file:
+                    users = json.load(users_file)
+                    for user_data in users:
+                        if user_data['member_id'] == liked_user:
+                            liker_name = user_data['username']
+                            drawing_info['liked_users'][i] = liker_name
+
+            return jsonify(drawing_info)
 
     # Return error if drawing information file not found
-    return make_response('File not found', 404)
+    return make_response('Not found', 404)
 
 
 def update_drawing_info(artist_name, drawing_id):
@@ -129,23 +136,27 @@ def update_drawing_info(artist_name, drawing_id):
     # If request is for viewing the drawing, increase view count without
     # requiring user to be logged in
     if data['request'] == 'view':
-        with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
-            '.json', 'r') as info_file:
-            drawing_info = json.load(info_file)
-            # Increment drawing's views by 1
-            drawing_info['views'] += 1
 
-        with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
-            '.json', 'w') as info_file:
-            # Lock file to prevent overwrite
-            fcntl.flock(info_file, fcntl.LOCK_EX)
-            json.dump(drawing_info, info_file)
-            # Release lock on file
-            fcntl.flock(info_file, fcntl.LOCK_UN)
-            return make_response('Success', 200)
+        if os.path.exists(cwd + '/drawing_info/' + artist_id + '/' +
+            drawing_id + '.json'):
+
+            with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
+                '.json', 'r') as info_file:
+                drawing_info = json.load(info_file)
+                # Increment drawing's views by 1
+                drawing_info['views'] += 1
+
+            with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
+                '.json', 'w') as info_file:
+                # Lock file to prevent overwrite
+                fcntl.flock(info_file, fcntl.LOCK_EX)
+                json.dump(drawing_info, info_file)
+                # Release lock on file
+                fcntl.flock(info_file, fcntl.LOCK_UN)
+                return make_response('Success', 200)
 
         # Return error if drawing information file not found
-        return make_response('File not found', 404)
+        return make_response('Not found', 404)
 
     # Otherwise, request is for liking/unliking drawing, so increase/decrease
     # like count
@@ -166,90 +177,93 @@ def update_drawing_info(artist_name, drawing_id):
             if user_data['username'].lower() == requester.lower():
                 liker_id = user_data['member_id']
 
-    with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
-        '.json', 'r') as info_file:
-        drawing_info = json.load(info_file)
+    if os.path.exists(cwd + '/drawing_info/' + artist_id + '/' +
+        drawing_id + '.json'):
 
-        # Decrement drawing's likes by 1 and remove liker from the drawing's
-        # liked users if the request is to unlike drawing
-        if data['request'] == 'unlike':
+        with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
+            '.json', 'r') as info_file:
+            drawing_info = json.load(info_file)
 
-            # Check if requester is in list of liked users for drawing to
-            # prevent tampering with like count
-            if liker_id in drawing_info['liked_users']:
+            # Decrement drawing's likes by 1 and remove liker from the
+            # drawing's liked users if the request is to unlike drawing
+            if data['request'] == 'unlike':
 
-                drawing_info['likes'] -= 1
-                drawing_info['liked_users'].remove(liker_id)
+                # Check if requester is in list of liked users for drawing to
+                # prevent tampering with like count
+                if liker_id in drawing_info['liked_users']:
 
-                # Remove drawing from liker's liked drawings list
-                with open(cwd + '/../user/users.json', 'r') as users_file:
-                    users = json.load(users_file)
-                    for user_data in users:
-                        if user_data['member_id'] == liker_id:
-                            user_data['liked_drawings'].remove(
-                                artist_id + '/' + drawing_id + '.png')
+                    drawing_info['likes'] -= 1
+                    drawing_info['liked_users'].remove(liker_id)
 
-                with open(cwd + '/drawing_info/' + artist_id + '/' +
-                    drawing_id + '.json', 'w') as info_file:
-                    # Lock file to prevent overwrite
-                    fcntl.flock(info_file, fcntl.LOCK_EX)
-                    json.dump(drawing_info, info_file)
-                    # Release lock on file
-                    fcntl.flock(info_file, fcntl.LOCK_UN)
+                    # Remove drawing from liker's liked drawings list
+                    with open(cwd + '/../user/users.json', 'r') as users_file:
+                        users = json.load(users_file)
+                        for user_data in users:
+                            if user_data['member_id'] == liker_id:
+                                user_data['liked_drawings'].remove(
+                                    artist_id + '/' + drawing_id + '.png')
 
-                # Write changes to user file to update user's liked drawings
-                # list if drawing is unliked successfully
-                with open(cwd + '/../user/users.json', 'w') as users_file:
-                    # Lock file to prevent overwrite
-                    fcntl.flock(users_file, fcntl.LOCK_EX)
-                    json.dump(users, users_file)
-                    # Release lock on file
-                    fcntl.flock(users_file, fcntl.LOCK_UN)
-                    return make_response('Success', 200)
+                    with open(cwd + '/drawing_info/' + artist_id + '/' +
+                        drawing_id + '.json', 'w') as info_file:
+                        # Lock file to prevent overwrite
+                        fcntl.flock(info_file, fcntl.LOCK_EX)
+                        json.dump(drawing_info, info_file)
+                        # Release lock on file
+                        fcntl.flock(info_file, fcntl.LOCK_UN)
 
-            return make_response('User did not like drawing', 400)
+                    # Write changes to user file to update user's liked
+                    # drawings list if drawing is unliked successfully
+                    with open(cwd + '/../user/users.json', 'w') as users_file:
+                        # Lock file to prevent overwrite
+                        fcntl.flock(users_file, fcntl.LOCK_EX)
+                        json.dump(users, users_file)
+                        # Release lock on file
+                        fcntl.flock(users_file, fcntl.LOCK_UN)
+                        return make_response('Success', 200)
 
-        # Increment drawing's likes by 1 and add liker to the drawing's liked
-        # users if the request is to like drawing
-        if data['request'] == 'like':
+                return make_response('User did not like drawing', 400)
 
-            # Ensure user is not already in list of liked users for drawing to
-            # prevent tampering with like count
-            if liker_id not in drawing_info['liked_users']:
+            # Increment drawing's likes by 1 and add liker to the drawing's
+            # liked users if the request is to like drawing
+            if data['request'] == 'like':
 
-                drawing_info['likes'] += 1
-                drawing_info['liked_users'].insert(0, liker_id)
+                # Ensure user is not already in list of liked users for drawing
+                # to prevent tampering with like count
+                if liker_id not in drawing_info['liked_users']:
 
-                # Add drawing to liker's liked drawings list
-                with open(cwd + '/../user/users.json', 'r') as users_file:
-                    users = json.load(users_file)
-                    for user_data in users:
-                        if user_data['member_id'] == liker_id:
-                            user_data['liked_drawings'].insert(
-                                0, artist_id + '/' + drawing_id + '.png')
+                    drawing_info['likes'] += 1
+                    drawing_info['liked_users'].insert(0, liker_id)
 
-                with open(cwd + '/drawing_info/' + artist_id + '/' +
-                    drawing_id + '.json', 'w') as info_file:
-                    # Lock file to prevent overwrite
-                    fcntl.flock(info_file, fcntl.LOCK_EX)
-                    json.dump(drawing_info, info_file)
-                    # Release lock on file
-                    fcntl.flock(info_file, fcntl.LOCK_UN)
+                    # Add drawing to liker's liked drawings list
+                    with open(cwd + '/../user/users.json', 'r') as users_file:
+                        users = json.load(users_file)
+                        for user_data in users:
+                            if user_data['member_id'] == liker_id:
+                                user_data['liked_drawings'].insert(
+                                    0, artist_id + '/' + drawing_id + '.png')
 
-                # Write changes to user file to update user's liked drawings
-                # list if drawing is liked successfully
-                with open(cwd + '/../user/users.json', 'w') as users_file:
-                    # Lock file to prevent overwrite
-                    fcntl.flock(users_file, fcntl.LOCK_EX)
-                    json.dump(users, users_file)
-                    # Release lock on file
-                    fcntl.flock(users_file, fcntl.LOCK_UN)
-                    return make_response('Success', 200)
+                    with open(cwd + '/drawing_info/' + artist_id + '/' +
+                        drawing_id + '.json', 'w') as info_file:
+                        # Lock file to prevent overwrite
+                        fcntl.flock(info_file, fcntl.LOCK_EX)
+                        json.dump(drawing_info, info_file)
+                        # Release lock on file
+                        fcntl.flock(info_file, fcntl.LOCK_UN)
 
-            return make_response('User already liked drawing', 400)
+                    # Write changes to user file to update user's liked
+                    # drawings list if drawing is liked successfully
+                    with open(cwd + '/../user/users.json', 'w') as users_file:
+                        # Lock file to prevent overwrite
+                        fcntl.flock(users_file, fcntl.LOCK_EX)
+                        json.dump(users, users_file)
+                        # Release lock on file
+                        fcntl.flock(users_file, fcntl.LOCK_UN)
+                        return make_response('Success', 200)
+
+                return make_response('User already liked drawing', 400)
 
     # Return error if drawing information file is not found
-    return make_response('File not found', 404)
+    return make_response('Not found', 404)
 
 
 def read_drawings():
