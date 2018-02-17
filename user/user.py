@@ -149,6 +149,9 @@ def read_user(requester):
                             user_data['liked_drawings'][i] = str(
                                 artist['username'] + '/' + liked_file[-1])
 
+                # Remove password from user_data
+                user_data.pop('password')
+
                 return jsonify(user_data)
 
         # Return error if user account is not found
