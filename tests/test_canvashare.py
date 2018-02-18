@@ -37,6 +37,15 @@ class TestDrawing(CrystalPrismTestCase):
         self.assertEqual(post_response.status_code, 201)
         self.assertEqual(get_response.mimetype, 'image/png')
 
+    def test_drawing_post_error(self):
+        # Act
+        post_response = self.client.post('/api/canvashare/drawing')
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
 
 # Test /api/canvashare/drawing-info endpoint [GET, PATCH]
 class TestDrawingInfo(CrystalPrismTestCase):

@@ -35,6 +35,15 @@ class TestScore(CrystalPrismTestCase):
         self.assertEqual(response_data[0]['score'], 360000)
         self.assertEqual(response_data[0]['lifespan'], '100:00:00')
 
+    def test_score_post_error(self):
+        # Act
+        post_response = self.client.post('/api/rhythm-of-life')
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
     def test_leaders_get(self):
         # Act
         response = self.client.get('/api/rhythm-of-life')
@@ -101,6 +110,8 @@ class TestScore(CrystalPrismTestCase):
             '/api/rhythm-of-life',
             query_string=data
             )
+        error = response.get_data(as_text=True)
 
         # Assert
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(error, 'Start param cannot be greater than end')
