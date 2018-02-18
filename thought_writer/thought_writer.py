@@ -122,7 +122,7 @@ def update_post(requester):
 
     # If post is not found, return error to client
     if not post_found:
-        return make_response('Post not found', 404)
+        return make_response('Not found', 404)
 
     with open(cwd + '/' + writer_id + '.json', 'w') as private_file:
         # Lock file to prevent overwrite
@@ -214,7 +214,7 @@ def delete_post(requester):
 
     # If post is not found, return error to client
     if not post_found:
-        return make_response('Post not found', 404)
+        return make_response('Not found', 404)
 
     with open(cwd + '/' + writer_id + '.json', 'w') as private_file:
         # Lock file to prevent overwrite
@@ -290,7 +290,7 @@ def read_post(writer_name, post_timestamp):
                     return jsonify(post)
 
         # If post is not found, return error to client
-        return make_response('Post not found', 404)
+        return make_response('Not found', 404)
 
     # Retrieve post from public file otherwise
     with open(cwd + '/public/public.json', 'r') as public_file:
@@ -312,7 +312,7 @@ def read_post(writer_name, post_timestamp):
                 return jsonify(post)
 
     # If post is not found, return error to client
-    return make_response('Post not found', 404)
+    return make_response('Not found', 404)
 
 
 def create_comment(requester, writer_name, post_timestamp):
@@ -358,7 +358,7 @@ def create_comment(requester, writer_name, post_timestamp):
 
     # If post is not found, return error to client
     if not post_found:
-        return make_response('Post not found', 404)
+        return make_response('Not found', 404)
 
     with open(cwd + '/public/public.json', 'w') as public_file:
         # Lock file to prevent overwrite
@@ -367,8 +367,6 @@ def create_comment(requester, writer_name, post_timestamp):
         # Release lock on file
         fcntl.flock(public_file, fcntl.LOCK_UN)
 
-    post_found = False  # Stores whether post is found in private file
-
     # Add comment to post's entry in private file
     with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
         private_posts = json.load(private_file)
@@ -376,11 +374,6 @@ def create_comment(requester, writer_name, post_timestamp):
         for post in private_posts:
             if post['timestamp'] == post_timestamp:
                 post['comments'].append(comment)
-                post_found = True
-
-    # If post is not found, return error to client
-    if not post_found:
-        return make_response('Post not found', 404)
 
     with open(cwd + '/' + writer_id + '.json', 'w') as private_file:
         # Lock file to prevent overwrite
@@ -424,7 +417,7 @@ def update_comment(requester, writer_name, post_timestamp):
             if user_data['username'].lower() == writer_name.lower():
                 writer_id = user_data['member_id']
 
-    post_found = False  # Stores whether post is found in public file
+    post_found = False  # Stores whether post is found
 
     # Update comment in post's entry in public file, locating comment by
     # commenter and previous timestamp
@@ -445,7 +438,7 @@ def update_comment(requester, writer_name, post_timestamp):
 
     # If post is not found, return error to client
     if not post_found:
-        return make_response('Post not found', 404)
+        return make_response('Not found', 404)
 
     with open(cwd + '/public/public.json', 'w') as public_file:
         # Lock file to prevent overwrite
@@ -454,8 +447,6 @@ def update_comment(requester, writer_name, post_timestamp):
         # Release lock on file
         fcntl.flock(public_file, fcntl.LOCK_UN)
 
-    post_found = False  # Stores whether post is found in private file
-
     # Update comment in post's entry in private file, locating comment by
     # commenter and previous timestamp
     with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
@@ -463,7 +454,6 @@ def update_comment(requester, writer_name, post_timestamp):
 
         for post in private_posts:
             if post['timestamp'] == post_timestamp:
-                post_found = True
 
                 for comment in post['comments']:
                     if (comment['commenter'] == commenter_id and
@@ -471,10 +461,6 @@ def update_comment(requester, writer_name, post_timestamp):
                         # Update comment's timestamp to timestamp of update
                         comment['timestamp'] = new_timestamp
                         comment['content'] = data['content']
-
-    # If post is not found, return error to client
-    if not post_found:
-        return make_response('Post not found', 404)
 
     with open(cwd + '/' + writer_id + '.json', 'w') as private_file:
         # Lock file to prevent overwrite
@@ -504,7 +490,7 @@ def delete_comment(requester, writer_name, post_timestamp):
             if user_data['username'].lower() == writer_name.lower():
                 writer_id = user_data['member_id']
 
-    post_found = False  # Stores whether post is found in public file
+    post_found = False  # Stores whether post is found
 
     # Remove comment in post's entry in public file, locating comment by
     # commenter and timestamp
@@ -523,7 +509,7 @@ def delete_comment(requester, writer_name, post_timestamp):
 
     # If post is not found, return error to client
     if not post_found:
-        return make_response('Post not found', 404)
+        return make_response('Not found', 404)
 
     with open(cwd + '/public/public.json', 'w') as public_file:
         # Lock file to prevent overwrite
@@ -532,8 +518,6 @@ def delete_comment(requester, writer_name, post_timestamp):
         # Release lock on file
         fcntl.flock(public_file, fcntl.LOCK_UN)
 
-    post_found = False  # Stores whether post is found in private file
-
     # Remove comment in post's entry in private file, locating comment by
     # commenter and timestamp
     with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
@@ -541,16 +525,10 @@ def delete_comment(requester, writer_name, post_timestamp):
 
         for post in private_posts:
             if post['timestamp'] == post_timestamp:
-                post_found = True
-
                 post['comments'] = [comment for comment in post['comments']
                     if not (comment['commenter'] == commenter_id and
                             comment['timestamp'] == data['timestamp'])
                     ]
-
-    # If post is not found, return error to client
-    if not post_found:
-        return make_response('Post not found', 404)
 
     with open(cwd + '/' + writer_id + '.json', 'w') as private_file:
         # Lock file to prevent overwrite
