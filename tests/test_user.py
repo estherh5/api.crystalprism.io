@@ -342,6 +342,74 @@ class TestUser(CrystalPrismTestCase):
         # Hard-delete user for clean-up
         self.delete_user_admin(username)
 
+    def test_user_get_error(self):
+        # Arrange
+        username = 'test10' + now
+        self.create_user(username)
+        self.login(username)
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Delete user
+        self.client.delete(
+            '/api/user/' + username,
+            headers=header
+            )
+
+        # Act
+        response = self.client.get(
+            '/api/user',
+            headers=header
+            )
+        error = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(error, 'Username does not exist')
+
+    def test_public_user_get(self):
+        username = 'user'
+
+        # Act
+        get_response = self.client.get('/api/user/' + username)
+        user_data = json.loads(get_response.get_data(as_text=True))
+
+        # Assert [POST]
+        self.assertEqual(get_response.status_code, 200)
+        self.assertEqual(user_data['username'], username)
+        self.assertEqual(user_data['name'], '')
+        self.assertEqual(user_data['email'], '')
+        self.assertEqual(user_data['background_color'], '#ffffff')
+        self.assertEqual(user_data['icon_color'], '#000000')
+        self.assertEqual(user_data['about'], '')
+        self.assertEqual(
+            user_data['member_since'], '2017-10-04T00:00:00.000000+00:00'
+            )
+        self.assertEqual(user_data['shapes_high_score'], 55)
+        self.assertEqual(user_data['rhythm_high_lifespan'], '00:04:10')
+        self.assertEqual(user_data['drawing_count'], 10)
+        self.assertEqual(user_data['post_count'], 10)
+        self.assertEqual(user_data['comment_count'], 0)
+
+    def test_public_user_get_error(self):
+        username = 'fakeuseraccount' + now
+
+        # Act
+        response = self.client.get('/api/user/' + username)
+        error = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(error, 'Username does not exist')
+
+    def test_user_get_unauthorized_error(self):
+        # Act
+        get_response = self.client.get('/api/user')
+        error = get_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(get_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
     def test_user_patch_username_error(self):
         # Arrange
         username = 'test7' + now
@@ -432,64 +500,14 @@ class TestUser(CrystalPrismTestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(error, 'Username does not exist')
 
-    def test_user_get_error(self):
-        # Arrange
-        username = 'test10' + now
-        self.create_user(username)
-        self.login(username)
-        header = {'Authorization': 'Bearer ' + self.token}
-
-        # Delete user
-        self.client.delete(
-            '/api/user/' + username,
-            headers=header
-            )
-
+    def test_user_patch_unauthorized_error(self):
         # Act
-        response = self.client.get(
-            '/api/user',
-            headers=header
-            )
-        error = response.get_data(as_text=True)
+        patch_response = self.client.patch('/api/user')
+        error = patch_response.get_data(as_text=True)
 
         # Assert
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(error, 'Username does not exist')
-
-    def test_public_user_get(self):
-        username = 'user'
-
-        # Act
-        get_response = self.client.get('/api/user/' + username)
-        user_data = json.loads(get_response.get_data(as_text=True))
-
-        # Assert [POST]
-        self.assertEqual(get_response.status_code, 200)
-        self.assertEqual(user_data['username'], username)
-        self.assertEqual(user_data['name'], '')
-        self.assertEqual(user_data['email'], '')
-        self.assertEqual(user_data['background_color'], '#ffffff')
-        self.assertEqual(user_data['icon_color'], '#000000')
-        self.assertEqual(user_data['about'], '')
-        self.assertEqual(
-            user_data['member_since'], '2017-10-04T00:00:00.000000+00:00'
-            )
-        self.assertEqual(user_data['shapes_high_score'], 55)
-        self.assertEqual(user_data['rhythm_high_lifespan'], '00:04:10')
-        self.assertEqual(user_data['drawing_count'], 10)
-        self.assertEqual(user_data['post_count'], 10)
-        self.assertEqual(user_data['comment_count'], 0)
-
-    def test_public_user_get_error(self):
-        username = 'fakeuseraccount' + now
-
-        # Act
-        response = self.client.get('/api/user/' + username)
-        error = response.get_data(as_text=True)
-
-        # Assert
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(error, 'Username does not exist')
+        self.assertEqual(patch_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
 
     def test_user_hard_delete(self):
         # Arrange - create two user accounts
@@ -662,6 +680,15 @@ class TestUser(CrystalPrismTestCase):
             headers=second_user_header
             )
 
+    def test_user_delete_unauthorized_error(self):
+        # Act
+        delete_response = self.client.delete('/api/user')
+        error = delete_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(delete_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
 
 # Test /api/user/verify endpoint [GET]
 class TestVerify(CrystalPrismTestCase):
@@ -821,3 +848,12 @@ class TestUsers(CrystalPrismTestCase):
         # Assert
         self.assertEqual(response.status_code, 400)
         self.assertEqual(error, 'Start param cannot be greater than end')
+
+    def test_users_get_unauthorized_error(self):
+        # Act
+        get_response = self.client.get('/api/users')
+        error = get_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(get_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
