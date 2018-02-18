@@ -51,8 +51,12 @@ class TestPost(CrystalPrismTestCase):
         self.assertEqual(post['comments'], [])
 
         # Arrange [PATCH]
-        patch_data = {'title': 'Test 2', 'timestamp': timestamp,
-            'content': 'Test 2', 'public': True}
+        patch_data = {
+            'title': 'Test 2',
+            'timestamp': timestamp,
+            'content': 'Test 2',
+            'public': True
+            }
 
         # Act [PATCH]
         patch_response = self.client.patch(
@@ -94,10 +98,59 @@ class TestPost(CrystalPrismTestCase):
             '/api/thought-writer/post/' + self.username + '/' + timestamp,
             headers=header
             )
+        get_error = deleted_get_response.get_data(as_text=True)
+
+        deleted_patch_response = self.client.patch(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(patch_data),
+            content_type='application/json'
+            )
+        patch_error = deleted_patch_response.get_data(as_text=True)
+
+        deleted_delete_response = self.client.delete(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(delete_data),
+            content_type='application/json'
+            )
+        delete_error = deleted_delete_response.get_data(as_text=True)
 
         # Assert [DELETE]
         self.assertEqual(delete_response.status_code, 200)
         self.assertEqual(deleted_get_response.status_code, 404)
+        self.assertEqual(deleted_patch_response.status_code, 404)
+        self.assertEqual(deleted_delete_response.status_code, 404)
+        self.assertEqual(get_error, 'Not found')
+        self.assertEqual(patch_error, 'Not found')
+        self.assertEqual(delete_error, 'Not found')
+
+    def test_post_post_unauthorized_error(self):
+        # Act
+        post_response = self.client.post('/api/thought-writer/post')
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
+    def test_post_patch_unauthorized_error(self):
+        # Act
+        patch_response = self.client.patch('/api/thought-writer/post')
+        error = patch_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(patch_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
+    def test_post_delete_unauthorized_error(self):
+        # Act
+        delete_response = self.client.delete('/api/thought-writer/post')
+        error = delete_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(delete_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
 
     def test_public_post_get(self):
         writer_name = 'user'
@@ -226,6 +279,127 @@ class TestComment(CrystalPrismTestCase):
         self.assertEqual(deleted_get_response.status_code, 200)
         self.assertEqual(deleted_comment_post['comments'], [])
 
+    def test_comment_post_patch_delete_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        comment_post_data = {'content': 'Test comment'}
+
+        # Create post and add comment to it
+        post_data = {'title': 'Test', 'content': 'Test', 'public': False}
+
+        post_response = self.client.post(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        timestamp = post_response.get_data(as_text=True)
+
+        comment_response = self.client.post(
+            '/api/thought-writer/comment/' + self.username + '/' + timestamp,
+            headers=header,
+            data=json.dumps(comment_post_data),
+            content_type='application/json'
+            )
+        comment_timestamp = comment_response.get_data(as_text=True)
+
+        comment_patch_data = {
+            'content': 'Test comment 2',
+            'timestamp': comment_timestamp
+            }
+
+        comment_delete_data = {'timestamp': comment_timestamp}
+
+        # Delete post
+        delete_data = {'timestamp': timestamp}
+
+        self.client.delete(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(delete_data),
+            content_type='application/json'
+            )
+
+        # Act
+        comment_post_response = self.client.post(
+            '/api/thought-writer/comment/' + self.username + '/' + timestamp,
+            headers=header,
+            data=json.dumps(comment_post_data),
+            content_type='application/json'
+            )
+        comment_post_error = comment_post_response.get_data(as_text=True)
+
+        comment_patch_response = self.client.patch(
+            '/api/thought-writer/comment/' + self.username + '/' + timestamp,
+            headers=header,
+            data=json.dumps(comment_patch_data),
+            content_type='application/json'
+            )
+        comment_patch_error = comment_patch_response.get_data(as_text=True)
+
+        comment_delete_response = self.client.delete(
+            '/api/thought-writer/comment/' + self.username + '/' + timestamp,
+            headers=header,
+            data=json.dumps(comment_delete_data),
+            content_type='application/json'
+            )
+        comment_delete_error = comment_delete_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(comment_post_response.status_code, 404)
+        self.assertEqual(comment_patch_response.status_code, 404)
+        self.assertEqual(comment_delete_response.status_code, 404)
+        self.assertEqual(comment_post_error, 'Not found')
+        self.assertEqual(comment_patch_error, 'Not found')
+        self.assertEqual(comment_delete_error, 'Not found')
+
+    def test_comment_post_unauthorized_error(self):
+        # Arrange
+        writer_name = 'user'
+        timestamp = '2017-10-05T00:00:00.000000+00:00'
+
+        # Act
+        post_response = self.client.post(
+            '/api/thought-writer/comment/' + writer_name + '/' + timestamp
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
+    def test_comment_patch_unauthorized_error(self):
+        # Arrange
+        writer_name = 'user'
+        timestamp = '2017-10-05T00:00:00.000000+00:00'
+
+        # Act
+        patch_response = self.client.patch(
+            '/api/thought-writer/comment/' + writer_name + '/' + timestamp
+            )
+        error = patch_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(patch_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
+    def test_comment_delete_unauthorized_error(self):
+        # Arrange
+        writer_name = 'user'
+        timestamp = '2017-10-05T00:00:00.000000+00:00'
+
+        # Act
+        delete_response = self.client.delete(
+            '/api/thought-writer/comment/' + writer_name + '/' + timestamp
+            )
+        error = delete_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(delete_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
 
 # Test /api/thought-writer/post-board endpoint [GET]
 class TestPostBoard(CrystalPrismTestCase):
@@ -295,9 +469,11 @@ class TestPostBoard(CrystalPrismTestCase):
             '/api/thought-writer/post-board',
             query_string=data
             )
+        error = response.get_data(as_text=True)
 
         # Assert
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(error, 'Start param cannot be greater than end')
 
     def test_user_post_board_get(self):
         # Arrange
@@ -370,6 +546,23 @@ class TestPostBoard(CrystalPrismTestCase):
             '/api/thought-writer/post-board/' + writer_name,
             query_string=data
             )
+        error = response.get_data(as_text=True)
 
         # Assert
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(error, 'Start param cannot be greater than end')
+
+    def test_user_post_board_get_user_error(self):
+        # Arrange
+        self.create_user()
+        writer_name = self.username
+
+        # Act
+        response = self.client.get(
+            '/api/thought-writer/post-board/' + writer_name,
+            )
+        error = response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(error, 'No posts for this user')
