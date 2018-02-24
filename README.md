@@ -4,7 +4,15 @@
 I started programming in January 2017 and am learning Python for back-end server development. api.crystalprism.io is the API for my website, [Crystal Prism](https://crystalprism.io). The API allows for the storage and retrieval of game scores, user-created drawings and thought posts, as well as user accounts. For user security, I implemented a JWT authentication flow from scratch that includes generating and verifying secure user tokens. To handle race conditions when writing to files, I implemented file locking operations with [`fcntl.flock`](https://docs.python.org/3.6/library/fcntl.html#fcntl.flock).
 
 ## Setup
-To create your own copy of the Crystal Prism API, first clone this repository on your server. Next, install requirements by running `pip install -r requirements.txt`. Set up the API's necessary environment variables of "SECRET_KEY" for the salt used to generate the signature portion of the JWT for user authentication (set this as a secret key that only you know; it is imperative to keep this private for user account protection) and "ENV_TYPE" for the environment status (set this to "Dev" for testing or "Prod" for live), and start the server by running `flask run` (if you are making changes while the server is running, enter `flask run --reload` instead for instant updates).
+To create your own copy of the Crystal Prism API, first clone this repository on your server. Next, install requirements by running `pip install -r requirements.txt`. Set the following environment variables for the API:
+* "SECRET_KEY" for the salt used to generate the signature portion of the JWT for user authentication (set this as a secret key that only you know; it is imperative to keep this private for user account protection)
+* "ENV_TYPE" for the environment status (set this to "Dev" for testing or "Prod" for live)
+* ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the access key for your AWS account for accessing photos stored on an Amazon S3 bucket
+* ["AWS_SECRET_ACCESS_KEY"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the secret key for your AWS account
+* "S3_BUCKET" for the name of your S3 bucket (e.g., 'crystalprism-photos')
+* "PHOTO_URL_START" for the starting URL for photos in your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism-photos/')
+
+Start the server by running `flask run` (if you are making changes while the server is running, enter `flask run --reload` instead for instant updates).
 
 ## API Status
 To check if the API is online, a client can send a request to the following endpoint.
@@ -425,4 +433,30 @@ Users who want to join the Crystal Prism community can create an account to stor
 {
     "token": "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVC..."
 }
+```
+
+## Amazon S3 API
+#### February 2018 - Present
+The Crystal Prism homepage has a Photos page that features photos I have taken that are stored in an Amazon S3 bucket. I use boto3 to initiate an s3 bucket resource and query the bucket to return a list of all the stored photo objects.
+
+**GET** /api/photos?start=[request_start]&end=[request_end]
+* Retrieve URLs for photos stored in an S3 bucket. Optionally specify the number of photos via the request URL's start and end query parameters. Note that the following environment variables must be set:
+  - ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the access key for your AWS account
+  - ["AWS_SECRET_ACCESS_KEY"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the secret key for your AWS account
+  - "S3_BUCKET" must be set to the name of your S3 bucket (e.g., 'crystalprism-photos')
+  - "PHOTO_URL_START" must be set as the starting URL for photos in your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism-photos/').
+* Example response body:
+```javascript
+[
+  'https://s3.us-east-2.amazonaws.com/crystalprism-photos/1.png',
+  'https://s3.us-east-2.amazonaws.com/crystalprism-photos/10.png',
+  'https://s3.us-east-2.amazonaws.com/crystalprism-photos/2.png',
+  'https://s3.us-east-2.amazonaws.com/crystalprism-photos/3.png',
+  'https://s3.us-east-2.amazonaws.com/crystalprism-photos/4.png',
+  'https://s3.us-east-2.amazonaws.com/crystalprism-photos/5.png',
+  'https://s3.us-east-2.amazonaws.com/crystalprism-photos/6.png',
+  'https://s3.us-east-2.amazonaws.com/crystalprism-photos/7.png',
+  'https://s3.us-east-2.amazonaws.com/crystalprism-photos/8.png',
+  'https://s3.us-east-2.amazonaws.com/crystalprism-photos/9.png'
+]
 ```
