@@ -24,3 +24,5 @@ env:
   global:
     - ENV_TYPE=Prod
     - SECRET_KEY=test
+    - S3_BUCKET=crystalprism-photos
+    - PHOTO_URL_START=https://s3.us-east-2.amazonaws.com/crystalprism-photos/

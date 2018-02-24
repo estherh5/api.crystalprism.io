@@ -1,7 +1,8 @@
+import boto3
 import json
 import os
 
-from flask import Flask, make_response, request
+from flask import Flask, jsonify, make_response, request
 from flask_cors import CORS
 
 from canvashare import canvashare
@@ -95,6 +96,33 @@ def login_route():
     # username and password stored for a user account and return JWT if so
     if request.method == 'GET':
         return user.login()
+
+
+@app.route('/api/photos', methods=['GET'])
+def photos():
+    # Retrieve URLs for photos stored on Amazon S3 crystalprism-photos bucket;
+    # environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must
+    # be set from AWS account; query params specify number of URLs
+    if request.method == 'GET':
+        # Get number of requested photos from query parameters, using default
+        # if null
+        request_start = int(request.args.get('start', 0))
+        request_end = int(request.args.get('end', request_start + 10))
+
+        # Return error if start query parameter is greater than end
+        if request_start > request_end:
+            return make_response('Start param cannot be greater than end', 400)
+
+        urls = []
+
+        s3 = boto3.resource('s3')
+        bucket_name = os.environ['S3_BUCKET']
+        bucket = s3.Bucket(bucket_name)
+
+        for item in bucket.objects.all():
+            urls.append(os.environ['PHOTO_URL_START'] + item.key)
+
+        return jsonify(urls[request_start:request_end])
 
 
 @app.route('/api/ping', methods=['GET'])
