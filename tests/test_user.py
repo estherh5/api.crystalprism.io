@@ -390,7 +390,7 @@ class TestUser(CrystalPrismTestCase):
         self.assertEqual(user_data['rhythm_high_lifespan'], '00:04:10')
         self.assertEqual(user_data['drawing_count'], 10)
         self.assertEqual(user_data['post_count'], 10)
-        self.assertEqual(user_data['comment_count'], 0)
+        self.assertEqual(user_data['comment_count'], 1)
 
     def test_public_user_get_error(self):
         username = 'fakeuseraccount' + now
