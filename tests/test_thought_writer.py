@@ -1,5 +1,6 @@
 import json
 import re
+import time
 
 from utils.tests import CrystalPrismTestCase
 
@@ -12,7 +13,11 @@ class TestPost(CrystalPrismTestCase):
         self.create_user()
         self.login()
         header = {'Authorization': 'Bearer ' + self.token}
-        post_data = {'title': 'Test', 'content': 'Test', 'public': False}
+        post_data = {
+            'title': 'Test',
+            'content': 'Test',
+            'public': False
+            }
 
         # Act [POST]
         post_response = self.client.post(
@@ -131,6 +136,37 @@ class TestPost(CrystalPrismTestCase):
         self.assertEqual(patch_error, 'Not found')
         self.assertEqual(delete_error, 'Not found')
 
+    def test_post_post_for_existing_user(self):
+        # Arrange
+        # Create user and login to get token for Authorization header
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        post_data = {
+            'title': 'Test',
+            'content': 'Test',
+            'public': False
+            }
+
+        # Create first post to create user's private posts file
+        self.client.post(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+
+        # Act (create second post to ensure it saves to user's existing file)
+        post_response = self.client.post(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+
+        # Assert [POST]
+        self.assertEqual(post_response.status_code, 201)
+
     def test_post_post_unauthorized_error(self):
         # Act
         post_response = self.client.post('/api/thought-writer/post')
@@ -148,6 +184,72 @@ class TestPost(CrystalPrismTestCase):
         # Assert
         self.assertEqual(patch_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
+
+    def test_public_post_patch(self):
+        # Arrange
+        # Create user and login to get token for Authorization header
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        post_data = {'title': 'Test', 'content': 'Test', 'public': True}
+
+        # Create public post
+        post_response = self.client.post(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        timestamp = post_response.get_data(as_text=True)
+
+        # Update post in public file
+        patch_data_initial = {
+            'title': 'Test',
+            'timestamp': timestamp,
+            'content': 'Test2',
+            'public': True
+            }
+
+        # Update post so it is no longer public
+        patch_data_final = {
+            'title': 'Test',
+            'timestamp': timestamp,
+            'content': 'Test3',
+            'public': False
+            }
+
+        # Act
+        patch_response_initial = self.client.patch(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(patch_data_initial),
+            content_type='application/json'
+            )
+
+        get_response_initial = self.client.get(
+            '/api/thought-writer/post/' + self.username + '/' + timestamp
+            )
+        public_post = json.loads(get_response_initial.get_data(as_text=True))
+
+        # Ensure private post cannot be found by anyone publicly
+        patch_response_final = self.client.patch(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(patch_data_final),
+            content_type='application/json'
+            )
+
+        get_response_final = self.client.get(
+            '/api/thought-writer/post/' + self.username + '/' + timestamp
+            )
+        get_error = get_response_final.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(patch_response_initial.status_code, 200)
+        self.assertEqual(get_response_initial.status_code, 200)
+        self.assertEqual(public_post['content'], 'Test2')
+        self.assertEqual(get_response_final.status_code, 404)
+        self.assertEqual(get_error, 'Not found')
 
     def test_post_delete_unauthorized_error(self):
         # Act
@@ -174,7 +276,6 @@ class TestPost(CrystalPrismTestCase):
         self.assertEqual(post['title'], 'Welcome')
         self.assertEqual(post['timestamp'], timestamp)
         self.assertEqual('Welcome to Thought Writer' in post['content'], True)
-        self.assertEqual(post['comments'], [])
 
 
 # Test /api/thought-writer/comment endpoint [POST, PATCH, DELETE]
@@ -204,7 +305,8 @@ class TestComment(CrystalPrismTestCase):
             '/api/thought-writer/post/' + writer_name + '/' + timestamp
             )
         post = json.loads(get_response.get_data(as_text=True))
-        comment_timestamp = post['comments'][0]['timestamp']
+        comments_length = len(post['comments'])
+        comment_timestamp = post['comments'][-1]['timestamp']
 
         get_user_response = self.client.get(
             '/api/user',
@@ -215,7 +317,7 @@ class TestComment(CrystalPrismTestCase):
         # Assert [POST]
         self.assertEqual(post_response.status_code, 201)
         self.assertEqual(get_response.status_code, 200)
-        self.assertEqual(post['comments'][0]['commenter'], self.username)
+        self.assertEqual(post['comments'][-1]['commenter'], self.username)
         self.assertEqual(user_data['comment_count'], 1)
 
         # Ensure timestamp matches UTC format
@@ -226,7 +328,7 @@ class TestComment(CrystalPrismTestCase):
             bool(timestamp_pattern.match(comment_timestamp)), True
             )
 
-        self.assertEqual(post['comments'][0]['content'], 'Test comment')
+        self.assertEqual(post['comments'][-1]['content'], 'Test comment')
 
         # Arrange [PATCH]
         patch_data = {
@@ -247,13 +349,13 @@ class TestComment(CrystalPrismTestCase):
             '/api/thought-writer/post/' + writer_name + '/' + timestamp
             )
         patched_post = json.loads(patched_get_response.get_data(as_text=True))
-        patched_timestamp = patched_post['comments'][0]['timestamp']
+        patched_timestamp = patched_post['comments'][-1]['timestamp']
 
         # Assert [PATCH]
         self.assertEqual(patch_response.status_code, 200)
         self.assertEqual(patched_get_response.status_code, 200)
         self.assertEqual(
-            patched_post['comments'][0]['commenter'], self.username
+            patched_post['comments'][-1]['commenter'], self.username
             )
 
         # Ensure timestamp matches UTC format
@@ -265,7 +367,7 @@ class TestComment(CrystalPrismTestCase):
             )
 
         self.assertEqual(
-            patched_post['comments'][0]['content'], 'Test comment 2'
+            patched_post['comments'][-1]['content'], 'Test comment 2'
             )
 
         # Arrange [DELETE]
@@ -290,17 +392,24 @@ class TestComment(CrystalPrismTestCase):
         # Assert [DELETE]
         self.assertEqual(delete_response.status_code, 200)
         self.assertEqual(deleted_get_response.status_code, 200)
-        self.assertEqual(deleted_comment_post['comments'], [])
+        self.assertEqual(
+            len(deleted_comment_post['comments']), comments_length - 1
+            )
 
     def test_comment_post_patch_delete_error(self):
         # Arrange
+        # Create user and login to get token for Authorization header
         self.create_user()
         self.login()
         header = {'Authorization': 'Bearer ' + self.token}
         comment_post_data = {'content': 'Test comment'}
 
         # Create post and add comment to it
-        post_data = {'title': 'Test', 'content': 'Test', 'public': False}
+        post_data = {
+            'title': 'Test',
+            'content': 'Test',
+            'public': True
+            }
 
         post_response = self.client.post(
             '/api/thought-writer/post',
@@ -310,13 +419,19 @@ class TestComment(CrystalPrismTestCase):
             )
         timestamp = post_response.get_data(as_text=True)
 
-        comment_response = self.client.post(
+        self.client.post(
             '/api/thought-writer/comment/' + self.username + '/' + timestamp,
             headers=header,
             data=json.dumps(comment_post_data),
             content_type='application/json'
             )
-        comment_timestamp = comment_response.get_data(as_text=True)
+
+        get_response = self.client.get(
+            '/api/thought-writer/post/' + self.username + '/' + timestamp,
+            headers=header
+            )
+        post = json.loads(get_response.get_data(as_text=True))
+        comment_timestamp = post['comments'][0]['timestamp']
 
         comment_patch_data = {
             'content': 'Test comment 2',
@@ -419,31 +534,31 @@ class TestPostBoard(CrystalPrismTestCase):
     def test_post_board_get(self):
         # Act
         response = self.client.get('/api/thought-writer/post-board')
-        response_data = json.loads(response.get_data(as_text=True))
+        posts = json.loads(response.get_data(as_text=True))
 
         # Assert
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response_data), 10)
+        self.assertEqual(len(posts), 10)
 
         # Ensure writer is a string
-        self.assertEqual(isinstance(response_data[0]['writer'], str), True)
+        self.assertEqual(isinstance(posts[0]['writer'], str), True)
 
         # Ensure title is a string
-        self.assertEqual(isinstance(response_data[0]['title'], str), True)
+        self.assertEqual(isinstance(posts[0]['title'], str), True)
 
         # Ensure timestamp matches UTC format
         timestamp_pattern = re.compile(
             r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d.\d{6}\+\d\d:\d\d'
             )
         self.assertEqual(
-            bool(timestamp_pattern.match(response_data[0]['timestamp'])), True
+            bool(timestamp_pattern.match(posts[0]['timestamp'])), True
             )
 
         # Ensure content is a string
-        self.assertEqual(isinstance(response_data[0]['content'], str), True)
+        self.assertEqual(isinstance(posts[0]['content'], str), True)
 
         # Ensure comments is a list
-        self.assertEqual(isinstance(response_data[0]['comments'], list), True)
+        self.assertEqual(isinstance(posts[0]['comments'], list), True)
 
     def test_post_board_get_none(self):
         # Arrange
@@ -454,10 +569,10 @@ class TestPostBoard(CrystalPrismTestCase):
             '/api/thought-writer/post-board',
             query_string=data
             )
-        response_data = json.loads(response.get_data(as_text=True))
+        posts = json.loads(response.get_data(as_text=True))
 
         # Assert
-        self.assertEqual(response_data, [])
+        self.assertEqual(posts, [])
 
     def test_post_board_get_partial(self):
         # Arrange
@@ -468,10 +583,10 @@ class TestPostBoard(CrystalPrismTestCase):
             '/api/thought-writer/post-board',
             query_string=data
             )
-        response_data = json.loads(response.get_data(as_text=True))
+        posts = json.loads(response.get_data(as_text=True))
 
         # Assert
-        self.assertEqual(len(response_data), 5)
+        self.assertEqual(len(posts), 5)
 
     def test_post_board_get_error(self):
         # Arrange
@@ -488,7 +603,7 @@ class TestPostBoard(CrystalPrismTestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(error, 'Start param cannot be greater than end')
 
-    def test_user_post_board_get(self):
+    def test_user_public_post_board_get(self):
         # Arrange
         writer_name = 'user'
 
@@ -496,28 +611,98 @@ class TestPostBoard(CrystalPrismTestCase):
         response = self.client.get(
             '/api/thought-writer/post-board/' + writer_name
             )
-        response_data = json.loads(response.get_data(as_text=True))
+        posts = json.loads(response.get_data(as_text=True))
 
         # Assert
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response_data), 10)
+        self.assertEqual(len(posts), 10)
 
         # Ensure title is a string
-        self.assertEqual(isinstance(response_data[0]['title'], str), True)
+        self.assertEqual(isinstance(posts[0]['title'], str), True)
 
         # Ensure timestamp matches UTC format
         timestamp_pattern = re.compile(
             r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d.\d{6}\+\d\d:\d\d'
             )
         self.assertEqual(
-            bool(timestamp_pattern.match(response_data[0]['timestamp'])), True
+            bool(timestamp_pattern.match(posts[0]['timestamp'])), True
             )
 
         # Ensure content is a string
-        self.assertEqual(isinstance(response_data[0]['content'], str), True)
+        self.assertEqual(isinstance(posts[0]['content'], str), True)
 
         # Ensure comments is a list
-        self.assertEqual(isinstance(response_data[0]['comments'], list), True)
+        self.assertEqual(isinstance(posts[0]['comments'], list), True)
+
+    def test_user_private_post_board_get(self):
+        # Arrange
+        # Create user and login to get token for Authorization header
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        post_data = {
+            'title': 'Test',
+            'content': 'Test',
+            'public': True
+            }
+        comment_post_data = {'content': 'Test comment'}
+
+        # Create post and add comment to it, then make it private
+        post_response = self.client.post(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        timestamp = post_response.get_data(as_text=True)
+
+        self.client.post(
+            '/api/thought-writer/comment/' + self.username + '/' + timestamp,
+            headers=header,
+            data=json.dumps(comment_post_data),
+            content_type='application/json'
+            )
+
+        patch_data = {
+            'title': 'Test',
+            'timestamp': timestamp,
+            'content': 'Test',
+            'public': False
+            }
+
+        self.client.patch(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(patch_data),
+            content_type='application/json'
+            )
+
+        # Act
+        get_response = self.client.get(
+            '/api/thought-writer/post-board/' + self.username,
+            headers=header
+            )
+        posts = json.loads(get_response.get_data(as_text=True))
+
+        # Assert
+        self.assertEqual(get_response.status_code, 200)
+
+        # Ensure title is a string
+        self.assertEqual(isinstance(posts[0]['title'], str), True)
+
+        # Ensure timestamp matches UTC format
+        timestamp_pattern = re.compile(
+            r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d.\d{6}\+\d\d:\d\d'
+            )
+        self.assertEqual(
+            bool(timestamp_pattern.match(posts[0]['timestamp'])), True
+            )
+
+        # Ensure content is a string
+        self.assertEqual(isinstance(posts[0]['content'], str), True)
+
+        # Ensure comments is a list
+        self.assertEqual(isinstance(posts[0]['comments'], list), True)
 
     def test_user_post_board_get_none(self):
         # Arrange
@@ -529,10 +714,10 @@ class TestPostBoard(CrystalPrismTestCase):
             '/api/thought-writer/post-board/' + writer_name,
             query_string=data
             )
-        response_data = json.loads(response.get_data(as_text=True))
+        posts = json.loads(response.get_data(as_text=True))
 
         # Assert
-        self.assertEqual(response_data, [])
+        self.assertEqual(posts, [])
 
     def test_user_post_board_get_partial(self):
         # Arrange
@@ -544,10 +729,10 @@ class TestPostBoard(CrystalPrismTestCase):
             '/api/thought-writer/post-board/' + writer_name,
             query_string=data
             )
-        response_data = json.loads(response.get_data(as_text=True))
+        posts = json.loads(response.get_data(as_text=True))
 
         # Assert
-        self.assertEqual(len(response_data), 5)
+        self.assertEqual(len(posts), 5)
 
     def test_user_post_board_get_error(self):
         # Arrange
