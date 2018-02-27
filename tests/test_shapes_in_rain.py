@@ -1,4 +1,5 @@
 import json
+import re
 
 from utils.tests import CrystalPrismTestCase
 
@@ -28,9 +29,33 @@ class TestScore(CrystalPrismTestCase):
             )
         response_data = json.loads(get_response.get_data(as_text=True))
 
+        get_user_response = self.client.get(
+            '/api/user',
+            headers=header
+            )
+        user_data = json.loads(get_user_response.get_data(as_text=True))
+
         # Assert
         self.assertEqual(post_response.status_code, 201)
         self.assertEqual(response_data[0]['score'], 100000)
+        self.assertEqual(response_data[0]['player'], self.username)
+
+        # Ensure timestamp matches UTC format
+        timestamp_pattern = re.compile(
+            r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d.\d{6}\+\d\d:\d\d'
+            )
+        self.assertEqual(
+            bool(timestamp_pattern.match(response_data[0]['timestamp'])), True
+            )
+
+        self.assertEqual(user_data['shapes_plays'], 1)
+        self.assertEqual(user_data['shapes_scores'][0]['score'], 100000)
+        self.assertEqual(
+            bool(timestamp_pattern.match(
+                user_data['shapes_scores'][0]['timestamp'])
+                ), True
+            )
+        self.assertEqual(user_data['shapes_high_score'], 100000)
 
     def test_score_post_error(self):
         # Act
@@ -49,6 +74,14 @@ class TestScore(CrystalPrismTestCase):
         # Assert
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response_data), 5)
+
+        # Ensure timestamp matches UTC format
+        timestamp_pattern = re.compile(
+            r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d.\d{6}\+\d\d:\d\d'
+            )
+        self.assertEqual(bool(timestamp_pattern.match(
+            response_data[0]['timestamp'])), True
+            )
 
         # Ensure score is an integer
         self.assertEqual(isinstance(response_data[0]['score'], int), True)

@@ -1,9 +1,12 @@
+import hmac
 import json
 import os
 import re
 import time
 
-from base64 import b64encode
+from base64 import b64encode, urlsafe_b64encode
+from hashlib import sha256
+from math import floor
 from utils.tests import CrystalPrismTestCase
 from uuid import UUID
 
@@ -646,7 +649,9 @@ class TestUser(CrystalPrismTestCase):
         drawing_response_data = json.loads(
             deleted_like_response.get_data(as_text=True)
             )
-        self.assertEqual(drawing_response_data['liked_users'], [])
+        self.assertEqual(bool(
+            first_username in drawing_response_data['liked_users']
+            ), False)
 
         # Ensure deleted user's post is not found when searched for
         deleted_post_response = self.client.get(
@@ -702,24 +707,24 @@ class TestVerify(CrystalPrismTestCase):
             '/api/user/verify',
             headers=header
             )
-        response_data = json.loads(response.get_data(as_text=True))
+        payload = json.loads(response.get_data(as_text=True))
 
         # Assert
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response_data['username'], self.username)
+        self.assertEqual(payload['username'], self.username)
 
         # Ensure expiration time is 10-digit integer
-        self.assertEqual(isinstance(response_data['exp'], int), True)
-        self.assertEqual(len(str(response_data['exp'])), 10)
+        self.assertEqual(isinstance(payload['exp'], int), True)
+        self.assertEqual(len(str(payload['exp'])), 10)
 
     def test_verify_get_error(self):
         # Act
         response = self.client.get('/api/user/verify')
-        response_data = response.get_data(as_text=True)
+        error = response.get_data(as_text=True)
 
         # Assert
         self.assertEqual(response.status_code, 401)
-        self.assertEqual(response_data, 'Unauthorized')
+        self.assertEqual(error, 'Unauthorized')
 
     def test_verify_get_format_error(self):
         # Arrange
@@ -730,11 +735,51 @@ class TestVerify(CrystalPrismTestCase):
             '/api/user/verify',
             headers=header
             )
-        response_data = response.get_data(as_text=True)
+        error = response.get_data(as_text=True)
 
         # Assert
         self.assertEqual(response.status_code, 401)
-        self.assertEqual(response_data, 'Unauthorized')
+        self.assertEqual(error, 'Unauthorized')
+
+    def test_verify_get_expiration_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        initial_header = {'Authorization': 'Bearer ' + self.token}
+
+        # Get initial payload
+        initial_response = self.client.get(
+            '/api/user/verify',
+            headers=initial_header
+            )
+        payload = json.loads(initial_response.get_data(as_text=True))
+
+        # Create new token with payload past expiration time (1 hour)
+        token_header = urlsafe_b64encode(b'{"alg": "HS256", "typ": "JWT"}')
+
+        expired_payload = urlsafe_b64encode(json.dumps({
+            'username': self.username,
+            'exp': floor(payload['exp'] - (61 * 60))
+            }).encode())
+
+        secret = os.environ['SECRET_KEY'].encode()
+        message = token_header + b'.' + expired_payload
+        signature = hmac.new(secret, message, digestmod=sha256).digest()
+        signature = urlsafe_b64encode(signature)
+        expired_token = (message + b'.' + signature).decode()
+
+        final_header = {'Authorization': 'Bearer ' + expired_token}
+
+        # Act
+        final_response = self.client.get(
+            '/api/user/verify',
+            headers=final_header
+            )
+        error = final_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(final_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
 
     def test_verify_get_compromised_error(self):
         # Arrange
@@ -753,11 +798,11 @@ class TestVerify(CrystalPrismTestCase):
             '/api/user/verify',
             headers=header
             )
-        response_data = response.get_data(as_text=True)
+        error = response.get_data(as_text=True)
 
         # Assert
         self.assertEqual(response.status_code, 401)
-        self.assertEqual(response_data, 'Unauthorized')
+        self.assertEqual(error, 'Unauthorized')
 
 
 # Test /api/users endpoint [GET]
@@ -770,7 +815,7 @@ class TestUsers(CrystalPrismTestCase):
     def tearDown(self):
         super(TestUsers, self).tearDown()
         for id in range(13, 22):
-            self.create_user('test' + str(id) + now)
+            self.delete_user('test' + str(id) + now)
 
     def test_users_get(self):
         # Arrange
