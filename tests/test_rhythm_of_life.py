@@ -29,10 +29,38 @@ class TestScore(CrystalPrismTestCase):
             )
         response_data = json.loads(get_response.get_data(as_text=True))
 
+        get_user_response = self.client.get(
+            '/api/user',
+            headers=header
+            )
+        user_data = json.loads(get_user_response.get_data(as_text=True))
+
         # Assert
         self.assertEqual(post_response.status_code, 201)
         self.assertEqual(response_data[0]['score'], 360000)
         self.assertEqual(response_data[0]['lifespan'], '100:00:00')
+        self.assertEqual(response_data[0]['player'], self.username)
+
+        # Ensure timestamp matches UTC format
+        timestamp_pattern = re.compile(
+            r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d.\d{6}\+\d\d:\d\d'
+            )
+        self.assertEqual(
+            bool(timestamp_pattern.match(response_data[0]['timestamp'])), True
+            )
+
+        self.assertEqual(user_data['rhythm_plays'], 1)
+        self.assertEqual(user_data['rhythm_scores'][0]['score'], 360000)
+        self.assertEqual(
+            user_data['rhythm_scores'][0]['lifespan'], '100:00:00'
+            )
+        self.assertEqual(
+            bool(timestamp_pattern.match(
+                user_data['rhythm_scores'][0]['timestamp'])
+                ), True
+            )
+        self.assertEqual(user_data['rhythm_high_score'], 360000)
+        self.assertEqual(user_data['rhythm_high_lifespan'], '100:00:00')
 
     def test_score_post_error(self):
         # Act

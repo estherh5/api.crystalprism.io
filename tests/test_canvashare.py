@@ -32,9 +32,16 @@ class TestDrawing(CrystalPrismTestCase):
             '/api/canvashare/drawing/' + self.username + '/1.png'
             )
 
+        get_user_response = self.client.get(
+            '/api/user',
+            headers=header
+            )
+        user_data = json.loads(get_user_response.get_data(as_text=True))
+
         # Assert
         self.assertEqual(post_response.status_code, 201)
         self.assertEqual(get_response.mimetype, 'image/png')
+        self.assertEqual(user_data['drawing_count'], 1)
 
     def test_drawing_post_error(self):
         # Act
@@ -138,6 +145,13 @@ class TestDrawingInfo(CrystalPrismTestCase):
 
         data = {'request': 'like'}
 
+        # Get current number of views from drawing info file
+        initial_response = self.client.get(
+            '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id
+            )
+        initial_data = json.loads(initial_response.get_data(as_text=True))
+        likes = initial_data['likes']
+
         # Act (for liking drawing)
         patch_response = self.client.patch(
             '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id,
@@ -149,12 +163,24 @@ class TestDrawingInfo(CrystalPrismTestCase):
         get_response = self.client.get(
             '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id
             )
-        response_data = json.loads(get_response.get_data(as_text=True))
+        get_response_data = json.loads(get_response.get_data(as_text=True))
+
+        get_user_response = self.client.get(
+            '/api/user',
+            headers=header
+            )
+        user_data = json.loads(get_user_response.get_data(as_text=True))
 
         # Assert (for liking drawing)
         self.assertEqual(patch_response.status_code, 200)
-        self.assertEqual(response_data['likes'], 1)
-        self.assertEqual(response_data['liked_users'], [self.username])
+        self.assertEqual(get_response_data['likes'], likes + 1)
+        self.assertEqual(bool(
+            self.username in get_response_data['liked_users']
+            ), True)
+        self.assertEqual(
+            user_data['liked_drawings'],
+            [artist_name + '/' + drawing_id + '.png']
+            )
 
         # Arrange (for unliking drawing)
         data = {'request': 'unlike'}
@@ -170,12 +196,21 @@ class TestDrawingInfo(CrystalPrismTestCase):
         get_response = self.client.get(
             '/api/canvashare/drawing-info/' + artist_name + '/' + drawing_id
             )
-        response_data = json.loads(get_response.get_data(as_text=True))
+        get_response_data = json.loads(get_response.get_data(as_text=True))
+
+        get_user_response = self.client.get(
+            '/api/user',
+            headers=header
+            )
+        user_data = json.loads(get_user_response.get_data(as_text=True))
 
         # Assert (for unliking drawing)
         self.assertEqual(patch_response.status_code, 200)
-        self.assertEqual(response_data['likes'], 0)
-        self.assertEqual(response_data['liked_users'], [])
+        self.assertEqual(get_response_data['likes'], likes)
+        self.assertEqual(bool(
+            self.username in get_response_data['liked_users']
+            ), False)
+        self.assertEqual(user_data['liked_drawings'], [])
 
     def test_drawing_info_patch_verify_error(self):
         # Arrange
