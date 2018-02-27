@@ -23,8 +23,15 @@ class TestPost(CrystalPrismTestCase):
             )
         timestamp = post_response.get_data(as_text=True)
 
+        get_user_response = self.client.get(
+            '/api/user',
+            headers=header
+            )
+        user_data = json.loads(get_user_response.get_data(as_text=True))
+
         # Assert [POST]
         self.assertEqual(post_response.status_code, 201)
+        self.assertEqual(user_data['post_count'], 1)
 
         # Ensure timestamp matches UTC format
         timestamp_pattern = re.compile(
@@ -199,10 +206,17 @@ class TestComment(CrystalPrismTestCase):
         post = json.loads(get_response.get_data(as_text=True))
         comment_timestamp = post['comments'][0]['timestamp']
 
+        get_user_response = self.client.get(
+            '/api/user',
+            headers=header
+            )
+        user_data = json.loads(get_user_response.get_data(as_text=True))
+
         # Assert [POST]
         self.assertEqual(post_response.status_code, 201)
         self.assertEqual(get_response.status_code, 200)
         self.assertEqual(post['comments'][0]['commenter'], self.username)
+        self.assertEqual(user_data['comment_count'], 1)
 
         # Ensure timestamp matches UTC format
         timestamp_pattern = re.compile(
