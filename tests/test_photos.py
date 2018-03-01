@@ -2,7 +2,6 @@ import boto3
 import json
 import os
 
-from server import app
 from unittest.mock import patch
 from utils.tests import CrystalPrismTestCase
 

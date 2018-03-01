@@ -1,6 +1,5 @@
 import json
 
-from server import app
 from utils.tests import CrystalPrismTestCase
 
 
