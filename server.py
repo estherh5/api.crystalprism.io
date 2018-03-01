@@ -127,31 +127,8 @@ def ping():
     return make_response('Success', 200)
 
 
-@app.route('/api/rhythm-of-life', methods=['POST', 'GET'])
-def rhythm_leaders():
-    # Post a game score for a user when client sends the jsonified score and
-    # lifespan in the request body and verified bearer token in request
-    # Authorization header
-    if request.method == 'POST':
-        # Verify that user is logged in and return error status code if not
-        verification = user.verify_token()
-        if verification.status_code != 200:
-            return verification
-
-        # Get username from payload if user is logged in
-        payload = json.loads(verification.data.decode())
-        requester = payload['username']
-
-        return rhythm_of_life.create_leader(requester)
-
-    # Retrieve all users' game scores, in order of highest to lowest score; no
-    # bearer token needed; query params specify number of scores
-    if request.method == 'GET':
-        return rhythm_of_life.read_leaders()
-
-
-@app.route('/api/shapes-in-rain', methods=['POST', 'GET'])
-def shapes_leaders():
+@app.route('/api/rhythm-of-life/score', methods=['POST'])
+def rhythm_score():
     # Post a game score for a user when client sends the jsonified score in the
     # request body and verified bearer token in request Authorization header
     if request.method == 'POST':
@@ -164,12 +141,103 @@ def shapes_leaders():
         payload = json.loads(verification.data.decode())
         requester = payload['username']
 
-        return shapes_in_rain.create_leader(requester)
+        return rhythm_of_life.create_score(requester)
 
-    # Retrieve all users' game scores, in order of highest to lowest score; no
+
+@app.route('/api/rhythm-of-life/score/<score_id>', methods=['GET', 'DELETE'])
+def rhythm_score_id(score_id):
+    # Retrieve a user's game score when client sends the score id in the
+    # request URL; no bearer token needed
+    if request.method == 'GET':
+        return rhythm_of_life.read_score(score_id)
+
+    # Delete a game score for a user when client sends the score id in the
+    # request URL and verified bearer token for the player in request
+    # Authorization header
+    if request.method == 'DELETE':
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return rhythm_of_life.delete_score(requester, score_id)
+
+
+@app.route('/api/rhythm-of-life/scores', methods=['GET'])
+def rhythm_scores():
+    # Retrieve all users' game scores in order of highest to lowest score; no
     # bearer token needed; query params specify number of scores
     if request.method == 'GET':
-        return shapes_in_rain.read_leaders()
+        return rhythm_of_life.read_scores()
+
+
+@app.route('/api/rhythm-of-life/scores/<player_name>', methods=['GET'])
+def rhythm_user_scores(player_name):
+    # Retrieve a single user's game scores in order of highest to lowest score
+    # when client sends the player's username in the request URL; no bearer
+    # token needed; query params specify number of scores
+    if request.method == 'GET':
+        return rhythm_of_life.read_scores_for_one_user(player_name)
+
+
+@app.route('/api/shapes-in-rain/score', methods=['POST'])
+def shapes_score():
+    # Post a game score for a user when client sends the jsonified score in the
+    # request body and verified bearer token in request Authorization header
+    if request.method == 'POST':
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return shapes_in_rain.create_score(requester)
+
+
+@app.route('/api/shapes-in-rain/score/<score_id>', methods=['GET', 'DELETE'])
+def shapes_score_id(score_id):
+    # Retrieve a user's game score when client sends the score id in the
+    # request URL; no bearer token needed
+    if request.method == 'GET':
+        return shapes_in_rain.read_score(score_id)
+
+    # Delete a game score for a user when client sends the score id in the
+    # request URL and verified bearer token in request Authorization header
+    if request.method == 'DELETE':
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return shapes_in_rain.delete_score(requester, score_id)
+
+
+@app.route('/api/shapes-in-rain/scores', methods=['GET'])
+def shapes_scores():
+    # Retrieve all users' game scores in order of highest to lowest score; no
+    # bearer token needed; query params specify number of scores
+    if request.method == 'GET':
+        return shapes_in_rain.read_scores()
+
+
+@app.route('/api/shapes-in-rain/scores/<player_name>', methods=['GET'])
+def shapes_user_scores(player_name):
+    # Retrieve a single user's game scores in order of highest to lowest score
+    # when client sends the player's username in the request URL; no bearer
+    # token needed; query params specify number of scores
+    if request.method == 'GET':
+        return shapes_in_rain.read_scores_for_one_user(player_name)
 
 
 @app.route('/api/thought-writer/post', methods=['POST', 'PATCH', 'DELETE'])
