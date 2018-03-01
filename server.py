@@ -11,18 +11,12 @@ from shapes_in_rain import shapes_in_rain
 from thought_writer import thought_writer
 from user import user
 
-app = Flask(__name__)
-
-# Only allow Production server access for requests coming from
-# https://crystalprism.io
-if os.environ['ENV_TYPE'] == 'Prod':
-    prod_resource = {r"/api/*": {"origins": r"https://crystalprism.io"}}
-    cors = CORS(app, resources=prod_resource)
-elif os.environ['ENV_TYPE'] == 'Dev':
-    cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
-    app.config['DEBUG'] = True
-
 cwd = os.path.dirname(__file__)
+
+app = Flask(__name__)
+cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
+if os.environ['ENV_TYPE'] == 'Dev':
+    app.config['DEBUG'] = True
 
 
 @app.route('/api/canvashare/drawing', methods=['POST'])
