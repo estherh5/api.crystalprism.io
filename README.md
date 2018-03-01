@@ -1,18 +1,20 @@
 [![codecov](https://codecov.io/gh/estherh5/api.crystalprism.io/branch/master/graph/badge.svg)](https://codecov.io/gh/estherh5/api.crystalprism.io)
 
 # api.crystalprism.io
-I started programming in January 2017 and am learning Python for back-end server development. api.crystalprism.io is the API for my website, [Crystal Prism](https://crystalprism.io). The API allows for the storage and retrieval of game scores, user-created drawings and thought posts, as well as user accounts. For user security, I implemented a JWT authentication flow from scratch that includes generating and verifying secure user tokens. To handle race conditions when writing to files, I implemented file locking operations with [`fcntl.flock`](https://docs.python.org/3.6/library/fcntl.html#fcntl.flock).
+I started programming in January 2017 and am learning Python for back-end server development. api.crystalprism.io is the API for my website, [Crystal Prism](https://crystalprism.io). The API allows for the storage and retrieval of game scores, user-created drawings and thought posts, as well as user accounts. For user security, I implemented a JWT authentication flow from scratch that includes generating and verifying secure user tokens.
 
 ## Setup
-To create your own copy of the Crystal Prism API, first clone this repository on your server. Next, install requirements by running `pip install -r requirements.txt`. Set the following environment variables for the API:
+To create your own copy of the Crystal Prism API, first clone this repository on your server. Next, install requirements by running `pip install -r requirements.txt`. Create a PostgreSQL database to store user information, as well as a user that has all privileges on your database. Set the following environment variables for the API:
 * "SECRET_KEY" for the salt used to generate the signature portion of the JWT for user authentication (set this as a secret key that only you know; it is imperative to keep this private for user account protection)
 * "ENV_TYPE" for the environment status (set this to "Dev" for testing or "Prod" for live)
 * ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the access key for your AWS account for accessing photos stored on an Amazon S3 bucket
 * ["AWS_SECRET_ACCESS_KEY"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the secret key for your AWS account
 * "S3_BUCKET" for the name of your S3 bucket (e.g., 'crystalprism-photos')
 * "PHOTO_URL_START" for the starting URL for photos in your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism-photos/')
+* "DB_CONNECTION" for the [dsn parameter string](http://initd.org/psycopg/docs/module.html) to connect to your database via psycopg2 (e.g., 'dbname=<database_name> user=<database_user> password=<database_user_password> host=<database_host>')
+* "DB_NAME" for the name of your database
 
-Start the server by running `flask run` (if you are making changes while the server is running, enter `flask run --reload` instead for instant updates).
+Initialize the database by running `python management.py init_db`. Start the server by running `flask run` (if you are making changes while the server is running, enter `flask run --reload` instead for instant updates).
 
 ## API Status
 To check if the API is online, a client can send a request to the following endpoint.
@@ -114,11 +116,10 @@ Success
 [Rhythm of Life](https://crystalprism.io/rhythm-of-life/index.html) is an educational take on the classic game Snake, involving moving a heart to avoid stressors and seek relievers to maintain a healthy blood pressure.
 
 **POST** /api/rhythm-of-life
-* Post a score by sending the jsonified score and lifespan in the request body. Note that there must be a verified bearer token in the request Authorization header.
+* Post a score by sending the jsonified score in the request body. Note that there must be a verified bearer token in the request Authorization header.
 * Example request body:
 ```javascript
 {
-    "lifespan": "00:01:31",
     "score": 91
 }
 ```
@@ -129,34 +130,29 @@ Success
 ```javascript
 [
     {
-      "lifespan": "00:01:31",
-      "player": "esther",
+      "username": "esther",
       "score": 91,
-      "timestamp": "2017-10-27T04:00:51.679625+00:00"
+      "created": "2017-10-27T04:00:51.679625+00:00"
     },
     {
-      "lifespan": "00:00:23",
-      "player": "esther",
+      "username": "esther",
       "score": 23,
-      "timestamp": "2017-10-27T03:54:50.802001+00:00"
+      "created": "2017-10-27T03:54:50.802001+00:00"
     },
     {
-      "lifespan": "00:00:17",
-      "player": "esther",
+      "username": "esther",
       "score": 17,
-      "timestamp": "2017-10-27T03:53:31.190392+00:00"
+      "created": "2017-10-27T03:53:31.190392+00:00"
     },
     {
-      "lifespan": "00:00:09",
-      "player": "esther",
+      "username": "esther",
       "score": 9,
-      "timestamp": "2017-10-27T03:55:04.910504+00:00"
+      "created": "2017-10-27T03:55:04.910504+00:00"
     },
     {
-      "lifespan": "00:00:08",
-      "player": "esther",
+      "username": "esther",
       "score": 8,
-      "timestamp": "2017-10-27T03:55:14.748859+00:00"
+      "created": "2017-10-27T03:55:14.748859+00:00"
     }
 ]
 ```
@@ -182,8 +178,8 @@ Success
 ```javascript
 {
     "content": "I often find inspiration in the color combinations found in nature.",
+    "created": "2017-11-05T02:21:35.017651+00:00",
     "public": true,
-    "timestamp": "2017-11-05T02:21:35.017651+00:00",
     "title": "The Beauty of Design"
 }
 ```
@@ -193,7 +189,7 @@ Success
 * Example request body:
 ```javascript
 {
-    "timestamp": "2017-11-05T02:21:35.017651+00:00"
+    "created": "2017-11-05T02:21:35.017651+00:00"
 }
 ```
 
@@ -204,15 +200,15 @@ Success
 {
     "comments": [
       {
-        "commenter": "esther",
+        "username": "esther",
         "content": "Thanks for welcoming me!",
         "timestamp": "2017-11-05T02:50:01.392277+00:00"
       }
     ],
     "content": "Welcome to Thought Writer, a community post board for you to write your ideas for the world to see. You can also create your own private posts or comment on others' posts. Click the yellow paper icon to get started!",
-    "timestamp": "2017-10-05T00:00:00.000000+00:00",
+    "created": "2017-10-05T00:00:00.000000+00:00",
     "title": "Welcome",
-    "writer": "user"
+    "username": "user"
 }
 ```
 
@@ -231,7 +227,7 @@ Success
 ```javascript
 {
     "content": "I really like this post. Great writing!",
-    "timestamp": "2017-11-05T02:47:21.744277+00:00"
+    "created": "2017-11-05T02:47:21.744277+00:00"
 }
 ```
 
@@ -240,7 +236,7 @@ Success
 * Example request body:
 ```javascript
 {
-    "timestamp": "2017-11-05T02:47:21.744277+00:00"
+    "created": "2017-11-05T02:47:21.744277+00:00"
 }
 ```
 
@@ -252,22 +248,22 @@ Success
     {
       "comments": [],
       "content": "<font color=\"#00c6fc\"><b>Only when you find yourself can you understand the world and your place within it. To deny oneself would be to have a limited view of the world, as you yourself are part of it not only in perception but in external interfacing and influence.</b></font>",
-      "timestamp": "2017-10-27T04:31:07.730128+00:00",
+      "created": "2017-10-27T04:31:07.730128+00:00",
       "title": "Finding yourself",
-      "writer": "esther"
+      "username": "esther"
     },
     {
       "comments": [
         {
-          "commenter": "esther",
+          "username": "esther",
           "content": "Thanks for welcoming me!",
-          "timestamp": "2017-11-05T02:50:01.392277+00:00"
+          "created": "2017-11-05T02:50:01.392277+00:00"
         }
       ],
       "content": "Welcome to Thought Writer, a community post board for you to write your ideas for the world to see. You can also create your own private posts or comment on others' posts. Click the yellow paper icon to get started!",
-      "timestamp": "2017-10-05T00:00:00.000000+00:00",
+      "created": "2017-10-05T00:00:00.000000+00:00",
       "title": "Welcome",
-      "writer": "user"
+      "username": "user"
     }
 ]
 ```
@@ -280,7 +276,7 @@ Success
     "comments": [],
     "content": "<font color=\"#00c6fc\"><b>Only when you find yourself can you understand the world and your place within it. To deny oneself would be to have a limited view of the world, as you yourself are part of it not only in perception but in external interfacing and influence.</b></font>",
     "public": true,
-    "timestamp": "2017-10-27T04:31:07.730128+00:00",
+    "created": "2017-10-27T04:31:07.730128+00:00",
     "title": "Finding yourself"
 }
 ```
@@ -304,14 +300,14 @@ Success
 ```javascript
 [
     {
-      "player": "esther",
+      "username": "esther",
       "score": 10,
-      "timestamp": "2017-10-26T18:06:10.330929+00:00"
+      "created": "2017-10-26T18:06:10.330929+00:00"
     },
     {
-      "player": "esther",
+      "username": "esther",
       "score": 8,
-      "timestamp": "2017-10-27T03:11:02.955038+00:00"
+      "created": "2017-10-27T03:11:02.955038+00:00"
     }
 ]
 ```
@@ -338,8 +334,7 @@ Users who want to join the Crystal Prism community can create an account to stor
     "about": "", // User-entered blurb that appears on public profile
     "admin": false, // Admin status
     "background_color": "#ffffff", // User-chosen background color of public profile
-    "comment_count": 0, // Number of user's Thought Writer comments on posts
-    "drawing_count": 1, // Number of CanvaShare drawings created
+    "drawings": [], // Array of user's CanvaShare drawings
     "email": "", // User-entered on My Account page
     "email_public": false, // User specifies if email is viewable on public profile
     "first_name": "", // User-entered on My Account page
@@ -349,13 +344,9 @@ Users who want to join the Crystal Prism community can create an account to stor
     "member_id": "UUID", // Random universally unique identifier
     "member_since": "2017-10-04T00:00:00.000000+00:00", // UTC timestamp of when user created account
     "name_public": false, // User specifies if name is viewable on public profile
-    "post_count": 1, // Number of user's Thought Writer posts
-    "rhythm_high_lifespan": "00:00:00", // High lifespan in Rhythm of Life
-    "rhythm_high_score": 0, // High score in Rhythm of Life (lifespan converted to integer)
-    "rhythm_plays": 0, // Number of Rhythm of Life game plays
+    "post_comments": [], // Array of user's Thought Writer post comments
+    "posts": [], // Array of user's Thought Writer posts
     "rhythm_scores": [], // Array of user's Rhythm of Life scores that includes timestamp
-    "shapes_high_score": 0, // High score in Shapes in Rain
-    "shapes_plays": 0, // Number of Shapes in Rain game plays
     "shapes_scores": [], // Array of user's Shapes in Rain scores that includes timestamp
     "status": "active", // Can be active or deleted
     "username": "user" // Case-sensitive username
@@ -397,7 +388,7 @@ Users who want to join the Crystal Prism community can create an account to stor
     "member_since": "2017-10-04T00:00:00.000000+00:00",
     "name": "",
     "post_count": 0,
-    "rhythm_high_lifespan": "00:00:00",
+    "rhythm_high_score": 0,
     "shapes_high_score": 0,
     "username": "user"
 }
@@ -460,3 +451,9 @@ The Crystal Prism homepage has a Photos page that features photos I have taken t
   'https://s3.us-east-2.amazonaws.com/crystalprism-photos/9.png'
 ]
 ```
+
+## Crystal Prism Database
+#### February 2018 - Present
+The Crystal Prism database is a PostgreSQL database that contains Crystal Prism user accounts and user data (game scores, drawings, posts, identifying information, etc.). The database is structured as follows:
+![Crystal Prism Database](images/cp-database.png)
+Note that all fields in the database tables are required except for those denoted with an asterisk.

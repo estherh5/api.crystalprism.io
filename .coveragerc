@@ -2,3 +2,6 @@
 omit =
     # omit files in site-packages folder
     ~/.virtualenvs/cp/lib/python3.6/site-packages/*
+
+    # omit management.py file with bash commands
+    management.py
