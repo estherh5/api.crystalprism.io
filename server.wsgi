@@ -14,6 +14,8 @@ def application(environ, start_response):
     os.environ['AWS_SECRET_ACCESS_KEY'] = environ.get(
         'AWS_SECRET_ACCESS_KEY', ''
         )
+    os.environ['DB_CONNECTION'] = environ.get('DB_CONNECTION', '')
+    os.environ['DB_NAME'] = environ.get('DB_NAME', '')
     from server import app as _application
 
     return _application(environ, start_response)

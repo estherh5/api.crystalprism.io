@@ -26,6 +26,8 @@ env:
     - SECRET_KEY=test
     - S3_BUCKET=crystalprism-photos
     - PHOTO_URL_START=https://s3.us-east-2.amazonaws.com/crystalprism-photos/
+    - DB_CONNECTION='dbname=crystal_prism user=postgres host=localhost'
+    - DB_NAME=crystal_prism
   matrix:
     - ENV_TYPE=Dev
     - ENV_TYPE=Prod
