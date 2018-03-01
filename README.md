@@ -120,9 +120,10 @@ Success
 
 ## Rhythm of Life API
 #### July 2017 - Present
-[Rhythm of Life](https://crystalprism.io/rhythm-of-life/index.html) is an educational take on the classic game Snake, involving moving a heart to avoid stressors and seek relievers to maintain a healthy blood pressure.
+[Rhythm of Life](https://crystalprism.io/rhythm-of-life/index.html) is an educational take on the classic game Snake, involving moving a heart to avoid stressors and seek relievers to maintain a healthy blood pressure. Rhythm of Life information is stored in the "rhythm_score" database table:
+![Rhythm of Life Database Table](images/rhythm-table.png)
 
-**POST** /api/rhythm-of-life
+**POST** /api/rhythm-of-life/score
 * Post a score by sending the jsonified score in the request body. Note that there must be a verified bearer token in the request Authorization header.
 * Example request body:
 ```javascript
@@ -131,35 +132,93 @@ Success
 }
 ```
 
-**GET** /api/rhythm-of-life?start=[request_start]&end=[request_end]
+**GET** /api/rhythm-of-life/score/[score_id]
+* Retrieve a score by sending the score id in the request URL. No bearer token is needed in the request Authorization header.
+* Example response body:
+```javascript
+{
+    "created": "2017-10-27T04:00:51.122Z",
+    "score": 91,
+    "score_id": 12,
+    "username": "esther"
+},
+```
+
+**DELETE** /api/rhythm-of-life/score/[score_id]
+* Delete a score by sending the score id in the request URL. Note that there must be a verified bearer token for the player in the request Authorization header.
+
+**GET** /api/rhythm-of-life/scores?start=[request_start]&end=[request_end]
 * Retrieve all users' game scores, in order of highest to lowest score. Optionally specify the number of scores via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
 ```javascript
 [
     {
-      "username": "esther",
+      "created": "2017-10-27T04:00:51.122Z",
       "score": 91,
-      "created": "2017-10-27T04:00:51.679625+00:00"
+      "score_id": 12,
+      "username": "esther"
     },
     {
-      "username": "esther",
+      "created": "2017-10-27T03:54:50.401Z",
       "score": 23,
-      "created": "2017-10-27T03:54:50.802001+00:00"
+      "score_id": 10,
+      "username": "esther"
     },
     {
-      "username": "esther",
+      "created": "2017-10-27T03:53:31.133Z",
       "score": 17,
-      "created": "2017-10-27T03:53:31.190392+00:00"
+      "score_id": 9,
+      "username": "esther"
     },
     {
-      "username": "esther",
+      "created": "2017-10-27T03:55:04.103Z",
       "score": 9,
-      "created": "2017-10-27T03:55:04.910504+00:00"
+      "score_id": 11,
+      "username": "esther"
     },
     {
-      "username": "esther",
+      "created": "2017-10-24T00:19:29.485Z",
+      "score": 9,
+      "score_id": 6,
+      "username": "admin"
+    }
+]
+```
+
+**GET** /api/rhythm-of-life/scores/[player_name]?start=[request_start]&end=[request_end]
+* Retrieve all of a single user's game scores, in order of highest to lowest score. Optionally specify the number of scores via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
+* Example response body:
+```javascript
+[
+    {
+      "created": "2017-10-27T04:00:51.122Z",
+      "score": 91,
+      "score_id": 12,
+      "username": "esther"
+    },
+    {
+      "created": "2017-10-27T03:54:50.401Z",
+      "score": 23,
+      "score_id": 10,
+      "username": "esther"
+    },
+    {
+      "created": "2017-10-27T03:53:31.133Z",
+      "score": 17,
+      "score_id": 9,
+      "username": "esther"
+    },
+    {
+      "created": "2017-10-27T03:55:04.103Z",
+      "score": 9,
+      "score_id": 11,
+      "username": "esther"
+    },
+    {
+      "created": "2017-10-27T03:50:14.098Z",
       "score": 8,
-      "created": "2017-10-27T03:55:14.748859+00:00"
+      "score_id": 8,
+      "username": "esther"
     }
 ]
 ```
@@ -290,31 +349,93 @@ Success
 
 ## Shapes in Rain API
 #### September 2017 - Present
-[Shapes in Rain](https://crystalprism.io/shapes-in-rain/index.html) is a game in which random shapes appear periodically on the page for a user to clear with a click.
+[Shapes in Rain](https://crystalprism.io/shapes-in-rain/index.html) is a game in which random shapes appear periodically on the page for a user to clear with a click. Shapes in Rain information is stored in the "shapes_score" database table:
+![Shapes in Rain Database Table](images/shapes-table.png)
 
-**POST** /api/shapes-in-rain
+**POST** /api/shapes-in-rain/score
 * Post a score by sending the jsonified score in the request body. Note that there must be a verified bearer token in the request Authorization header.
 * Example request body:
 ```javascript
 {
-    "score": 10
+    "score": 30
 }
 ```
 
-**GET** /api/shapes-in-rain?start=[request_start]&end=[request_end]
+**GET** /api/shapes-in-rain/score/[score_id]
+* Retrieve a score by sending the score id in the request URL. No bearer token is needed in the request Authorization header.
+* Example response body:
+```javascript
+{
+    "created": "2017-10-24T00:00:23.591Z",
+    "score": 30,
+    "score_id": 6,
+    "username": "esther"
+},
+```
+
+**DELETE** /api/shapes-in-rain/score/[score_id]
+* Delete a score by sending the score id in the request URL. Note that there must be a verified bearer token for the player in the request Authorization header.
+
+**GET** /api/shapes-in-rain/scores?start=[request_start]&end=[request_end]
 * Retrieve all users' game scores, in order of highest to lowest score. Optionally specify the number of scores via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
 ```javascript
 [
     {
-      "username": "esther",
-      "score": 10,
-      "created": "2017-10-26T18:06:10.330929+00:00"
+      "created": "2017-10-29T00:10:35.382Z",
+      "score": 150,
+      "score_id": 20,
+      "username": "esther"
     },
     {
-      "username": "esther",
-      "score": 8,
-      "created": "2017-10-27T03:11:02.955038+00:00"
+      "created": "2017-10-28T08:11:34.113Z",
+      "score": 95,
+      "score_id": 18,
+      "username": "admin"
+    },
+    {
+      "created": "2017-10-20T00:00:23.591Z",
+      "score": 30,
+      "score_id": 6,
+      "username": "esther"
+    },
+    {
+      "created": "2017-10-24T08:30:10.296Z",
+      "score": 29,
+      "score_id": 11,
+      "username": "esther"
+    },
+    {
+      "created": "2017-10-23T09:24:50.404Z",
+      "score": 28,
+      "score_id": 9,
+      "username": "admin"
+    }
+]
+```
+
+**GET** /api/shapes-in-rain/scores/[player_name]?start=[request_start]&end=[request_end]
+* Retrieve all of a single user's game scores, in order of highest to lowest score. Optionally specify the number of scores via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
+* Example response body:
+```javascript
+[
+    {
+      "created": "2017-10-29T00:10:35.382Z",
+      "score": 150,
+      "score_id": 20,
+      "username": "esther"
+    }
+    {
+      "created": "2017-10-20T00:00:23.591Z",
+      "score": 30,
+      "score_id": 6,
+      "username": "esther"
+    },
+    {
+      "created": "2017-10-24T08:30:10.296Z",
+      "score": 29,
+      "score_id": 11,
+      "username": "esther"
     }
 ]
 ```
