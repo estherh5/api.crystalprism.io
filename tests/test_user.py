@@ -4,7 +4,6 @@ import re
 import time
 
 from base64 import b64encode
-from server import app
 from utils.tests import CrystalPrismTestCase
 from uuid import UUID
 
