@@ -1,40 +1,36 @@
+import boto3
 import hmac
 import json
 import os
 import re
-import time
 
 from base64 import b64encode, urlsafe_b64encode
 from hashlib import sha256
 from math import floor
+from time import time
+from unittest.mock import patch
 from utils.tests import CrystalPrismTestCase
-from uuid import UUID
-
-
-now = str(round(time.time()))  # Current time in ms
 
 
 # Test /api/login endpoint [GET]
 class TestLogin(CrystalPrismTestCase):
     def test_login_get(self):
         # Arrange
-        username = 'test' + now
-        password = 'password'
-        self.create_user(username, password)
+        self.create_user()
 
-        b64_user_pass = str(b64encode((username + ':' + password).encode())
+        b64_user_pass = str(b64encode((self.username + ':password').encode())
             .decode())
         header = {'Authorization': 'Basic ' + b64_user_pass}
 
         # Act
-        response = self.client.get(
+        get_response = self.client.get(
             '/api/login',
             headers=header
         )
-        token = response.get_data(as_text=True)
+        token = get_response.get_data(as_text=True)
 
         # Assert
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(get_response.status_code, 200)
 
         # Ensure patched token is correct format
         token_pattern = re.compile(
@@ -45,41 +41,36 @@ class TestLogin(CrystalPrismTestCase):
 
     def test_login_get_verify_error(self):
         # Act
-        response = self.client.get('/api/login')
-        error = response.get_data(as_text=True)
+        get_response = self.client.get('/api/login')
+        error = get_response.get_data(as_text=True)
 
         # Assert
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(get_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
-    def test_login_get_username_error(self):
+    def test_login_get_not_found_error(self):
         # Arrange
-        username = 'test1' + now
-        password = 'password'
+        username = 'test'
 
-        b64_user_pass = str(b64encode((username + ':' + password).encode())
+        b64_user_pass = str(b64encode((username + ':password').encode())
             .decode())
         header = {'Authorization': 'Basic ' + b64_user_pass}
 
         # Act
-        response = self.client.get(
+        get_response = self.client.get(
             '/api/login',
             headers=header
         )
-        error = response.get_data(as_text=True)
+        error = get_response.get_data(as_text=True)
 
         # Assert
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(get_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
-    def test_login_get_deleted_username_error(self):
+    def test_login_get_username_deleted_error(self):
         # Arrange
-        username = 'test2' + now
-        password = 'password'
-
-        # Create user and log in
-        self.create_user(username, password)
-        self.login(username, password)
+        self.create_user()
+        self.login()
         header = {'Authorization': 'Bearer ' + self.token}
 
         # Soft-delete user
@@ -89,54 +80,46 @@ class TestLogin(CrystalPrismTestCase):
             )
 
         # Generate login header for deleted user
-        b64_user_pass = str(b64encode((username + ':' + password).encode())
+        b64_user_pass = str(b64encode((self.username + ':password').encode())
             .decode())
         login_header = {'Authorization': 'Basic ' + b64_user_pass}
 
         # Act
-        response = self.client.get(
+        get_response = self.client.get(
             '/api/login',
             headers=login_header
         )
-        error = response.get_data(as_text=True)
+        error = get_response.get_data(as_text=True)
 
         # Assert
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(get_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
-
-        # Hard-delete user for clean-up
-        self.delete_user_admin(username)
 
     def test_login_get_password_error(self):
         # Arrange
-        username = 'test3' + now
-        password = 'password'
-        self.create_user(username, password)
+        self.create_user()
 
-        b64_user_pass = str(b64encode((username + ':' + 'incorrect').encode())
+        b64_user_pass = str(b64encode((self.username + ':incorrect').encode())
             .decode())
         header = {'Authorization': 'Basic ' + b64_user_pass}
 
         # Act
-        response = self.client.get(
+        get_response = self.client.get(
             '/api/login',
             headers=header
         )
-        error = response.get_data(as_text=True)
+        error = get_response.get_data(as_text=True)
 
         # Assert
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(get_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
-
-        # Delete user for clean-up
-        self.delete_user(username)
 
 
 # Test /api/user endpoint [POST, GET, PATCH, DELETE]
 class TestUser(CrystalPrismTestCase):
     def test_user_post_get_patch_and_soft_delete(self):
         # Arrange [POST]
-        username = 'test4' + now
+        username = 'test_user'
         password = 'password'
         post_data = {
             'username': username,
@@ -164,59 +147,74 @@ class TestUser(CrystalPrismTestCase):
             )
         user_data = json.loads(get_response.get_data(as_text=True))
 
+        get_public_response = self.client.get(
+            '/api/user/' + username,
+            headers=header
+            )
+        public_user_data = json.loads(
+            get_public_response.get_data(as_text=True)
+            )
+
         # Assert [GET]
         self.assertEqual(get_response.status_code, 200)
-
-        # Ensure member_id is correct format
-        self.assertEqual(bool(UUID(
-            user_data['member_id'], version=4)), True
-            )
-
+        self.assertEqual(user_data['about'], None)
+        self.assertEqual(user_data['background_color'], '#ffffff')
+        self.assertEqual(user_data['comment_count'], 0)
+        self.assertEqual(user_data['drawing_count'], 0)
+        self.assertEqual(user_data['drawing_like_count'], 0)
+        self.assertEqual(user_data['email'], None)
+        self.assertEqual(user_data['email_public'], False)
+        self.assertEqual(user_data['first_name'], None)
+        self.assertEqual(user_data['is_admin'], False)
+        self.assertEqual(user_data['last_name'], None)
+        self.assertEqual(user_data['icon_color'], '#000000')
+        self.assertEqual(user_data['name_public'], False)
+        self.assertEqual(user_data['post_count'], 0)
+        self.assertEqual(user_data['rhythm_high_score'], 0)
+        self.assertEqual(user_data['rhythm_score_count'], 0)
+        self.assertEqual(user_data['shapes_high_score'], 0)
+        self.assertEqual(user_data['shapes_score_count'], 0)
         self.assertEqual(user_data['status'], 'active')
         self.assertEqual(user_data['username'], username)
-        self.assertEqual(user_data['admin'], False)
-        self.assertEqual(user_data['first_name'], '')
-        self.assertEqual(user_data['last_name'], '')
-        self.assertEqual(user_data['name_public'], False)
-        self.assertEqual(user_data['email'], '')
-        self.assertEqual(user_data['email_public'], False)
-        self.assertEqual(user_data['background_color'], '#ffffff')
-        self.assertEqual(user_data['icon_color'], '#000000')
-        self.assertEqual(user_data['about'], '')
-        self.assertEqual(user_data['shapes_plays'], 0)
-        self.assertEqual(user_data['shapes_scores'], [])
-        self.assertEqual(user_data['shapes_high_score'], 0)
-        self.assertEqual(user_data['rhythm_plays'], 0)
-        self.assertEqual(user_data['rhythm_scores'], [])
-        self.assertEqual(user_data['rhythm_high_score'], 0)
-        self.assertEqual(user_data['rhythm_high_lifespan'], '00:00:00')
-        self.assertEqual(user_data['drawing_count'], 0)
-        self.assertEqual(user_data['liked_drawings'], [])
-        self.assertEqual(user_data['post_count'], 0)
-        self.assertEqual(user_data['comment_count'], 0)
 
-        # Ensure member since timestamp matches UTC format
+        self.assertEqual(get_public_response.status_code, 200)
+        self.assertEqual(public_user_data['about'], None)
+        self.assertEqual(public_user_data['background_color'], '#ffffff')
+        self.assertEqual(public_user_data['comment_count'], 0)
+        self.assertEqual(public_user_data['drawing_count'], 0)
+        self.assertEqual(public_user_data['drawing_like_count'], 0)
+        self.assertEqual(public_user_data['is_admin'], False)
+        self.assertEqual(public_user_data['icon_color'], '#000000')
+        self.assertEqual(public_user_data['post_count'], 0)
+        self.assertEqual(public_user_data['rhythm_high_score'], 0)
+        self.assertEqual(public_user_data['rhythm_score_count'], 0)
+        self.assertEqual(public_user_data['shapes_high_score'], 0)
+        self.assertEqual(public_user_data['shapes_score_count'], 0)
+        self.assertEqual(public_user_data['status'], 'active')
+        self.assertEqual(public_user_data['username'], username)
+
+        # Ensure created timestamp matches UTC format
         timestamp_pattern = re.compile(
-            r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d.\d{6}\+\d\d:\d\d'
+            r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d\.\d{3}Z'
             )
         self.assertEqual(bool(timestamp_pattern.match(
-            user_data['member_since'])), True
+            user_data['created'])), True
             )
 
         # Arrange [PATCH]
-        updated_username = 'test5' + now
+        updated_username = 'test_user2'
         updated_password = 'password2'
         patch_data = {
-            'username': updated_username,
-            'password': updated_password,
             'about': 'Test',
-            'first_name': 'Test',
-            'last_name': 'Test',
-            'name_public': True,
+            'background_color': '#000000',
             'email': 'test@crystalprism.io',
             'email_public': True,
-            'background_color': '#000000',
-            'icon_color': '#ffffff'
+            'first_name': 'Test',
+            'icon_color': '#ffffff',
+            'last_name': 'Test',
+            'name_public': True,
+            'password': updated_password,
+            'username': updated_username
             }
 
         # Act [PATCH]
@@ -237,11 +235,12 @@ class TestUser(CrystalPrismTestCase):
             patched_get_response.get_data(as_text=True)
             )
 
-        patched_get_response_public = self.client.get(
+        patched_get_public_response = self.client.get(
             '/api/user/' + updated_username
             )
-        patched_user_data_public = json.loads(
-            patched_get_response_public.get_data(as_text=True)
+
+        patched_public_user_data = json.loads(
+            patched_get_public_response.get_data(as_text=True)
             )
 
         # Assert [PATCH]
@@ -255,24 +254,30 @@ class TestUser(CrystalPrismTestCase):
         self.assertEqual(bool(token_pattern.match(patched_token)), True)
 
         self.assertEqual(patched_get_response.status_code, 200)
-        self.assertEqual(patched_get_response_public.status_code, 200)
-
-        self.assertEqual(patched_user_data['username'], updated_username)
         self.assertEqual(patched_user_data['about'], 'Test')
-
-        self.assertEqual(patched_user_data['first_name'], 'Test')
-        self.assertEqual(patched_user_data['last_name'], 'Test')
-        self.assertEqual(patched_user_data['name_public'], True)
-        self.assertEqual(patched_user_data_public['name'], 'Test Test')
-
+        self.assertEqual(patched_user_data['background_color'], '#000000')
         self.assertEqual(patched_user_data['email'], 'test@crystalprism.io')
         self.assertEqual(patched_user_data['email_public'], True)
-        self.assertEqual(
-            patched_user_data_public['email'], 'test@crystalprism.io'
-            )
-
-        self.assertEqual(patched_user_data['background_color'], '#000000')
+        self.assertEqual(patched_user_data['first_name'], 'Test')
         self.assertEqual(patched_user_data['icon_color'], '#ffffff')
+        self.assertEqual(patched_user_data['last_name'], 'Test')
+        self.assertEqual(patched_user_data['name_public'], True)
+        self.assertEqual(patched_user_data['username'], updated_username)
+
+        self.assertEqual(patched_get_public_response.status_code, 200)
+        self.assertEqual(patched_public_user_data['about'], 'Test')
+        self.assertEqual(
+            patched_public_user_data['background_color'], '#000000'
+            )
+        self.assertEqual(
+            patched_public_user_data['email'], 'test@crystalprism.io'
+            )
+        self.assertEqual(patched_public_user_data['first_name'], 'Test')
+        self.assertEqual(patched_public_user_data['icon_color'], '#ffffff')
+        self.assertEqual(patched_public_user_data['last_name'], 'Test')
+        self.assertEqual(
+            patched_public_user_data['username'], updated_username
+            )
 
         # Act [DELETE]
         delete_response = self.client.delete(
@@ -284,43 +289,35 @@ class TestUser(CrystalPrismTestCase):
             '/api/user',
             headers=patched_header
             )
-        error = deleted_get_response.get_data(as_text=True)
+        deleted_error = deleted_get_response.get_data(as_text=True)
 
-        deleted_get_response_public = self.client.get(
-            '/api/user/' + updated_username
+        deleted_get_public_response = self.client.get(
+            '/api/user/' + updated_username,
+            headers=patched_header
             )
-        public_error = deleted_get_response_public.get_data(as_text=True)
+        deleted_public_error = deleted_get_public_response.get_data(
+            as_text=True
+            )
 
         # Assert [DELETE]
         self.assertEqual(delete_response.status_code, 200)
-        self.assertEqual(deleted_get_response.status_code, 404)
-        self.assertEqual(error, 'Username does not exist')
-        self.assertEqual(deleted_get_response_public.status_code, 404)
-        self.assertEqual(public_error, 'Username does not exist')
+        self.assertEqual(deleted_get_response.status_code, 401)
+        self.assertEqual(deleted_error, 'Unauthorized')
+
+        self.assertEqual(deleted_get_public_response.status_code, 404)
+        self.assertEqual(deleted_public_error, 'Not found')
 
         # Hard-delete user for clean-up
-        self.delete_user_admin(updated_username)
+        self.delete_user(updated_username)
 
-        # Ensure deleted user account isn't able to be deleted again
-        delete_again_response = self.client.delete(
-            '/api/user',
-            headers=patched_header
-            )
-        delete_error = delete_again_response.get_data(as_text=True)
-
-        self.assertEqual(delete_again_response.status_code, 404)
-        self.assertEqual(delete_error, 'Username does not exist')
-
-    def test_user_post_already_exists_error(self):
+    def test_user_post_username_error(self):
         # Arrange
-        username = 'test6' + now
-        password = 'password'
-        self.create_user(username)
-        self.login(username)
+        self.create_user()
+        self.login()
         header = {'Authorization': 'Bearer ' + self.token}
-        post_data = {
-            'username': username,
-            'password': password
+        data = {
+            'username': self.username,
+            'password': 'password'
             }
 
         # Soft-delete user
@@ -330,78 +327,16 @@ class TestUser(CrystalPrismTestCase):
             )
 
         # Act
-        response = self.client.post(
+        post_response = self.client.post(
             '/api/user',
-            data=json.dumps(post_data),
+            data=json.dumps(data),
             content_type='application/json'
             )
-        error = response.get_data(as_text=True)
+        error = post_response.get_data(as_text=True)
 
         # Assert
-        self.assertEqual(response.status_code, 409)
+        self.assertEqual(post_response.status_code, 409)
         self.assertEqual(error, 'Username already exists')
-
-        # Hard-delete user for clean-up
-        self.delete_user_admin(username)
-
-    def test_user_get_error(self):
-        # Arrange
-        username = 'test10' + now
-        self.create_user(username)
-        self.login(username)
-        header = {'Authorization': 'Bearer ' + self.token}
-
-        # Delete user
-        self.client.delete(
-            '/api/user/' + username,
-            headers=header
-            )
-
-        # Act
-        response = self.client.get(
-            '/api/user',
-            headers=header
-            )
-        error = response.get_data(as_text=True)
-
-        # Assert
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(error, 'Username does not exist')
-
-    def test_public_user_get(self):
-        username = 'user'
-
-        # Act
-        get_response = self.client.get('/api/user/' + username)
-        user_data = json.loads(get_response.get_data(as_text=True))
-
-        # Assert [POST]
-        self.assertEqual(get_response.status_code, 200)
-        self.assertEqual(user_data['username'], username)
-        self.assertEqual(user_data['name'], '')
-        self.assertEqual(user_data['email'], '')
-        self.assertEqual(user_data['background_color'], '#ffffff')
-        self.assertEqual(user_data['icon_color'], '#000000')
-        self.assertEqual(user_data['about'], '')
-        self.assertEqual(
-            user_data['member_since'], '2017-10-04T00:00:00.000000+00:00'
-            )
-        self.assertEqual(user_data['shapes_high_score'], 55)
-        self.assertEqual(user_data['rhythm_high_lifespan'], '00:04:10')
-        self.assertEqual(user_data['drawing_count'], 10)
-        self.assertEqual(user_data['post_count'], 10)
-        self.assertEqual(user_data['comment_count'], 1)
-
-    def test_public_user_get_error(self):
-        username = 'fakeuseraccount' + now
-
-        # Act
-        response = self.client.get('/api/user/' + username)
-        error = response.get_data(as_text=True)
-
-        # Assert
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(error, 'Username does not exist')
 
     def test_user_get_unauthorized_error(self):
         # Act
@@ -414,93 +349,26 @@ class TestUser(CrystalPrismTestCase):
 
     def test_user_patch_username_error(self):
         # Arrange
-        username = 'test7' + now
-        self.create_user(username)
-        self.login(username)
+        self.create_user()
+        self.login()
         header = {'Authorization': 'Bearer ' + self.token}
-        patch_data = {
-            'username': 'user',
-            'password': ''
+        data = {
+            'username': 'user1',
+            'password': 'password1'
             }
 
         # Act
-        response = self.client.patch(
+        patch_response = self.client.patch(
             '/api/user',
             headers=header,
-            data=json.dumps(patch_data),
+            data=json.dumps(data),
             content_type='application/json'
             )
-        error = response.get_data(as_text=True)
+        error = patch_response.get_data(as_text=True)
 
         # Assert
-        self.assertEqual(response.status_code, 409)
+        self.assertEqual(patch_response.status_code, 409)
         self.assertEqual(error, 'Username already exists')
-
-        # Delete user for clean-up
-        self.delete_user(username)
-
-    def test_user_patch_soft_deleted_error(self):
-        # Arrange
-        username = 'test8' + now
-        self.create_user(username)
-        self.login(username)
-        header = {'Authorization': 'Bearer ' + self.token}
-        patch_data = {
-            'username': username,
-            'password': ''
-            }
-
-        # Soft-delete user
-        self.client.delete(
-            '/api/user',
-            headers=header
-            )
-
-        # Act
-        response = self.client.patch(
-            '/api/user',
-            headers=header,
-            data=json.dumps(patch_data),
-            content_type='application/json'
-            )
-        error = response.get_data(as_text=True)
-
-        # Assert
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(error, 'Username does not exist')
-
-        # Hard-delete user for clean-up
-        self.delete_user_admin(username)
-
-    def test_user_patch_hard_deleted_error(self):
-        # Arrange
-        username = 'test9' + now
-        self.create_user(username)
-        self.login(username)
-        header = {'Authorization': 'Bearer ' + self.token}
-        patch_data = {
-            'username': username,
-            'password': ''
-            }
-
-        # Hard-delete user
-        self.client.delete(
-            '/api/user/' + username,
-            headers=header
-            )
-
-        # Act
-        response = self.client.patch(
-            '/api/user',
-            headers=header,
-            data=json.dumps(patch_data),
-            content_type='application/json'
-            )
-        error = response.get_data(as_text=True)
-
-        # Assert
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(error, 'Username does not exist')
 
     def test_user_patch_unauthorized_error(self):
         # Act
@@ -511,182 +379,301 @@ class TestUser(CrystalPrismTestCase):
         self.assertEqual(patch_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
-    def test_user_hard_delete(self):
+    def test_user_delete_unauthorized_error(self):
+        # Act
+        delete_response = self.client.delete('/api/user')
+        error = delete_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(delete_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
+    def test_public_user_get_error(self):
+        username = 'fakeuseraccount'
+
+        # Act
+        get_response = self.client.get('/api/user/' + username)
+        error = get_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(get_response.status_code, 404)
+        self.assertEqual(error, 'Not found')
+
+    @patch('canvashare.canvashare.boto3')
+    def test_user_hard_delete(self, boto3):
+        # Arrange - set up mock for CanvaShare S3 bucket
+        resource = boto3.resource.return_value
+        bucket = resource.Bucket.return_value
+
         # Arrange - create two user accounts
-        first_username = 'test11' + now
+        first_username = 'first_username'
         self.create_user(first_username)
         self.login(first_username)
         first_user_header = {'Authorization': 'Bearer ' + self.token}
 
-        second_username = 'test12' + now
+        second_username = 'second_username'
         self.create_user(second_username)
         self.login(second_username)
         second_user_header = {'Authorization': 'Bearer ' + self.token}
 
         # Arrange - first user creates drawing
-        test_drawing = os.path.dirname(__file__) + '/../fixtures/drawing.txt'
+        test_drawing = (
+            os.path.dirname(__file__) + '/../fixtures/test-drawing.txt'
+            )
         with open(test_drawing, 'r') as drawing:
             drawing = drawing.read()
-        post_drawing_data = {
+        drawing_data = {
             'drawing': drawing,
             'title': 'Test'
             }
 
-        self.client.post(
+        drawing_post_response = self.client.post(
             '/api/canvashare/drawing',
             headers=first_user_header,
-            data=json.dumps(post_drawing_data),
+            data=json.dumps(drawing_data),
             content_type='application/json'
             )
+        drawing_id = drawing_post_response.get_data(as_text=True)
 
-        # Arrange - second user likes drawing
-        self.client.patch(
-            '/api/canvashare/drawing-info/' + first_username + '/1',
-            headers=second_user_header,
-            data=json.dumps({'request': 'like'}),
-            content_type='application/json'
-            )
-
-        # Arrange - first user likes a different drawing
-        self.client.patch(
-            '/api/canvashare/drawing-info/user/1',
+        # Arrange - first user likes a drawing
+        first_drawing_like_response = self.client.post(
+            '/api/canvashare/drawing-like',
             headers=first_user_header,
-            data=json.dumps({'request': 'like'}),
+            data=json.dumps({'drawing_id': 1}),
             content_type='application/json'
+            )
+        first_drawing_like_id = first_drawing_like_response.get_data(
+            as_text=True
+            )
+
+        # Arrange - second user likes first user's drawing
+        second_drawing_like_response = self.client.post(
+            '/api/canvashare/drawing-like',
+            headers=second_user_header,
+            data=json.dumps({'drawing_id': drawing_id}),
+            content_type='application/json'
+            )
+        second_drawing_like_id = second_drawing_like_response.get_data(
+            as_text=True
             )
 
         # Arrange - first user creates post
-        post_post_data = {
-            'title': 'Test',
+        post_data = {
             'content': 'Test',
-            'public': True
+            'public': True,
+            'title': 'Test'
             }
 
         post_post_response = self.client.post(
             '/api/thought-writer/post',
             headers=first_user_header,
-            data=json.dumps(post_post_data),
+            data=json.dumps(post_data),
             content_type='application/json'
             )
-        timestamp = post_post_response.get_data(as_text=True)
+        post_id = post_post_response.get_data(as_text=True)
+
+        # Arrange - first user adds comment to post
+        comment_data = {
+            'content': 'Test',
+            'post_id': post_id
+            }
+
+        first_post_comment_response = self.client.post(
+            '/api/thought-writer/comment',
+            headers=first_user_header,
+            data=json.dumps(comment_data),
+            content_type='application/json'
+            )
+        first_comment_id = first_post_comment_response.get_data(as_text=True)
+
+        # Arrange - second user adds comment to post
+        second_post_comment_response = self.client.post(
+            '/api/thought-writer/comment',
+            headers=second_user_header,
+            data=json.dumps(comment_data),
+            content_type='application/json'
+            )
+        second_comment_id = second_post_comment_response.get_data(as_text=True)
 
         # Arrange - first user posts score for Shapes in Rain
         shapes_data = {'score': 100000}
 
-        self.client.post(
-            '/api/shapes-in-rain',
+        shapes_response = self.client.post(
+            '/api/shapes-in-rain/score',
             headers=first_user_header,
             data=json.dumps(shapes_data),
             content_type='application/json'
             )
+        shapes_score_id = shapes_response.get_data(as_text=True)
 
         # Arrange - first user posts score for Rhythm of Life
-        rhythm_data = {
-            'score': 360000,
-            'lifespan': '100:00:00'
-            }
+        rhythm_data = {'score': 360000}
 
-        self.client.post(
-            '/api/rhythm-of-life',
+        rhythm_response = self.client.post(
+            '/api/rhythm-of-life/score',
             headers=first_user_header,
             data=json.dumps(rhythm_data),
             content_type='application/json'
             )
+        rhythm_score_id = rhythm_response.get_data(as_text=True)
 
-        # Act - delete first user account
+        # Act - attempt to delete first user account as second user
+        delete_unauthorized_response = self.client.delete(
+            '/api/user/' + first_username,
+            headers=second_user_header
+            )
+        unauthorized_error = delete_unauthorized_response.get_data(
+            as_text=True
+            )
+
+        # Act - delete first user account as first user
         delete_response = self.client.delete(
             '/api/user/' + first_username,
             headers=first_user_header
             )
 
         # Assert
+        self.assertEqual(delete_unauthorized_response.status_code, 401)
+        self.assertEqual(unauthorized_error, 'Unauthorized')
+
         self.assertEqual(delete_response.status_code, 200)
 
+        # Ensure S3 bucket was called to create and delete user's drawing
+        boto3.resource.return_value.Bucket.assert_called_with(
+            os.environ['S3_BUCKET']
+            )
+
         # Ensure deleted user account isn't found when user is searched for
-        deleted_user_response = self.client.get(
+        deleted_get_response = self.client.get(
             '/api/user/' + first_username
             )
-        deleted_error = deleted_user_response.get_data(as_text=True)
+        deleted_error = deleted_get_response.get_data(as_text=True)
 
-        self.assertEqual(deleted_user_response.status_code, 404)
-        self.assertEqual(deleted_error, 'Username does not exist')
-
-        # Ensure deleted user account isn't able to be deleted again
-        delete_again_response = self.client.delete(
-            '/api/user/' + first_username,
-            headers=first_user_header
-            )
-        delete_again_error = deleted_user_response.get_data(as_text=True)
-
-        self.assertEqual(delete_again_response.status_code, 404)
-        self.assertEqual(delete_again_error, 'Username does not exist')
+        self.assertEqual(deleted_get_response.status_code, 404)
+        self.assertEqual(deleted_error, 'Not found')
 
         # Ensure deleted user's drawing is not found when searched for
         deleted_drawing_response = self.client.get(
-            '/api/canvashare/drawing/' + first_username + '/1.png'
+            '/api/canvashare/drawing/' + drawing_id
             )
-        deleted_drawing_error = deleted_drawing_response.get_data(as_text=True)
+        drawing_error = deleted_drawing_response.get_data(as_text=True)
 
         self.assertEqual(deleted_drawing_response.status_code, 404)
-        self.assertEqual(deleted_drawing_error, 'Not found')
+        self.assertEqual(drawing_error, 'Not found')
+
+        # Ensure deleted user's drawing like is not found when searched for
+        first_deleted_like_response = self.client.get(
+            '/api/canvashare/drawing-like/' + first_drawing_like_id
+            )
+        first_like_error = first_deleted_like_response.get_data(as_text=True)
+
+        self.assertEqual(first_deleted_like_response.status_code, 404)
+        self.assertEqual(first_like_error, 'Not found')
+
+        # Ensure second user's drawing like for deleted drawing is not found
+        # when searched for
+        second_deleted_like_response = self.client.get(
+            '/api/canvashare/drawing-like/' + second_drawing_like_id
+            )
+        second_like_error = second_deleted_like_response.get_data(as_text=True)
+
+        self.assertEqual(second_deleted_like_response.status_code, 404)
+        self.assertEqual(second_like_error, 'Not found')
 
         # Ensure deleted user's drawing is not in second user's liked drawings
         # list
-        deleted_liker_response = self.client.get(
-            '/api/user',
+        deleted_drawing_likes_response = self.client.get(
+            '/api/canvashare/drawing-likes/user/' + second_username,
             headers=second_user_header
             )
-        second_user_data = json.loads(
-            deleted_liker_response.get_data(as_text=True)
+        second_user_likes = json.loads(
+            deleted_drawing_likes_response.get_data(as_text=True)
             )
-        self.assertEqual(second_user_data['liked_drawings'], [])
-
-        # Ensure drawing that deleted user liked no longer contains deleted
-        # user as liked user
-        deleted_like_response = self.client.get(
-            '/api/canvashare/drawing-info/user/1'
-            )
-        drawing_response_data = json.loads(
-            deleted_like_response.get_data(as_text=True)
-            )
-        self.assertEqual(bool(
-            first_username in drawing_response_data['liked_users']
-            ), False)
+        self.assertEqual(all(
+            drawing_id not in like['drawing_id'] for like in second_user_likes
+            ), True)
 
         # Ensure deleted user's post is not found when searched for
         deleted_post_response = self.client.get(
-            '/api/thought-writer/post/' + first_username + '/' + timestamp
+            '/api/thought-writer/post/' + post_id
+            )
+        post_error = deleted_post_response.get_data(as_text=True)
+
+        self.assertEqual(deleted_post_response.status_code, 404)
+        self.assertEqual(post_error, 'Not found')
+
+        # Ensure deleted user's comment is not found when searched for
+        first_deleted_comment_response = self.client.get(
+            '/api/thought-writer/comment/' + first_comment_id
+            )
+        first_comment_error = first_deleted_comment_response.get_data(
+            as_text=True
             )
 
-        # Ensure deleted user does not appear in leaders data for Shapes in
-        # Rain
-        deleted_shapes_response = self.client.get('/api/shapes-in-rain')
-        shapes_response_data = json.loads(
-            deleted_shapes_response.get_data(as_text=True)
+        self.assertEqual(first_deleted_comment_response.status_code, 404)
+        self.assertEqual(first_comment_error, 'Not found')
+
+        # Ensure second user's comment for deleted post is not found when
+        # searched for
+        second_deleted_comment_response = self.client.get(
+            '/api/thought-writer/comment/' + second_comment_id
             )
-        self.assertEqual(
-            shapes_response_data[0]['player'] != first_username, True
+        second_comment_error = second_deleted_comment_response.get_data(
+            as_text=True
             )
 
-        # Ensure deleted user does not appear in leaders data for Rhythm of
-        # Life
-        deleted_rhythm_response = self.client.get('/api/rhythm-of-life')
-        rhythm_response_data = json.loads(
-            deleted_rhythm_response.get_data(as_text=True)
-            )
-        self.assertEqual(
-            rhythm_response_data[0]['player'] != first_username, True
-            )
+        self.assertEqual(second_deleted_comment_response.status_code, 404)
+        self.assertEqual(second_comment_error, 'Not found')
 
-        # Act - delete second user account for clean-up
-        delete_response = self.client.delete(
-            '/api/user/' + second_username,
-            headers=second_user_header
+        # Ensure deleted user's Shapes in Rain score is not found when searched
+        # for
+        deleted_shapes_response = self.client.get(
+            '/api/shapes-in-rain/score/' + shapes_score_id
             )
+        shapes_error = deleted_shapes_response.get_data(as_text=True)
 
-    def test_user_delete_unauthorized_error(self):
+        self.assertEqual(deleted_shapes_response.status_code, 404)
+        self.assertEqual(shapes_error, 'Not found')
+
+        # Ensure deleted user's Rhythm of Life score is not found when searched
+        # for
+        deleted_rhythm_response = self.client.get(
+            '/api/rhythm-of-life/score/' + rhythm_score_id
+            )
+        rhythm_error = deleted_rhythm_response.get_data(as_text=True)
+
+        self.assertEqual(deleted_rhythm_response.status_code, 404)
+        self.assertEqual(rhythm_error, 'Not found')
+
+        # Delete second user account for clean-up
+        self.delete_user(second_username)
+
+    def test_user_hard_delete_unauthorized_error(self):
+        # Arrange
+        username = 'user1'
+
         # Act
-        delete_response = self.client.delete('/api/user')
+        delete_response = self.client.delete(
+            '/api/user/' + username
+            )
+        error = delete_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(delete_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
+    def test_user_hard_delete_not_user_or_admin_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        username = 'user1'
+
+        # Act
+        delete_response = self.client.delete(
+            '/api/user/' + username,
+            headers=header
+            )
         error = delete_response.get_data(as_text=True)
 
         # Assert
@@ -703,27 +690,27 @@ class TestVerify(CrystalPrismTestCase):
         header = {'Authorization': 'Bearer ' + self.token}
 
         # Act
-        response = self.client.get(
+        get_response = self.client.get(
             '/api/user/verify',
             headers=header
             )
-        payload = json.loads(response.get_data(as_text=True))
+        payload = json.loads(get_response.get_data(as_text=True))
 
         # Assert
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(get_response.status_code, 200)
         self.assertEqual(payload['username'], self.username)
 
         # Ensure expiration time is 10-digit integer
         self.assertEqual(isinstance(payload['exp'], int), True)
         self.assertEqual(len(str(payload['exp'])), 10)
 
-    def test_verify_get_error(self):
+    def test_verify_get_data_missing_error(self):
         # Act
-        response = self.client.get('/api/user/verify')
-        error = response.get_data(as_text=True)
+        get_response = self.client.get('/api/user/verify')
+        error = get_response.get_data(as_text=True)
 
         # Assert
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(get_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
     def test_verify_get_format_error(self):
@@ -731,14 +718,14 @@ class TestVerify(CrystalPrismTestCase):
         header = {'Authorization': 'Bearer token'}
 
         # Act
-        response = self.client.get(
+        get_response = self.client.get(
             '/api/user/verify',
             headers=header
             )
-        error = response.get_data(as_text=True)
+        error = get_response.get_data(as_text=True)
 
         # Assert
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(get_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
     def test_verify_get_expiration_error(self):
@@ -747,19 +734,12 @@ class TestVerify(CrystalPrismTestCase):
         self.login()
         initial_header = {'Authorization': 'Bearer ' + self.token}
 
-        # Get initial payload
-        initial_response = self.client.get(
-            '/api/user/verify',
-            headers=initial_header
-            )
-        payload = json.loads(initial_response.get_data(as_text=True))
-
         # Create new token with payload past expiration time (1 hour)
         token_header = urlsafe_b64encode(b'{"alg": "HS256", "typ": "JWT"}')
 
         expired_payload = urlsafe_b64encode(json.dumps({
             'username': self.username,
-            'exp': floor(payload['exp'] - (61 * 60))
+            'exp': floor(time() - (61 * 60))
             }).encode())
 
         secret = os.environ['SECRET_KEY'].encode()
@@ -781,6 +761,43 @@ class TestVerify(CrystalPrismTestCase):
         self.assertEqual(final_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
+    def test_verify_get_deleted_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Soft-delete user
+        self.client.delete(
+            '/api/user',
+            headers=header
+        )
+
+        # Act
+        soft_delete_get_response = self.client.get(
+            '/api/user/verify',
+            headers=header
+            )
+        soft_delete_error = soft_delete_get_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(soft_delete_get_response.status_code, 401)
+        self.assertEqual(soft_delete_error, 'Unauthorized')
+
+        # Hard-delete user
+        self.delete_user(self.username)
+
+        # Act
+        hard_delete_get_response = self.client.get(
+            '/api/user/verify',
+            headers=header
+            )
+        hard_delete_error = hard_delete_get_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(hard_delete_get_response.status_code, 401)
+        self.assertEqual(hard_delete_error, 'Unauthorized')
+
     def test_verify_get_compromised_error(self):
         # Arrange
         self.create_user()
@@ -794,103 +811,94 @@ class TestVerify(CrystalPrismTestCase):
         header = {'Authorization': 'Bearer ' + compromised_token}
 
         # Act
-        response = self.client.get(
+        get_response = self.client.get(
             '/api/user/verify',
             headers=header
             )
-        error = response.get_data(as_text=True)
+        error = get_response.get_data(as_text=True)
 
         # Assert
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(get_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
 
 # Test /api/users endpoint [GET]
 class TestUsers(CrystalPrismTestCase):
-    def setUp(self):
-        super(TestUsers, self).setUp()
-        for id in range(13, 22):
-            self.create_user('test' + str(id) + now)
-
-    def tearDown(self):
-        super(TestUsers, self).tearDown()
-        for id in range(13, 22):
-            self.delete_user('test' + str(id) + now)
-
     def test_users_get(self):
         # Arrange
-        self.login('test13' + now)
+        self.create_user()
+        self.login()
         header = {'Authorization': 'Bearer ' + self.token}
 
         # Act
-        response = self.client.get(
+        get_response = self.client.get(
             '/api/users',
             headers=header
             )
-        response_data = json.loads(response.get_data(as_text=True))
+        users = json.loads(get_response.get_data(as_text=True))
 
         # Assert
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response_data), 10)
+        self.assertEqual(get_response.status_code, 200)
+        self.assertEqual(len(users), 10)
 
         # Ensure each username is a string
         self.assertEqual(all(
-            isinstance(user, str) for user in response_data), True
+            isinstance(user, str) for user in users), True
             )
 
     def test_users_get_none(self):
         # Arrange
-        data = {'start': 100000}
-
-        self.login('test13' + now)
+        self.create_user()
+        self.login()
         header = {'Authorization': 'Bearer ' + self.token}
+        query = {'start': 100000}
 
         # Act
-        response = self.client.get(
+        get_response = self.client.get(
             '/api/users',
             headers=header,
-            query_string=data
+            query_string=query
             )
-        response_data = json.loads(response.get_data(as_text=True))
+        users = json.loads(get_response.get_data(as_text=True))
 
         # Assert
-        self.assertEqual(response_data, [])
+        self.assertEqual(users, [])
 
     def test_users_get_partial(self):
         # Arrange
-        data = {'end': 5}
-
-        self.login('test13' + now)
+        self.create_user()
+        self.login()
         header = {'Authorization': 'Bearer ' + self.token}
+        query = {'end': 5}
 
         # Act
-        response = self.client.get(
+        get_response = self.client.get(
             '/api/users',
             headers=header,
-            query_string=data
+            query_string=query
             )
-        response_data = json.loads(response.get_data(as_text=True))
+        users = json.loads(get_response.get_data(as_text=True))
 
         # Assert
-        self.assertEqual(len(response_data), 5)
+        self.assertEqual(len(users), 5)
 
     def test_users_get_error(self):
         # Arrange
-        data = {'start': 5, 'end': 0}
-
-        self.login('test13' + now)
+        self.create_user()
+        self.login()
         header = {'Authorization': 'Bearer ' + self.token}
+        query = {'start': 5, 'end': 0}
 
         # Act
-        response = self.client.get(
+        get_response = self.client.get(
             '/api/users',
             headers=header,
-            query_string=data
+            query_string=query
             )
-        error = response.get_data(as_text=True)
+        error = get_response.get_data(as_text=True)
 
         # Assert
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(get_response.status_code, 400)
         self.assertEqual(error, 'Start param cannot be greater than end')
 
     def test_users_get_unauthorized_error(self):
