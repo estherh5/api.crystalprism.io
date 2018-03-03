@@ -1,20 +1,19 @@
 import bcrypt
-import fcntl
+import boto3
 import hmac
 import json
 import os
+import psycopg2 as pg
+import psycopg2.extras
 import re
-import shutil
 
-from base64 import b64encode, urlsafe_b64decode, urlsafe_b64encode
-from datetime import datetime, timezone
+from base64 import urlsafe_b64decode, urlsafe_b64encode
 from flask import jsonify, make_response, request
 from hashlib import sha256
 from math import floor
 from time import time
-from uuid import uuid4
 
-cwd = os.path.dirname(__file__)
+from canvashare import canvashare
 
 
 def login():
@@ -30,407 +29,601 @@ def login():
     username = data.username
     password = data.password
 
-    # Check that request credentials are correct
-    with open(cwd + '/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
+    # Set up database connection wtih environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-            if user_data['username'].lower() == username.lower():
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
 
-                # Reject requests for logging into deleted user accounts
-                if user_data['status'] == 'deleted':
-                    return make_response('Unauthorized', 401)
+    # Get hashed user password to check credentials against and user status
+    cursor.execute(
+        """
+        SELECT password, status FROM cp_user
+        WHERE LOWER(username) = %(username)s LIMIT 1;
+        """,
+        {'username': username.lower()}
+        )
 
-                # Check requested password against stored hashed and salted
-                # password
-                if bcrypt.checkpw(
-                    password.encode(), user_data['password'].encode()):
-                    # Generate JWT token if password is correct
-                    header = urlsafe_b64encode(
-                        b'{"alg": "HS256", "typ": "JWT"}')
-                    payload = urlsafe_b64encode(
-                        json.dumps({
-                            'username': username,
-                            'exp': floor(time() + (60 * 60))  # in seconds
-                            }).encode()
-                        )
-                    secret = os.environ['SECRET_KEY'].encode()
-                    message = header + b'.' + payload
-                    signature = hmac.new(secret, message,
-                        digestmod=sha256).digest()
-                    signature = urlsafe_b64encode(signature)
-                    token = message + b'.' + signature
-                    return make_response(token.decode(), 200)
+    user_data = cursor.fetchone()
 
-                return make_response('Unauthorized', 401)
+    cursor.close()
+    conn.close()
 
+    # Return error if user account is not found
+    if not user_data:
         return make_response('Unauthorized', 401)
+
+    # Otherwise, convert user data to dictionary
+    user_data = dict(user_data)
+
+    # Return error if user account is deleted
+    if user_data['status'] == 'deleted':
+        return make_response('Unauthorized', 401)
+
+    # Check requested password against stored hashed and salted password
+    if bcrypt.checkpw(password.encode(), user_data['password'].encode()):
+
+        # Generate JWT token if password is correct
+        header = urlsafe_b64encode(b'{"alg": "HS256", "typ": "JWT"}')
+        payload = urlsafe_b64encode(json.dumps({
+            'username': username,
+            'exp': floor(time() + (60 * 60))  # in seconds
+            }).encode())
+        secret = os.environ['SECRET_KEY'].encode()
+        message = header + b'.' + payload
+        signature = hmac.new(secret, message, digestmod=sha256).digest()
+        signature = urlsafe_b64encode(signature)
+        token = message + b'.' + signature
+
+        return make_response(token.decode(), 200)
+
+    # Return error otherwise
+    return make_response('Unauthorized', 401)
 
 
 def create_user():
     # Request should contain:
-    # username <str>
     # password <str>
+    # username <str>
     data = request.get_json()
 
     username = data['username']
 
-    with open(cwd + '/users.json', 'r') as users_file:
-        users = json.load(users_file)
+    # Set up database connection wtih environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-        # Check if username already exists
-        for user_data in users:
-            if user_data['username'].lower() == username.lower():
-                return make_response('Username already exists', 409)
+    cursor = conn.cursor()
 
-        # Generate random UUID as non-client-facing user identifier
-        member_id = str(uuid4())
+    # Check if username already exists in database
+    cursor.execute(
+        """
+        SELECT exists (
+        SELECT 1 FROM cp_user WHERE LOWER(username) = %(username)s LIMIT 1);
+        """,
+        {'username': username.lower()}
+        )
 
-        # Hash password with bcrypt cryptographic hash function and salt
-        password = data['password'].encode()
-        hashed_password = bcrypt.hashpw(password, bcrypt.gensalt())
+    if cursor.fetchone()[0]:
+        cursor.close()
+        conn.close()
 
-        entry = {
-            'member_id': member_id,
-            'status': 'active',
-            'username': username,
-            'password': hashed_password.decode(),
-            'admin': False,
-            'member_since': datetime.now(timezone.utc).isoformat(),
-            'first_name': '',
-            'last_name': '',
-            'name_public': False,
-            'email': '',
-            'email_public': False,
-            'background_color': '#ffffff',
-            'icon_color': '#000000',
-            'about': '',
-            'shapes_plays': 0,
-            'shapes_scores': [],
-            'shapes_high_score': 0,
-            'rhythm_plays': 0,
-            'rhythm_scores': [],
-            'rhythm_high_score': 0,
-            'rhythm_high_lifespan': '00:00:00',
-            'drawing_count': 0,
-            'liked_drawings': [],
-            'post_count': 0,
-            'comment_count': 0
-            }
-        users.append(entry)
+        return make_response('Username already exists', 409)
 
-    with open(cwd + '/users.json', 'w') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
-        json.dump(users, users_file)
-        # Release lock on file
-        fcntl.flock(users_file, fcntl.LOCK_UN)
+    # Generate hashed password with bcrypt cryptographic hash function and salt
+    password = data['password'].encode()
+    hashed_password = bcrypt.hashpw(password, bcrypt.gensalt())
+
+    # Add user account to database
+    cursor.execute(
+        """
+        INSERT INTO cp_user (username, password)
+        VALUES (%(username)s, %(password)s);
+        """,
+        {'username': username, 'password': hashed_password.decode()}
+        )
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
 
     return make_response('Success', 201)
 
 
 def read_user(requester):
-    with open(cwd + '/users.json', 'r') as users_file:
-        users = json.load(users_file)
+    # Set up database connection wtih environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-        for user_data in users:
-            if user_data['username'].lower() == requester.lower():
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
 
-                # Return error if user account was deleted
-                if user_data['status'] == 'deleted':
-                    return make_response('Username does not exist', 404)
+    # Retrieve user account from database
+    cursor.execute(
+        """
+        SELECT * FROM cp_user WHERE LOWER(username) = %(username)s;
+        """,
+        {'username': requester.lower()}
+        )
 
-                # Replace artist member_id with username for each drawing the
-                # user liked
-                for i in range(len(user_data['liked_drawings'])):
-                    for artist in users:
-                        liked_file = user_data['liked_drawings'][i].split('/')
-                        if artist['member_id'] == liked_file[-2]:
-                            user_data['liked_drawings'][i] = str(
-                                artist['username'] + '/' + liked_file[-1])
+    user_data = dict(cursor.fetchone())
 
-                # Remove password from user_data
-                user_data.pop('password')
+    # Get user's Shapes in Rain score count
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM shapes_score
+        WHERE member_id = %(member_id)s;
+        """,
+        {'member_id': user_data['member_id']}
+        )
 
-                return jsonify(user_data)
+    user_data['shapes_score_count'] = cursor.fetchone()[0]
 
-        # Return error if user account is not found
-        return make_response('Username does not exist', 404)
+    # Get user's Shapes in Rain high score
+    cursor.execute(
+        """
+        SELECT score FROM shapes_score
+        WHERE member_id = %(member_id)s
+        ORDER BY score DESC LIMIT 1;
+        """,
+        {'member_id': user_data['member_id']}
+        )
+
+    shapes_high_score = cursor.fetchone()
+
+    if not shapes_high_score:
+        user_data['shapes_high_score'] = 0
+    else:
+        user_data['shapes_high_score'] = shapes_high_score[0]
+
+    # Get user's Rhythm of Life score count
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM rhythm_score
+        WHERE member_id = %(member_id)s;
+        """,
+        {'member_id': user_data['member_id']}
+        )
+
+    user_data['rhythm_score_count'] = cursor.fetchone()[0]
+
+    # Get user's Rhythm of Life high score
+    cursor.execute(
+        """
+        SELECT score FROM rhythm_score
+        WHERE member_id = %(member_id)s
+        ORDER BY score DESC LIMIT 1;
+        """,
+        {'member_id': user_data['member_id']}
+        )
+
+    rhythm_high_score = cursor.fetchone()
+
+    if not rhythm_high_score:
+        user_data['rhythm_high_score'] = 0
+    else:
+        user_data['rhythm_high_score'] = rhythm_high_score[0]
+
+    # Get user's drawing count
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM drawing
+        WHERE member_id = %(member_id)s;
+        """,
+        {'member_id': user_data['member_id']}
+        )
+
+    user_data['drawing_count'] = cursor.fetchone()[0]
+
+    # Get user's drawing like count
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM drawing_like
+        WHERE member_id = %(member_id)s;
+        """,
+        {'member_id': user_data['member_id']}
+        )
+
+    user_data['drawing_like_count'] = cursor.fetchone()[0]
+
+    # Get user's post count
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM post
+        WHERE member_id = %(member_id)s;
+        """,
+        {'member_id': user_data['member_id']}
+        )
+
+    user_data['post_count'] = cursor.fetchone()[0]
+
+    # Get user's comment count
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM comment
+        WHERE member_id = %(member_id)s;
+        """,
+        {'member_id': user_data['member_id']}
+        )
+
+    user_data['comment_count'] = cursor.fetchone()[0]
+
+    cursor.close()
+    conn.close()
+
+    # Remove private information from user_data and return user_data to
+    # requester
+    user_data.pop('is_owner')
+    user_data.pop('member_id')
+    user_data.pop('password')
+
+    return jsonify(user_data)
 
 
 def update_user(requester):
     # Request should contain:
-    # username <str>
-    # password <str>
     # about <str>
-    # first_name <str>
-    # last_name <str>
-    # name_public <boolean>
+    # background_color <str>
     # email <str>
     # email_public <boolean>
-    # background_color <str>
+    # first_name <str>
     # icon_color <str>
+    # last_name <str>
+    # name_public <boolean>
+    # password <str>
+    # username <str>
     data = request.get_json()
 
     username = data['username']
     password = data['password']
 
-    user_found = False  # Stores whether user account is found in users file
+    # Set up database connection wtih environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-    with open(cwd + '/users.json', 'r') as users_file:
-        users = json.load(users_file)
+    cursor = conn.cursor()
 
-        # Check if username already exists if user requests to update it
-        if username.lower() != requester.lower():
-            for user_data in users:
-                if user_data['username'].lower() == username.lower():
-                    return make_response('Username already exists', 409)
+    # Check if updated username already exists in database if it is different
+    # than requester's username
+    if username.lower() != requester.lower():
+        cursor.execute(
+            """
+            SELECT exists (
+            SELECT 1 FROM cp_user
+            WHERE LOWER(username) = %(username)s LIMIT 1);
+            """,
+            {'username': username.lower()}
+            )
 
-        for user_data in users:
-            if user_data['username'].lower() == requester.lower():
+        if cursor.fetchone()[0]:
+            cursor.close()
+            conn.close()
 
-                user_found = True
+            return make_response('Username already exists', 409)
 
-                # Return error if user account was deleted
-                if user_data['status'] == 'deleted':
-                    return make_response('Username does not exist', 404)
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
 
-                user_data['username'] = username
+    # Retrieve user account from database
+    cursor.execute(
+        """
+        SELECT * FROM cp_user WHERE LOWER(username) = %(username)s;
+        """,
+        {'username': requester.lower()}
+        )
 
-                # Store hashed password if user requested change
-                if password != '':
-                    password = password.encode()
-                    user_data['password'] = bcrypt.hashpw(password,
-                        bcrypt.gensalt()).decode()
+    user_data = dict(cursor.fetchone())
 
-                user_data['first_name'] = data['first_name']
-                user_data['last_name'] = data['last_name']
-                user_data['name_public'] = data['name_public']
-                user_data['email'] = data['email']
-                user_data['email_public'] = data['email_public']
-                user_data['background_color'] = data['background_color']
-                user_data['icon_color'] = data['icon_color']
-                user_data['about'] = data['about']
+    # Create updated hashed password if user requested change
+    if password:
+        password = password.encode()
+        user_data['password'] = bcrypt.hashpw(
+            password, bcrypt.gensalt()).decode()
 
-                # Update bearer token
-                header = urlsafe_b64encode(b'{"alg": "HS256", "typ": "JWT"}')
-                payload = urlsafe_b64encode(
-                    json.dumps({
-                        'username': username,
-                        'exp': floor(time() + (60 * 60))  # in seconds
-                        }).encode()
-                    )
-                secret = os.environ['SECRET_KEY'].encode()
-                message = header + b'.' + payload
-                signature = hmac.new(secret, message,
-                    digestmod=sha256).digest()
-                signature = urlsafe_b64encode(signature)
-                token = message + b'.' + signature
+    # Add updated information to user account in database
+    cursor.execute(
+        """
+        UPDATE cp_user SET username = %(username)s, password = %(password)s,
+        first_name = %(first_name)s, last_name = %(last_name)s,
+        name_public = %(name_public)s, email = %(email)s,
+        email_public = %(email_public)s,
+        background_color = %(background_color)s, icon_color = %(icon_color)s,
+        about = %(about)s
+        WHERE LOWER(username) = %(old_username)s;
+        """,
+        {'username': username,
+        'password': user_data['password'],
+        'first_name': data['first_name'],
+        'last_name': data['last_name'],
+        'name_public': data['name_public'],
+        'email': data['email'],
+        'email_public': data['email_public'],
+        'background_color': data['background_color'],
+        'icon_color': data['icon_color'],
+        'about': data['about'],
+        'old_username': requester.lower()}
+        )
 
-    # Return error if user account is not found
-    if not user_found:
-        return make_response('Username does not exist', 404)
+    conn.commit()
 
-    with open(cwd + '/users.json', 'w') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
-        json.dump(users, users_file)
-        # Release lock on file
-        fcntl.flock(users_file, fcntl.LOCK_UN)
+    cursor.close()
+    conn.close()
+
+    # Update bearer token and return to requester
+    header = urlsafe_b64encode(b'{"alg": "HS256", "typ": "JWT"}')
+    payload = urlsafe_b64encode(
+        json.dumps({
+            'username': username,
+            'exp': floor(time() + (60 * 60))  # in seconds
+            }).encode()
+        )
+    secret = os.environ['SECRET_KEY'].encode()
+    message = header + b'.' + payload
+    signature = hmac.new(secret, message, digestmod=sha256).digest()
+    signature = urlsafe_b64encode(signature)
+    token = message + b'.' + signature
 
     return make_response(token.decode(), 200)
 
 
 def delete_user_soft(requester):
-    user_found = False  # Stores whether user account is found in users file
+    # Set up database connection wtih environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-    # Set user account status to deleted
-    with open(cwd + '/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            if user_data['username'].lower() == requester.lower():
-                user_data['status'] = 'deleted'
-                user_found = True
+    cursor = conn.cursor()
 
-    # Return error if user account is not found
-    if not user_found:
-        return make_response('Username does not exist', 404)
+    # Set user account to 'deleted' status in database
+    cursor.execute(
+        """
+        UPDATE cp_user SET status = 'deleted'
+        WHERE LOWER(username) = %(username)s;
+        """,
+        {'username': requester.lower()}
+        )
 
-    with open(cwd + '/users.json', 'w') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
-        json.dump(users, users_file)
-        # Release lock on file
-        fcntl.flock(users_file, fcntl.LOCK_UN)
+    conn.commit()
+
+    cursor.close()
+    conn.close()
 
     return make_response('Success', 200)
 
 
 def read_user_public(username):
-    with open(cwd + '/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            if user_data['username'].lower() == username.lower():
+    # Set up database connection wtih environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-                # Return error if user account is deleted
-                if user_data['status'] == 'deleted':
-                    return make_response('Username does not exist', 404)
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
 
-                # Send user's first and last name if public
-                if user_data['name_public']:
-                    first_name = user_data['first_name']
-                    last_name = user_data['last_name']
-                    name = first_name + ' ' + last_name
-                else:
-                    name = ''
+    # Retrieve user account from database
+    cursor.execute(
+        """
+        SELECT * FROM cp_user WHERE LOWER(username) = %(username)s;
+        """,
+        {'username': username.lower()}
+        )
 
-                # Send user's email address if public
-                if user_data['email_public']:
-                    email = user_data['email']
-                else:
-                    email = ''
+    user_data = cursor.fetchone()
 
-                data = {
-                    'username': user_data['username'],
-                    'name': name,
-                    'email': email,
-                    'background_color': user_data['background_color'],
-                    'icon_color': user_data['icon_color'],
-                    'about': user_data['about'],
-                    'member_since': user_data['member_since'],
-                    'shapes_high_score': user_data['shapes_high_score'],
-                    'rhythm_high_lifespan': user_data['rhythm_high_lifespan'],
-                    'drawing_count': user_data['drawing_count'],
-                    'post_count': user_data['post_count'],
-                    'comment_count': user_data['comment_count']
-                    }
-                return jsonify(data)
+    # Return error if user account is not found
+    if not user_data:
+        cursor.close()
+        conn.close()
 
-        return make_response('Username does not exist', 404)
+        return make_response('Not found', 404)
+
+    # Otherwise, convert user data to dictionary
+    user_data = dict(user_data)
+
+    # Return error if user account is deleted
+    if user_data['status'] == 'deleted':
+        cursor.close()
+        conn.close()
+
+        return make_response('Not found', 404)
+
+    # Get user's Shapes in Rain score count
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM shapes_score
+        WHERE member_id = %(member_id)s;
+        """,
+        {'member_id': user_data['member_id']}
+        )
+
+    user_data['shapes_score_count'] = cursor.fetchone()[0]
+
+    # Get user's Shapes in Rain high score
+    cursor.execute(
+        """
+        SELECT score, created FROM shapes_score
+        WHERE member_id = %(member_id)s
+        ORDER BY score DESC;
+        """,
+        {'member_id': user_data['member_id']}
+        )
+
+    shapes_high_score = cursor.fetchone()
+
+    if not shapes_high_score:
+        user_data['shapes_high_score'] = 0
+    else:
+        user_data['shapes_high_score'] = shapes_high_score[0]
+
+    # Get user's Rhythm of Life score count
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM rhythm_score
+        WHERE member_id = %(member_id)s;
+        """,
+        {'member_id': user_data['member_id']}
+        )
+
+    user_data['rhythm_score_count'] = cursor.fetchone()[0]
+
+    # Get user's Rhythm of Life high score
+    cursor.execute(
+        """
+        SELECT score, created FROM rhythm_score
+        WHERE member_id = %(member_id)s
+        ORDER BY score DESC;
+        """,
+        {'member_id': user_data['member_id']}
+        )
+
+    rhythm_high_score = cursor.fetchone()
+
+    if not rhythm_high_score:
+        user_data['rhythm_high_score'] = 0
+    else:
+        user_data['rhythm_high_score'] = rhythm_high_score[0]
+
+    # Get user's drawing count
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM drawing
+        WHERE member_id = %(member_id)s;
+        """,
+        {'member_id': user_data['member_id']}
+        )
+
+    user_data['drawing_count'] = cursor.fetchone()[0]
+
+    # Get user's drawing like count
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM drawing_like
+        WHERE member_id = %(member_id)s;
+        """,
+        {'member_id': user_data['member_id']}
+        )
+
+    user_data['drawing_like_count'] = cursor.fetchone()[0]
+
+    # Get user's post count
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM post
+        WHERE member_id = %(member_id)s;
+        """,
+        {'member_id': user_data['member_id']}
+        )
+
+    user_data['post_count'] = cursor.fetchone()[0]
+
+    # Get user's comment count
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM comment
+        WHERE member_id = %(member_id)s;
+        """,
+        {'member_id': user_data['member_id']}
+        )
+
+    user_data['comment_count'] = cursor.fetchone()[0]
+
+    cursor.close()
+    conn.close()
+
+    # Remove user's email address if not public
+    if not user_data['email_public']:
+        user_data.pop('email')
+
+    # Remove user's first and last name if not public
+    if not user_data['name_public']:
+        user_data.pop('first_name')
+        user_data.pop('last_name')
+
+    # Remove private information from user_data
+    user_data.pop('email_public')
+    user_data.pop('is_owner')
+    user_data.pop('member_id')
+    user_data.pop('name_public')
+    user_data.pop('password')
+
+    return jsonify(user_data)
 
 
 def delete_user_hard(username):
-    user_found = False  # Stores whether user account is found in users file
+    # Verify that requester is logged in and return error status code if not
+    verification = verify_token()
+    if verification.status_code != 200:
+        return verification
 
-    # Remove user account from users file
-    with open(cwd + '/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            if user_data['username'].lower() == username.lower():
-                user_id = user_data['member_id']
-                liked_drawings = user_data['liked_drawings']
-                user_data['username'] = '[deleted]'
-                user_data['password'] = '[deleted]'
-                user_data['first_name'] = ''
-                user_data['last_name'] = ''
-                user_data['email'] = ''
-                user_data['about'] = ''
-                user_data['status'] = 'deleted'
-                user_found = True
+    # Get username from payload if requester is logged in
+    payload = json.loads(verification.data.decode())
+    requester = payload['username']
+
+    # Set up database connection wtih environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+
+    # Retrieve requester's account from database
+    cursor.execute(
+        """
+        SELECT * FROM cp_user WHERE LOWER(username) = %(username)s;
+        """,
+        {'username': requester.lower()}
+        )
+
+    requester_data = dict(cursor.fetchone())
+
+    # Retrieve user's account from database
+    cursor.execute(
+        """
+        SELECT * FROM cp_user WHERE LOWER(username) = %(username)s;
+        """,
+        {'username': username.lower()}
+        )
+
+    user_data = cursor.fetchone()
 
     # Return error if user account is not found
-    if not user_found:
-        return make_response('Username does not exist', 404)
+    if not user_data:
+        cursor.close()
+        conn.close()
 
-    with open(cwd + '/users.json', 'w') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
-        json.dump(users, users_file)
-        # Release lock on file
-        fcntl.flock(users_file, fcntl.LOCK_UN)
+        return make_response('Not found', 404)
 
-    # Delete user's drawings and drawing info files
-    if os.path.exists(cwd + '/../canvashare/drawings/' + user_id):
-        user_drawings = os.listdir(cwd + '/../canvashare/drawings/' + user_id)
-        user_drawings = [user_id + '/' + drawing for drawing in user_drawings]
-        shutil.rmtree(cwd + '/../canvashare/drawings/' + user_id)
-        shutil.rmtree(cwd + '/../canvashare/drawing_info/' + user_id)
+    # Otherwise, convert user data to dictionary
+    user_data = dict(user_data)
 
-    else:
-        user_drawings = []
+    # Hard-delete user's account if requester is the user or if requester is an
+    # admin
+    if username.lower() == requester.lower() or requester_data['is_admin']:
+        # Retrieve user's drawings from database
+        cursor.execute(
+            """
+            SELECT drawing_id FROM drawing
+            WHERE member_id = %(member_id)s;
+            """,
+            {'member_id': user_data['member_id']}
+            )
 
-    # Remove user's drawings from others' liked drawings list if user created
-    # drawings
-    if user_drawings:
-        with open(cwd + '/users.json', 'r') as users_file:
-            users = json.load(users_file)
-            for user_data in users:
-                for drawing in user_data['liked_drawings']:
-                    if drawing in user_drawings:
-                        user_data['liked_drawings'].remove(drawing)
+        drawing_ids = []
 
-        with open(cwd + '/users.json', 'w') as users_file:
-            # Lock file to prevent overwrite
-            fcntl.flock(users_file, fcntl.LOCK_EX)
-            json.dump(users, users_file)
-            # Release lock on file
-            fcntl.flock(users_file, fcntl.LOCK_UN)
+        for row in cursor.fetchall():
+            drawing_ids.append(row[0])
 
-    # Remove user as liker from other users' drawings
-    for liked_drawing in liked_drawings:
-        liked_drawing_file = liked_drawing.replace('png', 'json')
-        with open(cwd + '/../canvashare/drawing_info/' + liked_drawing_file,
-            'r') as info_file:
-            drawing_info = json.load(info_file)
-            drawing_info['liked_users'].remove(user_id)
-            drawing_info['likes'] -= 1
+        # Remove each of user's drawings from S3 bucket
+        for drawing_id in drawing_ids:
+            canvashare.delete_drawing(requester, drawing_id)
 
-        with open(cwd + '/../canvashare/drawing_info/' + liked_drawing_file,
-            'w') as info_file:
-            # Lock file to prevent overwrite
-            fcntl.flock(info_file, fcntl.LOCK_EX)
-            json.dump(drawing_info, info_file)
-            # Release lock on file
-            fcntl.flock(info_file, fcntl.LOCK_UN)
+        cursor.execute(
+            """
+            DELETE FROM cp_user WHERE LOWER(username) = %(username)s;
+            """,
+            {'username': username.lower()}
+            )
 
-    # Delete user's private and public posts if user had posts
-    if os.path.exists(cwd + '/../thought_writer/' + user_id + '.json'):
-        os.remove(cwd + '/../thought_writer/' + user_id + '.json')
+        conn.commit()
 
-        with open(cwd + '/../thought_writer/public/public.json',
-            'r') as public_file:
-            public_posts = json.load(public_file)
-            for post in public_posts:
-                if post['writer'] == user_id:
-                    public_posts.remove(post)
+        cursor.close()
+        conn.close()
 
-        with open(cwd + '/../thought_writer/public/public.json',
-            'w') as public_file:
-            # Lock file to prevent overwrite
-            fcntl.flock(public_file, fcntl.LOCK_EX)
-            json.dump(public_posts, public_file)
-            # Release lock on file
-            fcntl.flock(public_file, fcntl.LOCK_UN)
+        return make_response('Success', 200)
 
-    # Delete user from leaders file for Shapes in Rain
-    with open(cwd + '/../shapes_in_rain/leaders.json', 'r') as leaders_file:
-        leaders = json.load(leaders_file)
-        for entry in leaders:
-            if entry['player'] == user_id:
-                leaders.remove(entry)
+    cursor.close()
+    conn.close()
 
-    with open(cwd + '/../shapes_in_rain/leaders.json', 'w') as leaders_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(leaders_file, fcntl.LOCK_EX)
-        json.dump(leaders, leaders_file)
-        # Release lock on file
-        fcntl.flock(leaders_file, fcntl.LOCK_UN)
-
-    # Delete user from leaders file for Rhythm of Life
-    with open(cwd + '/../rhythm_of_life/leaders.json', 'r') as leaders_file:
-        leaders = json.load(leaders_file)
-        for entry in leaders:
-            if entry['player'] == user_id:
-                leaders.remove(entry)
-
-    with open(cwd + '/../rhythm_of_life/leaders.json', 'w') as leaders_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(leaders_file, fcntl.LOCK_EX)
-        json.dump(leaders, leaders_file)
-        # Release lock on file
-        fcntl.flock(leaders_file, fcntl.LOCK_UN)
-
-    return make_response('Success', 200)
+    # Return error otherwise
+    return make_response('Unauthorized', 401)
 
 
 def verify_token():
@@ -458,6 +651,32 @@ def verify_token():
     if payload['exp'] < time():
         return make_response('Unauthorized', 401)
 
+    # Set up database connection wtih environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor()
+
+    # Verify that user account is active
+    cursor.execute(
+        """
+        SELECT status FROM cp_user WHERE LOWER(username) = %(username)s;
+        """,
+        {'username': payload['username'].lower()}
+        )
+
+    user_status = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    # Return error if user account is not found
+    if not user_status:
+        return make_response('Unauthorized', 401)
+
+    # Return error if user account is deleted
+    if user_status[0] == 'deleted':
+        return make_response('Unauthorized', 401)
+
     signature = urlsafe_b64decode(token.split('.')[2])
 
     # Generate signature using secret to check against signature from Auth
@@ -481,11 +700,21 @@ def read_users():
     if request_start > request_end:
         return make_response('Start param cannot be greater than end', 400)
 
-    # Return list of requested number of usernames
-    with open(cwd + '/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        usernames = [user_data['username']
-            for user_data in users if user_data['status'] != 'deleted'
-            ]
+    # Set up database connection wtih environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-        return jsonify(usernames[request_start:request_end])
+    cursor = conn.cursor()
+
+    # Retrieve user accounts from database
+    cursor.execute(
+        """
+        SELECT username FROM cp_user WHERE status = 'active';
+        """
+        )
+
+    usernames = [username[0] for username in cursor.fetchall()]
+
+    cursor.close()
+    conn.close()
+
+    return jsonify(usernames[request_start:request_end])

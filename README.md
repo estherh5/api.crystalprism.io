@@ -321,7 +321,8 @@ Success
 
 ## User Account API
 #### September 2017 - Present
-Users who want to join the Crystal Prism community can create an account to store their Shapes in Rain and Rhythm of Life scores, their CanvaShare drawings, and their Thought Writer posts.
+Users who want to join the Crystal Prism community can create an account to store their Shapes in Rain and Rhythm of Life scores, their CanvaShare drawings, and their Thought Writer posts. User information is stored in the "cp_user" database table:
+![User Database Table](images/user-table.png)
 
 **POST** /api/user
 * Create a user account by sending the jsonified username and password in the request body.
@@ -339,24 +340,25 @@ Users who want to join the Crystal Prism community can create an account to stor
 ```javascript
 {
     "about": "", // User-entered blurb that appears on public profile
-    "admin": false, // Admin status
     "background_color": "#ffffff", // User-chosen background color of public profile
-    "drawings": [], // Array of user's CanvaShare drawings
+    "created": "2017-10-04T00:00:00.000Z", // UTC timestamp of when user account was created
+    "comment_count": 1, // Number of post comments user has created
+    "drawing_count": 1, // Number of drawings user has created
+    "drawing_like_count": 1, // Number of drawings user has liked
     "email": "", // User-entered on My Account page
     "email_public": false, // User specifies if email is viewable on public profile
     "first_name": "", // User-entered on My Account page
     "icon_color": "#000000", // User-chosen icon color of public profile
+    "is_admin": true, // Admin status
     "last_name": "", // User-entered on My Account page
-    "liked_drawings": [], // "[artist]/[drawing_id]" for each of user's liked drawings
-    "member_id": "UUID", // Random universally unique identifier
-    "member_since": "2017-10-04T00:00:00.000000+00:00", // UTC timestamp of when user created account
     "name_public": false, // User specifies if name is viewable on public profile
-    "post_comments": [], // Array of user's Thought Writer post comments
-    "posts": [], // Array of user's Thought Writer posts
-    "rhythm_scores": [], // Array of user's Rhythm of Life scores that includes timestamp
-    "shapes_scores": [], // Array of user's Shapes in Rain scores that includes timestamp
+    "post_count": [], // Number of posts user has created
+    "rhythm_high_score": 0, // User's high score for Rhythm of Life
+    "rhythm_score_count": 0, // Number of times user has played Rhythm of Life
+    "shapes_high_score": 0, // User's high score for Shapes in Rain
+    "shapes_score_count": 0, // Number of times user has played Shapes in Rain
     "status": "active", // Can be active or deleted
-    "username": "user" // Case-sensitive username
+    "username": "admin" // Case-sensitive username
 }
 ```
 
@@ -379,38 +381,42 @@ Users who want to join the Crystal Prism community can create an account to stor
 ```
 
 **DELETE** /api/user
-* Soft-delete a user's account as the user (i.e., change the account's status to "deleted" while leaving drawings, posts, scores, personal information, etc. intact, in case the user wants to reactivate the account). No request body is needed. Note that there must be a verified bearer token for the user in the request Authorization header.
+* Soft-delete a user's account as the user (i.e., change the account's status to "deleted" while leaving drawings, posts, scores, personal information, etc. intact, in case the user wants to reactivate the account). Note that there must be a verified bearer token for the user in the request Authorization header.
 
 **GET** /api/user/[username]
-* Retrieve a user's limited account information. No bearer token is needed in the request Authorization header.
+* Retrieve a user's public account information. No bearer token is needed in the request Authorization header.
 * Example response body:
 ```javascript
 {
     "about": "",
+    "created": "2017-10-04T00:00:00.000Z",
     "background_color": "#ffffff",
     "comment_count": 0,
     "drawing_count": 1,
-    "email": "",
+    "drawing_like_count": 0,
+    "email": "admin@crystalprism.io",
     "icon_color": "#000000",
-    "member_since": "2017-10-04T00:00:00.000000+00:00",
-    "name": "",
+    "is_admin": true,
     "post_count": 0,
     "rhythm_high_score": 0,
+    "rhythm_score_count": 0,
     "shapes_high_score": 0,
-    "username": "user"
+    "shapes_score_count": 0,
+    "status": "active",
+    "username": "admin"
 }
 ```
 
 **DELETE** /api/user/[username]
-* Hard-delete a user's account as the user or as an admin user (i.e., delete all of the user's drawings, posts, scores, personal information, etc. in addition to changing the account status to "deleted"). No request body is needed. Note that there must be a verified bearer token for the user or for an admin user in the request Authorization header.
+* Hard-delete a user's account as the user or as an admin user (i.e., delete all of the user's drawings, posts, scores, personal information, etc. in addition to changing the account status to "deleted"). Note that there must be a verified bearer token for the user or for an admin user in the request Authorization header.
 
 **GET** /api/user/verify
 * Check if a bearer token in a request Authorization header is valid and receive the expiration time (in seconds since epoch) if so.
 * Example response body:
 ```javascript
 {
-    "username": "esther",
-    "exp": 1509855369
+    "exp": 1509855369,
+    "username": "esther"
 }
 ```
 
