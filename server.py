@@ -11,8 +11,6 @@ from shapes_in_rain import shapes_in_rain
 from thought_writer import thought_writer
 from user import user
 
-cwd = os.path.dirname(__file__)
-
 app = Flask(__name__)
 cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
 if os.environ['ENV_TYPE'] == 'Dev':
@@ -310,13 +308,13 @@ def user_post_board(writer_name):
 
 
 @app.route('/api/user', methods=['POST', 'GET', 'PATCH', 'DELETE'])
-def user_info_private():
+def user_private():
     # Create a user account when client sends the jsonified username and
     # password in the request body
     if request.method == 'POST':
         return user.create_user()
 
-    # Retrieve a user's complete account information when there is a verified
+    # Retrieve a user's complete account information when client sends verified
     # bearer token for the user in the request Authorization header
     if request.method == 'GET':
         # Verify that user is logged in and return error status code if not
@@ -330,7 +328,7 @@ def user_info_private():
 
         return user.read_user(requester)
 
-    # Update a user's account when the client sends the jsonified account
+    # Update a user's account when client sends the jsonified account
     # updates in the request body and a verified bearer token for the user in
     # the request Authorization header
     if request.method == 'PATCH':
@@ -345,7 +343,7 @@ def user_info_private():
 
         return user.update_user(requester)
 
-    # Change a user's account status to deleted when there is a verified
+    # Change a user's account status to deleted when client sends a verified
     # bearer token for the user in the request Authorization header
     if request.method == 'DELETE':
         # Verify that user is logged in and return error status code if not
@@ -361,49 +359,30 @@ def user_info_private():
 
 
 @app.route('/api/user/<username>', methods=['GET', 'DELETE'])
-def user_info_public(username):
-    # Retrieve a user's limited account information; no bearer token needed
+def user_public(username):
+    # Retrieve a user's public account information; no bearer token needed
     if request.method == 'GET':
         return user.read_user_public(username)
 
-    # Delete all of a user's account data and set status to deleted when there
-    # is a verified bearer token for the user or for an admin in the request
+    # Delete all of a user's account data and set status to deleted when client
+    # sends a verified bearer token for the user or for an admin in the request
     # Authorization header
     if request.method == 'DELETE':
-        # Verify that user is logged in and return error status code if not
-        verification = user.verify_token()
-        if verification.status_code != 200:
-            return verification
-
-        # Get username from payload if user is logged in
-        payload = json.loads(verification.data.decode())
-        requester = payload['username']
-
-        # Hard-delete user's account if user requested this his/herself
-        if username.lower() == requester.lower():
-            return user.delete_user_hard(username)
-
-        # Hard-delete user's account if user is an admin user
-        with open(cwd + '/user/users.json', 'r') as users_file:
-            users = json.load(users_file)
-            for user_data in users:
-                if user_data['username'].lower() == requester.lower():
-                    if user_data['admin']:
-                        return user.delete_user_hard(username)
+        return user.delete_user_hard(username)
 
 
 @app.route('/api/user/verify', methods=['GET'])
 def verify_user_token():
-    # Check if bearer token in request Authorization header is valid and
-    # return the expiration time (in seconds since epoch) if so
+    # Check if bearer token in client's request Authorization header is valid
+    # and return the expiration time (in seconds since epoch) if so
     if request.method == 'GET':
         return user.verify_token()
 
 
 @app.route('/api/users', methods=['GET'])
-def users_info():
-    # Retrieve all users' usernames if there is a verified bearer token in the
-    # Authorization header; query params specify number of users
+def users():
+    # Retrieve all users' usernames when client sends a verified bearer token
+    # in the request Authorization header; query params specify number of users
     if request.method == 'GET':
         # Verify that user is logged in and return error status code if not
         verification = user.verify_token()
