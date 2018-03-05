@@ -4,17 +4,19 @@
 I started programming in January 2017 and am learning Python for back-end server development. api.crystalprism.io is the API for my website, [Crystal Prism](https://crystalprism.io). The API allows for the storage and retrieval of game scores, user-created drawings and thought posts, as well as user accounts. For user security, I implemented a JWT authentication flow from scratch that includes generating and verifying secure user tokens.
 
 ## Setup
-To create your own copy of the Crystal Prism API, first clone this repository on your server. Next, install requirements by running `pip install -r requirements.txt`. Create a PostgreSQL database to store user information, as well as a user that has all privileges on your database. Set the following environment variables for the API:
+To create your own copy of the Crystal Prism API, first clone this repository on your server. Next, install requirements by running `pip install -r requirements.txt`. Create a PostgreSQL database to store user information, as well as a user that has all privileges on your database. Create an Amazon S3 bucket with separate folders for storing homepage photos and CanvaShare drawings. Set the following environment variables for the API:
 * "SECRET_KEY" for the salt used to generate the signature portion of the JWT for user authentication (set this as a secret key that only you know; it is imperative to keep this private for user account protection)
 * "ENV_TYPE" for the environment status (set this to "Dev" for testing or "Prod" for live)
 * ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the access key for your AWS account for accessing photos stored on an Amazon S3 bucket
 * ["AWS_SECRET_ACCESS_KEY"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the secret key for your AWS account
-* "S3_BUCKET" for the name of your S3 bucket (e.g., 'crystalprism-photos')
-* "PHOTO_URL_START" for the starting URL for photos in your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism-photos/')
+* "S3_BUCKET" for the name of your S3 bucket (e.g., 'crystalprism')
+* "S3_URL" for the URL for your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism/')
+* "S3_PHOTO_DIR" for the name of the S3 bucket's folder for photos (e.g., 'photos/')
+* "S3_CANVASHARE_DIR" for the name of the S3 bucket's folder for CanvaShare drawings (e.g., 'canvashare/')
 * "DB_CONNECTION" for the [dsn parameter string](http://initd.org/psycopg/docs/module.html) to connect to your database via psycopg2 (e.g., 'dbname=<database_name> user=<database_user> password=<database_user_password> host=<database_host>')
 * "DB_NAME" for the name of your database
 
-Initialize the database by running `python management.py init_db`. Start the server by running `flask run` (if you are making changes while the server is running, enter `flask run --reload` instead for instant updates).
+Initialize the database by running `python management.py init_db`, and load initial data (webpage owner user, admin user, how-to Thought Writer posts, sample drawing) by running `python management.py load_data`. Start the server by running `flask run` (if you are making changes while the server is running, enter `flask run --reload` instead for instant updates).
 
 ## API Status
 To check if the API is online, a client can send a request to the following endpoint.
@@ -434,8 +436,9 @@ The Crystal Prism homepage has a Photos page that features photos I have taken t
 * Retrieve URLs for photos stored in an S3 bucket. Optionally specify the number of photos via the request URL's start and end query parameters. Note that the following environment variables must be set:
   - ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the access key for your AWS account
   - ["AWS_SECRET_ACCESS_KEY"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the secret key for your AWS account
-  - "S3_BUCKET" must be set to the name of your S3 bucket (e.g., 'crystalprism-photos')
-  - "PHOTO_URL_START" must be set as the starting URL for photos in your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism-photos/').
+  - "S3_BUCKET" must be set to the name of your S3 bucket (e.g., 'crystalprism')
+  - "S3_PHOTO_DIR" must be set to the name of your S3 bucket's folder for photos (e.g., 'photos/')
+  - "S3_URL" must be set as the URL for your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism/')
 * Example response body:
 ```javascript
 [

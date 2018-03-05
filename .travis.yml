@@ -24,8 +24,10 @@ script:
 env:
   global:
     - SECRET_KEY=test
-    - S3_BUCKET=crystalprism-photos
-    - PHOTO_URL_START=https://s3.us-east-2.amazonaws.com/crystalprism-photos/
+    - S3_BUCKET=crystalprism
+    - S3_URL=https://s3.us-east-2.amazonaws.com/crystalprism/
+    - S3_PHOTO_DIR=photos/
+    - S3_CANVASHARE_DIR=canvashare/
     - DB_CONNECTION='dbname=crystal_prism user=postgres host=localhost'
     - DB_NAME=crystal_prism
   matrix:
