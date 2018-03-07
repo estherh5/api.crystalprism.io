@@ -112,9 +112,13 @@ def photos():
         s3 = boto3.resource('s3')
         bucket_name = os.environ['S3_BUCKET']
         bucket = s3.Bucket(bucket_name)
+        bucket_folder = os.environ['S3_PHOTO_DIR']
 
-        for item in bucket.objects.all():
-            urls.append(os.environ['PHOTO_URL_START'] + item.key)
+        for item in bucket.objects.filter(Prefix=bucket_folder, Delimiter='/'):
+
+            # Exclude bucket folder from URLs list
+            if item.key != bucket_folder:
+                urls.append(os.environ['S3_URL_START'] + item.key)
 
         return jsonify(urls[request_start:request_end])
 

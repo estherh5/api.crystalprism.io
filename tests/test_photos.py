@@ -37,7 +37,7 @@ class TestPhotos(CrystalPrismTestCase):
 
         # Assert
         boto3.resource.return_value.Bucket.assert_called_with(
-            os.environ['S3_BUCKET']
+            os.environ['S3_PHOTOS_BUCKET']
             )
 
         self.assertEqual(len(response_data), 10)
