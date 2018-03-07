@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 import argparse
 import bcrypt
+import boto3
+import datetime
 import getpass
 import json
 import os
 import psycopg2 as pg
+import subprocess
 
 from base64 import decodebytes
+from crontab import CronTab
 
 
 def initialize_database():
@@ -333,6 +337,65 @@ def load_initial_data():
     return
 
 
+def backup_database():
+    # Define database name and user
+    db_name = os.environ['DB_NAME']
+    db_user = os.environ['DB_USER']
+
+    # Define backup file path
+    now = str(datetime.datetime.now().isoformat())
+    file_path = os.environ['BACKUP_DIR'] + '/' + now
+
+    # Define command to run to back up database
+    command = 'pg_dump ' + db_name + ' -U ' + db_user + ' -Fc -f ' + file_path
+
+    # Dump database backup to file path
+    ps = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE,
+        cwd=os.path.dirname(os.path.realpath(__file__)))
+    print('Backup saved to ' + file_path)
+
+    # Upload file to s3 backup bucket
+    s3 = boto3.resource('s3')
+    bucket_name = os.environ['S3_BUCKET']
+    bucket = s3.Bucket(bucket_name)
+    bucket_folder = os.environ['S3_BACKUP_DIR']
+
+    data = open(file_path, 'rb')
+
+    bucket.put_object(Key=bucket_folder + now, Body=data)
+
+    print('Backup saved to S3 ' + bucket_name + ' bucket')
+
+    return
+
+
+def schedule_weekly_backup():
+    # Initiate CronTab instance for current user
+    user = getpass.getuser()
+    cron = CronTab(user)
+
+    # Create weekly job to back up database
+    job = cron.new(
+        command='export WORKON_HOME=~/.virtualenvs; ' +
+        'VIRTUALENVWRAPPER_PYTHON=/usr/local/bin/python3; ' +
+        'source /usr/local/bin/virtualenvwrapper.sh; ' +
+        'workon ' + os.environ['VIRTUAL_ENV_NAME'] + '; ' +
+        'source ~/.virtualenvs/' + os.environ['VIRTUAL_ENV_NAME'] +
+        '/bin/postactivate; python ' + os.path.abspath(__file__) + ' backup_db'
+        )
+    job.minute.on(0)
+    job.hour.on(0)
+    job.dow.on(0)
+
+    cron.write()
+
+    print(
+        'Weekly backup scheduled for ' + os.environ['DB_NAME'] + ' database.'
+        )
+
+    return
+
+
 # Add arguments for initializing database in CLI
 parser = argparse.ArgumentParser(description='Management commands')
 parser.add_argument('action', type=str, help="an action for the database")
@@ -341,3 +404,7 @@ if args.action == 'init_db':
     initialize_database()
 if args.action == 'load_data':
     load_initial_data()
+if args.action == 'backup_db':
+    backup_database()
+if args.action == 'sched_backup':
+    schedule_weekly_backup()
