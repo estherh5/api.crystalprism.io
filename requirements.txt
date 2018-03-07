@@ -7,5 +7,6 @@ itsdangerous==0.24
 Jinja2==2.9.6
 MarkupSafe==1.0
 psycopg2-binary==2.7.4
+python-crontab==2.2.8
 six==1.10.0
 Werkzeug==0.12.2
