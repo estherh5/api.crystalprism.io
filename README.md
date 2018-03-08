@@ -422,10 +422,11 @@ Note that the following environment variables must be set:
 
 ## Thought Writer API
 #### August 2017 - Present
-[Thought Writer](https://crystalprism.io/thought-writer/index.html) is a community post board for users to post short ideas for others to read and comment on.
+[Thought Writer](https://crystalprism.io/thought-writer/index.html) is a community post board for users to post ideas for others to read and comment on. Thought Writer information is stored in the "post" and "comment" database tables:
+![Thought Writer Database Tables](images/thought-writer-tables.png)
 
 **POST** /api/thought-writer/post
-* Post a thought post by sending the jsonified post content, title, and public status ("true" or "false") in the request body. Note that there must be a verified bearer token in the request Authorization header.
+* Post a thought post by sending the jsonified post content, title, and public status (*true* or *false*) in the request body. Note that there must be a verified bearer token in the request Authorization header.
 * Example request body:
 ```javascript
 {
@@ -435,112 +436,179 @@ Note that the following environment variables must be set:
 }
 ```
 
-**PATCH** /api/thought-writer/post
-* Update a thought post by sending the jsonified post content, post creation timestamp (UTC), title, and public status (*true* or *false*) in the request body. Note that there must be a verified bearer token in the request Authorization header.
+**GET** /api/thought-writer/post/[post_id]
+* Retrieve a user's thought post by specifying the post id in the request URL. Note that there must be a verified bearer token for the writer in the request Authorization header for a private post to be retrieved.
+* Example response body:
+```javascript
+{
+    "content": "Welcome to Thought Writer, a community post board for you to write your ideas for the world to see. You can also create your own private posts or comment on others' posts. Click the yellow paper icon to get started!",
+    "comment_count": 2,
+    "created": "2017-10-05T09:53:19.229Z",
+    "post_id": 1,
+    "public": true,
+    "title": "Welcome",
+    "username": "admin"
+}
+```
+
+**PATCH** /api/thought-writer/post/[post_id]
+* Update a thought post by sending the post id in the request URL and the jsonified post content, title, and public status (*true* or *false*) in the request body. Note that there must be a verified bearer token for the writer in the request Authorization header.
 * Example request body:
 ```javascript
 {
     "content": "I often find inspiration in the color combinations found in nature.",
-    "created": "2017-11-05T02:21:35.017651+00:00",
     "public": true,
     "title": "The Beauty of Design"
 }
 ```
 
-**DELETE** /api/thought-writer/post
-* Delete a thought post by sending the jsonified post creation timestamp (UTC) in the request body. Note that there must be a verified bearer token in the request Authorization header.
-* Example request body:
-```javascript
-{
-    "created": "2017-11-05T02:21:35.017651+00:00"
-}
-```
+**DELETE** /api/thought-writer/post/[post_id]
+* Delete a thought post by sending the post id in the request URL. Note that there must be a verified bearer token for the writer in the request Authorization header.
 
-**GET** /api/thought-writer/post/[writer_name]/[post_timestamp]
-* Retrieve a user's thought post by specifying the writer's username and the thought post's URI-encoded creation timestamp (UTC) in the request URL. Note that there must be a verified bearer token in the request Authorization header for a private post to be retrieved.
-* Example response body:
-```javascript
-{
-    "comments": [
-      {
-        "username": "esther",
-        "content": "Thanks for welcoming me!",
-        "timestamp": "2017-11-05T02:50:01.392277+00:00"
-      }
-    ],
-    "content": "Welcome to Thought Writer, a community post board for you to write your ideas for the world to see. You can also create your own private posts or comment on others' posts. Click the yellow paper icon to get started!",
-    "created": "2017-10-05T00:00:00.000000+00:00",
-    "title": "Welcome",
-    "username": "user"
-}
-```
-
-**POST** /api/thought-writer/comment/[writer_name]/[post_timestamp]
-* Post a comment to a thought post by specifying the post writer's username and the thought post's URI-encoded creation timestamp (UTC) in the request URL, as well as the jsonified comment content in the request body. Note that there must be a verified bearer token in the request Authorization header.
-* Example request body:
-```javascript
-{
-    "content": "I really like this post."
-}
-```
-
-**PATCH** /api/thought-writer/comment/[writer_name]/[post_timestamp]
-* Update a comment to a thought post by specifying the post writer's username and the thought post's URI-encoded creation timestamp (UTC) in the request URL, as well as the jsonified comment content and original comment creation timestamp (UTC) in the request body. Note that there must be a verified bearer token in the request Authorization header.
-* Example request body:
-```javascript
-{
-    "content": "I really like this post. Great writing!",
-    "created": "2017-11-05T02:47:21.744277+00:00"
-}
-```
-
-**DELETE** /api/thought-writer/comment/[writer_name]/[post_timestamp]
-* Delete a comment to a thought post by specifying the post writer's username and the thought post's URI-encoded creation timestamp (UTC) in the request URL, as well as the jsonified comment creation timestamp (UTC) in the request body. Note that there must be a verified bearer token in the request Authorization header.
-* Example request body:
-```javascript
-{
-    "created": "2017-11-05T02:47:21.744277+00:00"
-}
-```
-
-**GET** /api/thought-writer/post-board?start=[request_start]&end=[request_end]
-* Retrieve all users' public thought posts. Optionally specify the number of thought posts via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
+**GET** /api/thought-writer/posts?start=[request_start]&end=[request_end]
+* Retrieve all users' public thought posts in order of newest to oldest. Optionally specify the number of thought posts via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
 ```javascript
 [
     {
-      "comments": [],
       "content": "<font color=\"#00c6fc\"><b>Only when you find yourself can you understand the world and your place within it. To deny oneself would be to have a limited view of the world, as you yourself are part of it not only in perception but in external interfacing and influence.</b></font>",
-      "created": "2017-10-27T04:31:07.730128+00:00",
+      "comment_count": 1,
+      "created": "2017-10-27T04:31:07.332Z",
+      "post_id": 2,
+      "public": true,
       "title": "Finding yourself",
-      "username": "esther"
+      "username": "greetings23"
     },
     {
-      "comments": [
-        {
-          "username": "esther",
-          "content": "Thanks for welcoming me!",
-          "created": "2017-11-05T02:50:01.392277+00:00"
-        }
-      ],
       "content": "Welcome to Thought Writer, a community post board for you to write your ideas for the world to see. You can also create your own private posts or comment on others' posts. Click the yellow paper icon to get started!",
-      "created": "2017-10-05T00:00:00.000000+00:00",
+      "comment_count": 2,
+      "created": "2017-10-05T09:53:19.229Z",
+      "post_id": 1,
+      "public": true,
       "title": "Welcome",
-      "username": "user"
+      "username": "admin"
     }
 ]
 ```
 
-**GET** /api/thought-writer/post-board/[writer_name]?start=[request_start]&end=[request_end]
-* Retrieve all of a single user's thought posts by specifying the writer's username in the request URL. Optionally specify the number of thought posts via the request URL's start and end query parameters. If there is a verified bearer token for the writer in the request Authorization header, the server will send the user's private and public posts; otherwise, only the public posts will be sent.
+**GET** /api/thought-writer/posts/[writer_name]?start=[request_start]&end=[request_end]
+* Retrieve all of a single user's thought posts in order of newest to oldest by specifying the writer's username in the request URL. Optionally specify the number of thought posts via the request URL's start and end query parameters. If there is a verified bearer token for the writer in the request Authorization header, the server will send the user's private and public posts; otherwise, only the public posts will be sent.
+* Example response body:
+```javascript
+[
+    {
+      "content": "I often find inspiration in the color combinations found in nature.",
+      "comment_count": 0,
+      "created": "2017-10-27T04:31:07.249Z",
+      "post_id": 4,
+      "public": false,
+      "title": "The Beauty of Design",
+      "username": "greetings23"
+    },
+    {
+      "content": "<font color=\"#00c6fc\"><b>Only when you find yourself can you understand the world and your place within it. To deny oneself would be to have a limited view of the world, as you yourself are part of it not only in perception but in external interfacing and influence.</b></font>",
+      "comment_count": 1,
+      "created": "2017-10-27T04:31:07.332Z",
+      "post_id": 2,
+      "public": true,
+      "title": "Finding yourself",
+      "username": "greetings23"
+    }
+]
+```
+
+**POST** /api/thought-writer/comment
+* Post a comment to a thought post by specifying the jsonified comment content and the post id in the request body. Note that there must be a verified bearer token in the request Authorization header.
+* Example request body:
+```javascript
+{
+    "content": "I really like this post.",
+    "post_id": 1
+}
+```
+
+**GET** /api/thought-writer/comment/[comment_id]
+* Read a comment to a thought post by specifying the comment id in the request URL. No bearer token is needed in the request Authorization header.
+* Example request body:
+```javascript
+{
+    "comment_id": 1,
+    "content": "I really like this post. Great writing!",
+    "created": "2017-11-05T02:47:21.413Z",
+    "post_id": 1,
+    "username": "esther"
+}
+```
+
+**PATCH** /api/thought-writer/comment/[comment_id]
+* Update a comment to a thought post by specifying the comment id in the request URL and the jsonified comment content in the request body. Note that there must be a verified bearer token for the commenter in the request Authorization header.
+* Example request body:
+```javascript
+{
+    "content": "I really like this post. Great writing!"
+}
+```
+
+**DELETE** /api/thought-writer/comment/[comment_id]
+* Delete a comment to a thought post by specifying the comment id in the request URL. Note that there must be a verified bearer token for the commenter in the request Authorization header.
+
+**GET** /api/thought-writer/comments/post/[post_id]?start=[request_start]&end=[request_end]
+* Retrieve all comments to a thought post in order of newest to oldest by specifying the post id in the request URL. Optionally specify the number of thought posts via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
+* Example response body:
+```javascript
+[
+    {
+      "comment_id": 3,
+      "content": "Anytime!",
+      "created": "2017-11-05T03:32:59.182Z"
+      "post_id": 1,
+      "username": "admin"
+    },
+    {
+      "comment_id": 2,
+      "content": "Thanks for welcoming me!",
+      "created": "2017-11-05T02:50:01.246Z"
+      "post_id": 1,
+      "username": "esther"
+    }
+]
+```
+
+**GET** /api/thought-writer/comments/user/[commenter_name]?start=[request_start]&end=[request_end]
+* Retrieve all of a single user's comments in order of newest to oldest by specifying the commenter's username in the request URL. Optionally specify the number of comments via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
 ```javascript
 {
-    "comments": [],
-    "content": "<font color=\"#00c6fc\"><b>Only when you find yourself can you understand the world and your place within it. To deny oneself would be to have a limited view of the world, as you yourself are part of it not only in perception but in external interfacing and influence.</b></font>",
-    "public": true,
-    "created": "2017-10-27T04:31:07.730128+00:00",
-    "title": "Finding yourself"
+  {
+    "comment_id": 6,
+    "content": "Wow... I feel the same way.",
+    "created": "2017-12-01T01:25:20.435Z"
+    "post_id": 3,
+    "post_content": "Sometimes life is hard.",
+    "title": "Today I feel...",
+    "username": "esther",
+    "writer_name": "greetings23"
+  },
+  {
+    "comment_id": 2,
+    "content": "Thanks for welcoming me!",
+    "created": "2017-11-05T02:50:01.246Z"
+    "post_id": 1,
+    "post_content": "Welcome to Thought Writer, a community post board for you to write your ideas for the world to see. You can also create your own private posts or comment on others' posts. Click the yellow paper icon to get started!",
+    "title": "Welcome",
+    "username": "esther",
+    "writer_name": "admin"
+  },
+  {
+    "comment_id": 1,
+    "content": "I really like this post. Great writing!",
+    "created": "2017-11-05T02:47:21.413Z",
+    "post_id": 2,
+    "post_content": "<font color=\"#00c6fc\"><b>Only when you find yourself can you understand the world and your place within it. To deny oneself would be to have a limited view of the world, as you yourself are part of it not only in perception but in external interfacing and influence.</b></font>",
+    "title": "Finding yourself",
+    "username": "esther",
+    "writer_name": "greetings23"
+  }
 }
 ```
 
@@ -670,7 +738,7 @@ Users who want to join the Crystal Prism community can create an account to stor
     "is_admin": true, // Admin status
     "last_name": "", // User-entered on My Account page
     "name_public": false, // User specifies if name is viewable on public profile
-    "post_count": [], // Number of posts user has created
+    "post_count": 10, // Number of posts user has created
     "rhythm_high_score": 0, // User's high score for Rhythm of Life
     "rhythm_score_count": 0, // Number of times user has played Rhythm of Life
     "shapes_high_score": 0, // User's high score for Shapes in Rain
