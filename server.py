@@ -35,51 +35,111 @@ def drawing():
         return canvashare.create_drawing(requester)
 
 
-@app.route('/api/canvashare/drawing/<artist_name>/<drawing_file>',
-    methods=['GET'])
-def get_drawing(artist_name, drawing_file):
-    # Retrieve a drawing PNG file when client sends the artist's username and
-    # drawing file name (e.g., '1.png') in the request URL; no bearer token
-    # needed
+@app.route('/api/canvashare/drawing/<drawing_id>',
+    methods=['GET', 'PATCH', 'DELETE'])
+def drawing_id(drawing_id):
+    # Retrieve an artist's drawing's attributes when client sends the drawing
+    # id in the request URL; no bearer token needed
     if request.method == 'GET':
-        return canvashare.read_drawing(artist_name, drawing_file)
+        return canvashare.read_drawing(drawing_id)
 
-
-@app.route('/api/canvashare/drawing-info/<artist_name>/<drawing_id>',
-    methods=['GET', 'PATCH'])
-def drawing_info(artist_name, drawing_id):
-    # Retrieve an artist's drawing's attributes when client sends the artist's
-    # username and drawing file name without the extension (e.g., '1') in the
+    # Update a drawing's view count when client sends the drawing id in the
     # request URL; no bearer token needed
-    if request.method == 'GET':
-        return canvashare.read_drawing_info(artist_name, drawing_id)
-
-    # Update a drawing's attributes when client sends the artist's username and
-    # drawing file name without the extension (e.g., '1') in the request URL
-    # and jsonified attribute request ('like', 'unlike', 'view') in request
-    # body and verified bearer token in request Authorization header if request
-    # is to like/unlike drawing (not required to view drawing)
     if request.method == 'PATCH':
-        return canvashare.update_drawing_info(artist_name, drawing_id)
+        return canvashare.update_drawing(drawing_id)
+
+    # Delete a drawing when client sends the drawing id in the request URL and
+    # a verified bearer token for the artist in the request Authorization
+    # header
+    if request.method == 'DELETE':
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return canvashare.delete_drawing(requester, drawing_id)
 
 
-@app.route('/api/canvashare/gallery', methods=['GET'])
-def gallery():
-    # Retrieve all drawing file paths as '[artist_name]/[drawing_id].png', in
-    # order of newest to oldest drawings; no bearer token needed; query params
-    # specify number of drawings
+@app.route('/api/canvashare/drawings', methods=['GET'])
+def drawings():
+    # Retrieve all drawings in order of newest to oldest; no bearer token
+    # needed; query params specify number of drawings
     if request.method == 'GET':
         return canvashare.read_drawings()
 
 
-@app.route('/api/canvashare/gallery/<artist_name>', methods=['GET'])
-def user_gallery(artist_name):
-    # Retrieve user's drawing file paths as '[artist_name]/[drawing_name].png',
-    # in order of newest to oldest drawings, when client sends the artist's
-    # username in the request URL; no bearer token needed; query params specify
-    # number of drawings
+@app.route('/api/canvashare/drawings/<artist_name>', methods=['GET'])
+def user_drawings(artist_name):
+    # Retrieve user's drawings in order of newest to oldest when client sends
+    # the artist's username in the request URL; no bearer token needed; query
+    # params specify number of drawings
     if request.method == 'GET':
         return canvashare.read_drawings_for_one_user(artist_name)
+
+
+@app.route('/api/canvashare/drawing-like', methods=['POST'])
+def drawing_like():
+    # Post a like for a drawing when client sends the jsonified drawing id in
+    # the request body and a verified bearer token in the request Authorization
+    # header
+    if request.method == 'POST':
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return canvashare.create_drawing_like(requester)
+
+
+@app.route('/api/canvashare/drawing-like/<drawing_like_id>',
+    methods=['GET', 'DELETE'])
+def drawing_like_id(drawing_like_id):
+    # Get information for a drawing like when client sends the drawing like id
+    # in the request URL; no bearer token needed
+    if request.method == 'GET':
+        return canvashare.read_drawing_like(drawing_like_id)
+
+    # Delete a like for a drawing when client sends the drawing like id in the
+    # request URL and a verified bearer token for the liker in the request
+    # Authorization header
+    if request.method == 'DELETE':
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return canvashare.delete_drawing_like(requester, drawing_like_id)
+
+
+@app.route('/api/canvashare/drawing-likes/drawing/<drawing_id>',
+    methods=['GET'])
+def drawing_likes(drawing_id):
+    # Get all like information for a drawing in order of newest to oldest when
+    # client sends the drawing id in the request URL; no bearer token needed;
+    # query params specify number of likes
+    if request.method == 'GET':
+        return canvashare.read_drawing_likes(drawing_id)
+
+
+@app.route('/api/canvashare/drawing-likes/user/<liker_name>', methods=['GET'])
+def user_drawing_likes(liker_name):
+    # Get all of a user's drawing likes in order of newest to oldest when
+    # client sends the liker's username in the request URL; no bearer token
+    # needed; query params specify number of liked drawings
+    if request.method == 'GET':
+        return canvashare.read_drawing_likes_for_one_user(liker_name)
 
 
 @app.route('/api/login', methods=['GET'])
@@ -356,16 +416,16 @@ def comment(writer_name, post_timestamp):
             post_timestamp)
 
 
-@app.route('/api/thought-writer/post-board', methods=['GET'])
-def post_board():
+@app.route('/api/thought-writer/posts', methods=['GET'])
+def posts():
     # Retrieve all users' public thought posts; no bearer token needed; query
     # params specify number of posts
     if request.method == 'GET':
         return thought_writer.read_posts()
 
 
-@app.route('/api/thought-writer/post-board/<writer_name>', methods=['GET'])
-def user_post_board(writer_name):
+@app.route('/api/thought-writer/posts/<writer_name>', methods=['GET'])
+def user_posts(writer_name):
     # Retrieve all of a single user's thought posts by specifying the writer's
     # username in the request URL; verified bearer token for the writer is
     # needed in the request Authorization header to send user's private and
