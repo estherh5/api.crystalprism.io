@@ -1,550 +1,217 @@
-import fcntl
 import json
 import os
+import psycopg2 as pg
+import psycopg2.extras
 
-from datetime import datetime, timezone
 from flask import jsonify, make_response, request
-from operator import itemgetter
 
 from user import user
-
-cwd = os.path.dirname(__file__)
 
 
 def create_post(requester):
     # Request should contain:
-    # title <str>
     # content <str>
     # public <boolean>
+    # title <str>
     data = request.get_json()
 
-    # Generate timestamp to store with post
-    timestamp = datetime.now(timezone.utc).isoformat()
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-    post = {
-        'title': data['title'],
-        'timestamp': timestamp,
+    cursor = conn.cursor()
+
+    # Add post to database
+    cursor.execute(
+        """
+        INSERT INTO post (member_id, content, public, title)
+        VALUES ((SELECT member_id FROM cp_user
+        WHERE LOWER(username) = %(username)s), %(content)s, %(public)s,
+        %(title)s) RETURNING post_id;
+        """,
+        {'username': requester.lower(),
         'content': data['content'],
         'public': data['public'],
-        'comments': []
-        }
+        'title': data['title']}
+        )
 
-    # Convert username to member_id for post storage and increase post count
-    with open(cwd + '/../user/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            if user_data['username'].lower() == requester.lower():
-                writer_id = user_data['member_id']
-                user_data['post_count'] += 1
+    conn.commit()
 
-    # Add post to private user file if it exists or generate new file for
-    # first-time posting
-    if os.path.exists(cwd + '/' + writer_id + '.json'):
-        with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
-            private_posts = json.load(private_file)
-            private_posts.append(post)
-    else:
-        private_posts = [post]
+    post_id = cursor.fetchone()[0]
 
-    with open(cwd + '/' + writer_id + '.json', 'w') as private_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(private_file, fcntl.LOCK_EX)
-        json.dump(private_posts, private_file)
-        # Release lock on file
-        fcntl.flock(private_file, fcntl.LOCK_UN)
+    cursor.close()
+    conn.close()
 
-    # Add post to public file if marked as public
-    if data['public']:
-        post = {
-            'writer': writer_id,
-            'title': data['title'],
-            'timestamp': timestamp,
-            'content': data['content'],
-            'comments': []
-            }
-
-        with open(cwd + '/public/public.json', 'r') as public_file:
-            public_posts = json.load(public_file)
-            public_posts.append(post)
-
-        with open(cwd + '/public/public.json', 'w') as public_file:
-            # Lock file to prevent overwrite
-            fcntl.flock(public_file, fcntl.LOCK_EX)
-            json.dump(public_posts, public_file)
-            # Release lock on file
-            fcntl.flock(public_file, fcntl.LOCK_UN)
-
-    # Write changes to user file to update user's post count if post is
-    # created successfully
-    with open(cwd + '/../user/users.json', 'w') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
-        json.dump(users, users_file)
-        # Release lock on file
-        fcntl.flock(users_file, fcntl.LOCK_UN)
-
-    return make_response(timestamp, 201)
+    return make_response(str(post_id), 201)
 
 
-def update_post(requester):
-    # Request should contain:
-    # title <str>
-    # timestamp <str>
-    # content <str>
-    # public <boolean>
-    data = request.get_json()
+def read_post(post_id):
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-    # Convert username to member_id for post retrieval
-    with open(cwd + '/../user/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            if user_data['username'].lower() == requester.lower():
-                writer_id = user_data['member_id']
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
 
-    post_found = False  # Stores whether post is found in private file
+    # Retrieve post from database
+    cursor.execute(
+        """
+        SELECT post.content, post.created, post.post_id, post.public,
+        post.title, cp_user.username FROM post
+        JOIN cp_user ON post.member_id = cp_user.member_id
+        WHERE post_id = %(post_id)s;
+        """,
+        {'post_id': post_id}
+        )
 
-    # Update post in user's private file
-    with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
-        private_posts = json.load(private_file)
+    post = cursor.fetchone()
 
-        for post in private_posts:
-            if post['timestamp'] == data['timestamp']:
-                # Get post's previous public status to see if status has
-                # changed in update
-                previously_public = post['public']
-                post['title'] = data['title']
-                post['content'] = data['content']
-                post['public'] = data['public']
-                # Get post's current comments to add to public file if post is
-                # newly public
-                comments = post['comments']
-                post_found = True
-
-    # If post is not found, return error to client
-    if not post_found:
+    # Return error if post not found
+    if not post:
         return make_response('Not found', 404)
 
-    with open(cwd + '/' + writer_id + '.json', 'w') as private_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(private_file, fcntl.LOCK_EX)
-        json.dump(private_posts, private_file)
-        # Release lock on file
-        fcntl.flock(private_file, fcntl.LOCK_UN)
+    # Otherwise, convert post data to dictionary
+    post = dict(post)
 
-    # Update post in public file if public
-    if data['public']:
-        with open(cwd + '/public/public.json', 'r') as public_file:
-            public_posts = json.load(public_file)
+    # Retrieve comment count from database
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM comment
+        WHERE post_id = %(post_id)s;
+        """,
+        {'post_id': post_id}
+        )
 
-            # Update post in public file if it was already public
-            if previously_public:
-                for post in public_posts:
-                    if (post['writer'] == writer_id and
-                        post['timestamp'] == data['timestamp']):
-                        post['title'] = data['title']
-                        post['content'] = data['content']
+    post['comment_count'] = cursor.fetchone()[0]
 
-            # Add post to public file if it was not public previously
-            else:
-                post = {
-                    'writer': writer_id,
-                    'title': data['title'],
-                    'timestamp': data['timestamp'],
-                    'content': data['content'],
-                    'comments': comments
-                    }
-                public_posts.append(post)
+    cursor.close()
+    conn.close()
 
-        with open(cwd + '/public/public.json', 'w') as public_file:
-            # Lock file to prevent overwrite
-            fcntl.flock(public_file, fcntl.LOCK_EX)
-            json.dump(public_posts, public_file)
-            # Release lock on file
-            fcntl.flock(public_file, fcntl.LOCK_UN)
+    # If post is private, return post to client only if requester's user token
+    # is verified and requester is the writer
+    if not post['public']:
 
-    # Remove post from public file if it was previously public but is now
-    # private
-    if previously_public and not data['public']:
-        with open(cwd + '/public/public.json', 'r') as public_file:
-            public_posts = json.load(public_file)
-            public_posts = [post for post in public_posts
-                if not (post['writer'] == writer_id and
-                        post['timestamp'] == data['timestamp'])
-                ]
+        # Check if user is logged in
+        verification = user.verify_token()
 
-        with open(cwd + '/public/public.json', 'w') as public_file:
-            # Lock file to prevent overwrite
-            fcntl.flock(public_file, fcntl.LOCK_EX)
-            json.dump(public_posts, public_file)
-            # Release lock on file
-            fcntl.flock(public_file, fcntl.LOCK_UN)
-
-    return make_response('Success', 200)
-
-
-def delete_post(requester):
-    # Request should contain:
-    # timestamp <str>
-    data = request.get_json()
-
-    # Convert username to member_id for post retrieval and decrease post count
-    with open(cwd + '/../user/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            if user_data['username'].lower() == requester.lower():
-                writer_id = user_data['member_id']
-                user_data['post_count'] -= 1
-
-    post_found = False  # Stores whether post is found in private file
-
-    # Remove post from user's private file
-    with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
-        private_posts = json.load(private_file)
-
-        # Get post's public status to see if it should also be removed from
-        # public file
-        for post in private_posts:
-            if post['timestamp'] == data['timestamp']:
-                public = post['public']
-                post_found = True
-
-        # Otherwise, remove post from private posts list
-        private_posts = [post for post in private_posts
-            if post['timestamp'] != data['timestamp']]
-
-    # If post is not found, return error to client
-    if not post_found:
-        return make_response('Not found', 404)
-
-    with open(cwd + '/' + writer_id + '.json', 'w') as private_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(private_file, fcntl.LOCK_EX)
-        json.dump(private_posts, private_file)
-        # Release lock on file
-        fcntl.flock(private_file, fcntl.LOCK_UN)
-
-    # Remove post from public file if it is public
-    if public:
-        with open(cwd + '/public/public.json', 'r') as public_file:
-            public_posts = json.load(public_file)
-            public_posts = [post for post in public_posts
-                if not (post['writer'] == writer_id and
-                        post['timestamp'] == data['timestamp'])
-                ]
-
-        with open(cwd + '/public/public.json', 'w') as public_file:
-            # Lock file to prevent overwrite
-            fcntl.flock(public_file, fcntl.LOCK_EX)
-            json.dump(public_posts, public_file)
-            # Release lock on file
-            fcntl.flock(public_file, fcntl.LOCK_UN)
-
-    # Write changes to user file to update user's post count if post is
-    # deleted successfully
-    with open(cwd + '/../user/users.json', 'w') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
-        json.dump(users, users_file)
-        # Release lock on file
-        fcntl.flock(users_file, fcntl.LOCK_UN)
-
-    return make_response('Success', 200)
-
-
-def read_post(writer_name, post_timestamp):
-    # Convert username to member_id for post retrieval
-    writer_id = ''
-
-    with open(cwd + '/../user/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            if user_data['username'].lower() == writer_name.lower():
-                writer_id = user_data['member_id']
-
-    # Check if user is logged in
-    verification = user.verify_token()
-
-    # Retrieve post from private user file if user token is verified and
-    # requester is the post writer
-    if (verification.status_code == 200 and
-        json.loads(verification.data.decode())['username']
-        .lower() == writer_name.lower()):
-
-        with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
-            private_posts = json.load(private_file)
-
-            # Replace member_id with commenter's username for each retrieved
-            # post's comments
-            for post in private_posts:
-                if post['timestamp'] == post_timestamp:
-                    for comment in post['comments']:
-                        commenter_id = comment['commenter']
-                        with open(cwd + '/../user/users.json',
-                            'r') as users_file:
-                            users = json.load(users_file)
-                            for user_data in users:
-                                if user_data['member_id'] == commenter_id:
-                                    commenter_name = user_data['username']
-                                    comment['commenter'] = commenter_name
-
-                    return jsonify(post)
-
-        # If post is not found, return error to client
-        return make_response('Not found', 404)
-
-    # Retrieve post from public file otherwise
-    with open(cwd + '/public/public.json', 'r') as public_file:
-        public_posts = json.load(public_file)
-
-        # Replace member_ids with writer's username and with commenter's
-        # username for each retrieved post's comments
-        for post in public_posts:
-            if (post['writer'] == writer_id and
-                post['timestamp'] == post_timestamp):
-                post['writer'] = writer_name
-                for comment in post['comments']:
-                    with open(cwd + '/../user/users.json', 'r') as users_file:
-                        users = json.load(users_file)
-                        for user_data in users:
-                            if user_data['member_id'] == comment['commenter']:
-                                comment['commenter'] = user_data['username']
+        if (verification.status_code == 200 and
+            json.loads(verification.data.decode())['username']
+            .lower() == post['username'].lower()):
 
                 return jsonify(post)
 
-    # If post is not found, return error to client
-    return make_response('Not found', 404)
+        return make_response('Unauthorized', 401)
+
+    # Otherwise, if post is public, return post without login verification
+    return jsonify(post)
 
 
-def create_comment(requester, writer_name, post_timestamp):
+def update_post(requester, post_id):
     # Request should contain:
     # content <str>
+    # public <boolean>
+    # title <str>
     data = request.get_json()
 
-    # Generate timestamp to store with post comment
-    timestamp = datetime.now(timezone.utc).isoformat()
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-    with open(cwd + '/../user/users.json', 'r') as users_file:
-        users = json.load(users_file)
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
 
-        for user_data in users:
-            # Convert requester's username to member_id for comment storage and
-            # increase comment number
-            if user_data['username'].lower() == requester.lower():
-                commenter_id = user_data['member_id']
-                user_data['comment_count'] += 1
+    # Get current post from database
+    cursor.execute(
+        """
+        SELECT post.*, cp_user.username FROM post
+        JOIN cp_user ON post.member_id = cp_user.member_id
+        WHERE post_id = %(post_id)s;
+        """,
+        {'post_id': post_id}
+        )
 
-            # Convert post writer's username to member_id for post retrieval
-            if user_data['username'].lower() == writer_name.lower():
-                writer_id = user_data['member_id']
+    post = cursor.fetchone()
 
-    # Store comment entry with commenter, timestamp, and content
-    comment = {
-        'commenter': commenter_id,
-        'timestamp': timestamp,
-        'content': data['content']
-        }
+    # Return error if post not found
+    if not post:
+        cursor.close()
+        conn.close()
 
-    post_found = False  # Stores whether post is found in public file
-
-    # Add comment to post's entry in public file
-    with open(cwd + '/public/public.json', 'r') as public_file:
-        public_posts = json.load(public_file)
-
-        for post in public_posts:
-            if (post['writer'] == writer_id and
-                post['timestamp'] == post_timestamp):
-                post['comments'].append(comment)
-                post_found = True
-
-    # If post is not found, return error to client
-    if not post_found:
         return make_response('Not found', 404)
 
-    with open(cwd + '/public/public.json', 'w') as public_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(public_file, fcntl.LOCK_EX)
-        json.dump(public_posts, public_file)
-        # Release lock on file
-        fcntl.flock(public_file, fcntl.LOCK_UN)
+    # Otherwise, convert post data to dictionary
+    post = dict(post)
 
-    # Add comment to post's entry in private file
-    with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
-        private_posts = json.load(private_file)
+    # Return error if requester is not the writer
+    if requester.lower() != post['username'].lower():
+        cursor.close()
+        conn.close()
 
-        for post in private_posts:
-            if post['timestamp'] == post_timestamp:
-                post['comments'].append(comment)
+        return make_response('Unauthorized', 401)
 
-    with open(cwd + '/' + writer_id + '.json', 'w') as private_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(private_file, fcntl.LOCK_EX)
-        json.dump(private_posts, private_file)
-        # Release lock on file
-        fcntl.flock(private_file, fcntl.LOCK_UN)
+    # Update post in database
+    cursor.execute(
+        """
+        UPDATE post SET title = %(title)s, content = %(content)s,
+        public = %(public)s
+        WHERE post_id = %(post_id)s;
+        """,
+        {'title': data['title'],
+        'content': data['content'],
+        'public': data['public'],
+        'post_id': post_id}
+        )
 
-    # Write changes to user file to update user's comment count if comment is
-    # created successfully
-    with open(cwd + '/../user/users.json', 'w') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
-        json.dump(users, users_file)
-        # Release lock on file
-        fcntl.flock(users_file, fcntl.LOCK_UN)
+    conn.commit()
 
-    return make_response('Success', 201)
-
-
-def update_comment(requester, writer_name, post_timestamp):
-    # Request should contain:
-    # content <str>
-    # timestamp <str>
-    data = request.get_json()
-
-    # Get original comment's timestamp from request
-    old_timestamp = data['timestamp']
-
-    # Generate new timestamp to store with updated comment
-    new_timestamp = datetime.now(timezone.utc).isoformat()
-
-    with open(cwd + '/../user/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            # Convert requester's username to member_id for comment storage
-            if user_data['username'].lower() == requester.lower():
-                commenter_id = user_data['member_id']
-
-            # Convert post writer's username to member_id for post retrieval
-            if user_data['username'].lower() == writer_name.lower():
-                writer_id = user_data['member_id']
-
-    post_found = False  # Stores whether post is found
-
-    # Update comment in post's entry in public file, locating comment by
-    # commenter and previous timestamp
-    with open(cwd + '/public/public.json', 'r') as public_file:
-        public_posts = json.load(public_file)
-
-        for post in public_posts:
-            if (post['writer'] == writer_id and
-                post['timestamp'] == post_timestamp):
-                post_found = True
-
-                for comment in post['comments']:
-                    if (comment['commenter'] == commenter_id and
-                        comment['timestamp'] == old_timestamp):
-                        # Update comment's timestamp to timestamp of update
-                        comment['timestamp'] = new_timestamp
-                        comment['content'] = data['content']
-
-    # If post is not found, return error to client
-    if not post_found:
-        return make_response('Not found', 404)
-
-    with open(cwd + '/public/public.json', 'w') as public_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(public_file, fcntl.LOCK_EX)
-        json.dump(public_posts, public_file)
-        # Release lock on file
-        fcntl.flock(public_file, fcntl.LOCK_UN)
-
-    # Update comment in post's entry in private file, locating comment by
-    # commenter and previous timestamp
-    with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
-        private_posts = json.load(private_file)
-
-        for post in private_posts:
-            if post['timestamp'] == post_timestamp:
-
-                for comment in post['comments']:
-                    if (comment['commenter'] == commenter_id and
-                        comment['timestamp'] == old_timestamp):
-                        # Update comment's timestamp to timestamp of update
-                        comment['timestamp'] = new_timestamp
-                        comment['content'] = data['content']
-
-    with open(cwd + '/' + writer_id + '.json', 'w') as private_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(private_file, fcntl.LOCK_EX)
-        json.dump(private_posts, private_file)
-        # Release lock on file
-        fcntl.flock(private_file, fcntl.LOCK_UN)
+    cursor.close()
+    conn.close()
 
     return make_response('Success', 200)
 
 
-def delete_comment(requester, writer_name, post_timestamp):
-    # Request should contain:
-    # timestamp <str>
-    data = request.get_json()
+def delete_post(requester, post_id):
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-    with open(cwd + '/../user/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            # Convert requester's username to member_id for comment retrieval
-            # and decrease comment number
-            if user_data['username'].lower() == requester.lower():
-                commenter_id = user_data['member_id']
-                user_data['comment_count'] -= 1
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
 
-            # Convert post writer's username to member_id for post retrieval
-            if user_data['username'].lower() == writer_name.lower():
-                writer_id = user_data['member_id']
+    # Get post from database
+    cursor.execute(
+        """
+        SELECT post.*, cp_user.username FROM post
+        JOIN cp_user ON post.member_id = cp_user.member_id
+        WHERE post_id = %(post_id)s;
+        """,
+        {'post_id': post_id}
+        )
 
-    post_found = False  # Stores whether post is found
+    post = cursor.fetchone()
 
-    # Remove comment in post's entry in public file, locating comment by
-    # commenter and timestamp
-    with open(cwd + '/public/public.json', 'r') as public_file:
-        public_posts = json.load(public_file)
+    # Return error if post not found
+    if not post:
+        cursor.close()
+        conn.close()
 
-        for post in public_posts:
-            if (post['writer'] == writer_id and
-                post['timestamp'] == post_timestamp):
-                post_found = True
-
-                post['comments'] = [comment for comment in post['comments']
-                    if not (comment['commenter'] == commenter_id and
-                            comment['timestamp'] == data['timestamp'])
-                    ]
-
-    # If post is not found, return error to client
-    if not post_found:
         return make_response('Not found', 404)
 
-    with open(cwd + '/public/public.json', 'w') as public_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(public_file, fcntl.LOCK_EX)
-        json.dump(public_posts, public_file)
-        # Release lock on file
-        fcntl.flock(public_file, fcntl.LOCK_UN)
+    # Otherwise, convert post data to dictionary
+    post = dict(post)
 
-    # Remove comment in post's entry in private file, locating comment by
-    # commenter and timestamp
-    with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
-        private_posts = json.load(private_file)
+    # Return error if requester is not the writer
+    if requester.lower() != post['username'].lower():
+        cursor.close()
+        conn.close()
 
-        for post in private_posts:
-            if post['timestamp'] == post_timestamp:
-                post['comments'] = [comment for comment in post['comments']
-                    if not (comment['commenter'] == commenter_id and
-                            comment['timestamp'] == data['timestamp'])
-                    ]
+        return make_response('Unauthorized', 401)
 
-    with open(cwd + '/' + writer_id + '.json', 'w') as private_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(private_file, fcntl.LOCK_EX)
-        json.dump(private_posts, private_file)
-        # Release lock on file
-        fcntl.flock(private_file, fcntl.LOCK_UN)
+    # Delete post from database
+    cursor.execute(
+        """
+        DELETE FROM post WHERE post_id = %(post_id)s;
+        """,
+        {'post_id': post_id}
+        )
 
-    # Write changes to user file to update user's comment count if comment is
-    # deleted successfully
-    with open(cwd + '/../user/users.json', 'w') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
-        json.dump(users, users_file)
-        # Release lock on file
-        fcntl.flock(users_file, fcntl.LOCK_UN)
+    conn.commit()
+
+    cursor.close()
+    conn.close()
 
     return make_response('Success', 200)
 
@@ -559,33 +226,43 @@ def read_posts():
     if request_start > request_end:
         return make_response('Start param cannot be greater than end', 400)
 
-    # Return specified number of posts from public file
-    with open(cwd + '/public/public.json', 'r') as public_file:
-        public_posts = json.load(public_file)
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-        # Sort posts by timestamp, with newest posts first
-        public_posts.sort(key=itemgetter('timestamp'), reverse=True)
-        for post in public_posts[request_start:request_end]:
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
 
-            # Sort post comments by timestamp, with newest comments first
-            post['comments'].sort(key=itemgetter('timestamp'), reverse=True)
+    # Retrieve public posts from database
+    cursor.execute(
+        """
+        SELECT post.content, post.created, post.post_id, post.public,
+        post.title, cp_user.username FROM post
+        JOIN cp_user ON post.member_id = cp_user.member_id
+        WHERE public = TRUE
+        ORDER BY created DESC;
+        """
+        )
 
-            # Replace member_id with writer's username for each retrieved post
-            with open(cwd + '/../user/users.json', 'r') as users_file:
-                users = json.load(users_file)
-                for user_data in users:
-                    if user_data['member_id'] == post['writer']:
-                        post['writer'] = user_data['username']
-            # Replace member_id with commenter's username for each retrieved
-            # post's comments
-            for comment in post['comments']:
-                with open(cwd + '/../user/users.json', 'r') as users_file:
-                    users = json.load(users_file)
-                    for user_data in users:
-                        if user_data['member_id'] == comment['commenter']:
-                            comment['commenter'] = user_data['username']
+    posts = []
 
-        return jsonify(public_posts[request_start:request_end])
+    for row in cursor.fetchall():
+        posts.append(dict(row))
+
+    # Retrieve each post's comment count from database
+    for post in posts:
+        cursor.execute(
+            """
+            SELECT COUNT(*) FROM comment
+            WHERE post_id = %(post_id)s;
+            """,
+            {'post_id': post['post_id']}
+            )
+
+        post['comment_count'] = cursor.fetchone()[0]
+
+    cursor.close()
+    conn.close()
+
+    return jsonify(posts[request_start:request_end])
 
 
 def read_posts_for_one_user(writer_name):
@@ -598,76 +275,345 @@ def read_posts_for_one_user(writer_name):
     if request_start > request_end:
         return make_response('Start param cannot be greater than end', 400)
 
-    # Convert writer's username to member_id for post retrieval
-    with open(cwd + '/../user/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            if user_data['username'].lower() == writer_name.lower():
-                writer_id = user_data['member_id']
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+
+    # Retrieve posts from database
+    cursor.execute(
+        """
+        SELECT post.content, post.created, post.post_id, post.public,
+        post.title, cp_user.username FROM post
+        JOIN cp_user ON post.member_id = cp_user.member_id
+        WHERE LOWER(cp_user.username) = %(username)s
+        ORDER BY created DESC;
+        """,
+        {'username': writer_name.lower()}
+        )
+
+    posts = []
 
     # Check if user is logged in
     verification = user.verify_token()
 
-    # Return specified number of posts from writer's private file if user
-    # token is verified and requester is the post writer
+    # Return all posts to client only if requester's user token is verified and
+    # requester is the writer
     if (verification.status_code == 200 and
         json.loads(verification.data.decode())['username']
         .lower() == writer_name.lower()):
 
-        if os.path.exists(cwd + '/' + writer_id + '.json'):
-            with open(cwd + '/' + writer_id + '.json',
-                'r') as private_file:
-                private_posts = json.load(private_file)
+        for row in cursor.fetchall():
+            posts.append(dict(row))
 
-                # Sort posts by timestamp, with newest posts first
-                private_posts.sort(
-                    key=itemgetter('timestamp'), reverse=True)
+    # Otherwise, return only public posts to client
+    else:
+        for row in cursor.fetchall():
+            if row['public']:
+                posts.append(dict(row))
 
-                for post in private_posts[request_start:request_end]:
-                    # Sort post comments by timestamp, with newest comments
-                    # first
-                    post['comments'].sort(
-                        key=itemgetter('timestamp'), reverse=True)
+    # Retrieve each post's comment count from database
+    for post in posts:
+        cursor.execute(
+            """
+            SELECT COUNT(*) FROM comment
+            WHERE post_id = %(post_id)s;
+            """,
+            {'post_id': post['post_id']}
+            )
 
-                    # Replace member_id with commenter's username for each
-                    # retrieved post's comments
-                    for comment in post['comments']:
-                        commenter_id = comment['commenter']
-                        with open(cwd + '/../user/users.json',
-                            'r') as users_file:
-                            users = json.load(users_file)
-                            for user_data in users:
-                                if user_data['member_id'] == commenter_id:
-                                    commenter_name = user_data['username']
-                                    comment['commenter'] = commenter_name
+        post['comment_count'] = cursor.fetchone()[0]
 
-                return jsonify(private_posts[request_start:request_end])
+    cursor.close()
+    conn.close()
 
-    # Return specified number of public posts from writer's private file
-    # otherwise
-    if os.path.exists(cwd + '/' + writer_id + '.json'):
-        with open(cwd + '/' + writer_id + '.json', 'r') as private_file:
-            private_posts = json.load(private_file)
-            public_posts = [post for post in private_posts
-                if post['public']
-                ]
+    return jsonify(posts[request_start:request_end])
 
-            # Sort posts by timestamp, with newest posts first
-            public_posts.sort(key=itemgetter('timestamp'), reverse=True)
 
-            for post in public_posts[request_start:request_end]:
-                # Sort post comments by timestamp, with newest comments first
-                post['comments'].sort(
-                    key=itemgetter('timestamp'), reverse=True)
-                # Replace member_id with commenter's username for each
-                # retrieved post's comments
-                for comment in post['comments']:
-                    with open(cwd + '/../user/users.json', 'r') as users_file:
-                        users = json.load(users_file)
-                        for user_data in users:
-                            if user_data['member_id'] == comment['commenter']:
-                                comment['commenter'] = user_data['username']
+def create_comment(requester):
+    # Request should contain:
+    # content <str>
+    # post_id <int>
+    data = request.get_json()
 
-            return jsonify(public_posts[request_start:request_end])
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-    return make_response('No posts for this user', 404)
+    cursor = conn.cursor()
+
+    # Get post from database and ensure it is public
+    cursor.execute(
+        """
+        SELECT public FROM post WHERE post_id = %(post_id)s;
+        """,
+        {'post_id': data['post_id']}
+        )
+
+    public = cursor.fetchone()
+
+    # Return error if post not found
+    if not public:
+        cursor.close()
+        conn.close()
+
+        return make_response('Not found', 404)
+
+    # Return error if post not public
+    if not public[0]:
+        cursor.close()
+        conn.close()
+
+        return make_response('Not found', 404)
+
+    # Add comment to database
+    cursor.execute(
+        """
+        INSERT INTO comment (member_id, post_id, content)
+        VALUES ((SELECT member_id FROM cp_user
+        WHERE LOWER(username) = %(username)s), %(post_id)s, %(content)s)
+        RETURNING comment_id;
+        """,
+        {'username': requester.lower(),
+        'post_id': data['post_id'],
+        'content': data['content']}
+        )
+
+    comment_id = cursor.fetchone()[0]
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    return make_response(str(comment_id), 201)
+
+
+def read_comment(comment_id):
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+
+    # Get comment from database
+    cursor.execute(
+        """
+        SELECT comment.comment_id, comment.content, comment.created,
+        comment.post_id, cp_user.username FROM comment
+        JOIN cp_user ON comment.member_id = cp_user.member_id
+        WHERE comment_id = %(comment_id)s;
+        """,
+        {'comment_id': comment_id}
+        )
+
+    comment = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    # Return error if comment not found
+    if not comment:
+        return make_response('Not found', 404)
+
+    # Otherwise, convert comment data to dictionary
+    comment = dict(comment)
+
+    return jsonify(comment)
+
+
+def update_comment(requester, comment_id):
+    # Request should contain:
+    # content <str>
+    data = request.get_json()
+
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+
+    # Get current comment from database
+    cursor.execute(
+        """
+        SELECT comment.*, cp_user.username FROM comment
+        JOIN cp_user ON comment.member_id = cp_user.member_id
+        WHERE comment_id = %(comment_id)s;
+        """,
+        {'comment_id': comment_id}
+        )
+
+    comment = cursor.fetchone()
+
+    # Return error if comment not found
+    if not comment:
+        cursor.close()
+        conn.close()
+
+        return make_response('Not found', 404)
+
+    # Otherwise, convert comment data to dictionary
+    comment = dict(comment)
+
+    # Return error if requester is not the commenter
+    if requester.lower() != comment['username'].lower():
+        cursor.close()
+        conn.close()
+
+        return make_response('Unauthorized', 401)
+
+    # Update comment in database
+    cursor.execute(
+        """
+        UPDATE comment SET content = %(content)s
+        WHERE comment_id = %(comment_id)s;
+        """,
+        {'content': data['content'],
+        'comment_id': comment_id}
+        )
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    return make_response('Success', 200)
+
+
+def delete_comment(requester, comment_id):
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+
+    # Get current comment from database
+    cursor.execute(
+        """
+        SELECT comment.*, cp_user.username FROM comment
+        JOIN cp_user ON comment.member_id = cp_user.member_id
+        WHERE comment_id = %(comment_id)s;
+        """,
+        {'comment_id': comment_id}
+        )
+
+    comment = cursor.fetchone()
+
+    # Return error if comment not found
+    if not comment:
+        cursor.close()
+        conn.close()
+
+        return make_response('Not found', 404)
+
+    # Otherwise, convert comment data to dictionary
+    comment = dict(comment)
+
+    # Return error if requester is not the commenter
+    if requester.lower() != comment['username'].lower():
+        cursor.close()
+        conn.close()
+
+        return make_response('Unauthorized', 401)
+
+    # Delete comment from database
+    cursor.execute(
+        """
+        DELETE FROM comment WHERE comment_id = %(comment_id)s;
+        """,
+        {'comment_id': comment_id}
+        )
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    return make_response('Success', 200)
+
+
+def read_comments(post_id):
+    # Get number of requested comments from query parameters, using default if
+    # null
+    request_start = int(request.args.get('start', 0))
+    request_end = int(request.args.get('end', request_start + 10))
+
+    # Return error if start query parameter is greater than end
+    if request_start > request_end:
+        return make_response('Start param cannot be greater than end', 400)
+
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+
+    # Retrieve comments from database
+    cursor.execute(
+        """
+        SELECT comment.comment_id, comment.content, comment.created,
+        comment.post_id, cp_user.username FROM comment
+        JOIN cp_user ON comment.member_id = cp_user.member_id
+        WHERE post_id = %(post_id)s
+        ORDER BY created DESC;
+        """,
+        {'post_id': post_id}
+        )
+
+    comments = []
+
+    for row in cursor.fetchall():
+        comments.append(dict(row))
+
+    cursor.close()
+    conn.close()
+
+    return jsonify(comments[request_start:request_end])
+
+
+def read_comments_for_one_user(commenter_name):
+    # Get number of requested posts from query parameters, using default if
+    # null
+    request_start = int(request.args.get('start', 0))
+    request_end = int(request.args.get('end', request_start + 10))
+
+    # Return error if start query parameter is greater than end
+    if request_start > request_end:
+        return make_response('Start param cannot be greater than end', 400)
+
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+
+    # Retrieve comments from database
+    cursor.execute(
+        """
+        SELECT comment.comment_id, comment.content, comment.created,
+        comment.post_id, post.content AS post_content, post.member_id,
+        post.title, cp_user.username FROM comment
+        JOIN post ON comment.post_id = post.post_id
+        JOIN cp_user ON comment.member_id = cp_user.member_id
+        WHERE LOWER(cp_user.username) = %(username)s
+        ORDER BY comment.created DESC;
+        """,
+        {'username': commenter_name.lower()}
+        )
+
+    comments = []
+
+    for row in cursor.fetchall():
+        comments.append(dict(row))
+
+    # Replace each post writer's member id with username
+    for comment in comments:
+        cursor.execute(
+            """
+            SELECT username FROM cp_user
+            WHERE member_id = %(member_id)s;
+            """,
+            {'member_id': comment['member_id']}
+            )
+
+        comment.pop('member_id')
+        comment['post_writer'] = cursor.fetchone()[0]
+
+    cursor.close()
+    conn.close()
+
+    return jsonify(comments[request_start:request_end])

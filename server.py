@@ -300,7 +300,7 @@ def shapes_user_scores(player_name):
         return shapes_in_rain.read_scores_for_one_user(player_name)
 
 
-@app.route('/api/thought-writer/post', methods=['POST', 'PATCH', 'DELETE'])
+@app.route('/api/thought-writer/post', methods=['POST'])
 def post():
     # Post a thought post when client sends the jsonified post content, title,
     # and public status ('true' or 'false') in the request body and a verified
@@ -317,9 +317,96 @@ def post():
 
         return thought_writer.create_post(requester)
 
-    # Update a thought post when client sends the jsonified post content, post
-    # creation timestamp (UTC), title, and public status ('true' or 'false') in
-    # the request body and a verified bearer token in the request Authorization
+
+@app.route('/api/thought-writer/post/<post_id>',
+    methods=['GET', 'PATCH', 'DELETE'])
+def post_id(post_id):
+    # Retrieve a user's thought post when client sends the post id in the
+    # request URL; a verified bearer token for the writer must be in the
+    # request Authorization header for private post to be retrieved
+    if request.method == 'GET':
+        return thought_writer.read_post(post_id)
+
+    # Update a thought post when client sends the post id in the request URL,
+    # the jsonified post content, title, and public status ('true' or 'false')
+    # in the request body and a verified bearer token for the writer in the
+    # request Authorization header
+    if request.method == 'PATCH':
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return thought_writer.update_post(requester, post_id)
+
+    # Delete a thought post when client sends the post id in the request URL
+    # and a verified bearer token for the writer in the request Authorization
+    # header
+    if request.method == 'DELETE':
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return thought_writer.delete_post(requester, post_id)
+
+
+@app.route('/api/thought-writer/posts', methods=['GET'])
+def posts():
+    # Retrieve all users' public thought posts in order of newest to oldest; no
+    # bearer token needed; query params specify number of posts
+    if request.method == 'GET':
+        return thought_writer.read_posts()
+
+
+@app.route('/api/thought-writer/posts/<writer_name>', methods=['GET'])
+def user_posts(writer_name):
+    # Retrieve all of a single user's thought posts in order of newest to
+    # oldest by specifying the writer's username in the request URL; verified
+    # bearer token for the writer is needed in the request Authorization header
+    # to send user's private and public posts; otherwise, only public posts
+    # will be sent; query params specify number of posts
+    if request.method == 'GET':
+        return thought_writer.read_posts_for_one_user(writer_name)
+
+
+@app.route('/api/thought-writer/comment', methods=['POST'])
+def comment():
+    # Post a comment to a thought post when client sends the jsonified comment
+    # content and post id in the request body and a verified bearer token in
+    # the request Authorization header
+    if request.method == 'POST':
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return thought_writer.create_comment(requester)
+
+
+@app.route('/api/thought-writer/comment/<comment_id>',
+    methods=['GET', 'PATCH', 'DELETE'])
+def comment_id(comment_id):
+    # Retrieve a comment to a thought post when client sends the comment id in
+    # the request URL; no bearer token needed
+    if request.method == 'GET':
+        return thought_writer.read_comment(comment_id)
+
+    # Update a comment to a thought post when client sends the comment id in
+    # the request URL, the jsonified comment content in the request body, and a
+    # verified bearer token for the commenter in the request Authorization
     # header
     if request.method == 'PATCH':
         # Verify that user is logged in and return error status code if not
@@ -331,10 +418,10 @@ def post():
         payload = json.loads(verification.data.decode())
         requester = payload['username']
 
-        return thought_writer.update_post(requester)
+        return thought_writer.update_comment(requester, comment_id)
 
-    # Delete a thought post when client sends the jsonified post creation
-    # timestamp (UTC) in the request body and a verified bearer token in the
+    # Delete a comment to a thought post when client sends the comment id in
+    # the request URL and a verified bearer token for the commenter in the
     # request Authorization header
     if request.method == 'DELETE':
         # Verify that user is logged in and return error status code if not
@@ -346,93 +433,26 @@ def post():
         payload = json.loads(verification.data.decode())
         requester = payload['username']
 
-        return thought_writer.delete_post(requester)
+        return thought_writer.delete_comment(requester, comment_id)
 
 
-@app.route('/api/thought-writer/post/<writer_name>/<post_timestamp>',
+@app.route('/api/thought-writer/comments/post/<post_id>', methods=['GET'])
+def comments(post_id):
+    # Retrieve all comments to a thought post in order of newest to oldest by
+    # specifying the post id in the request URL; no bearer token needed; query
+    # params specify number of comments
+    if request.method == 'GET':
+        return thought_writer.read_comments(post_id)
+
+
+@app.route('/api/thought-writer/comments/user/<commenter_name>',
     methods=['GET'])
-def get_post(writer_name, post_timestamp):
-    # Retrieve a user's thought post when client sends the writer's username
-    # and the thought post's URI-encoded creation timestamp (UTC) in the
-    # request URL; a verified bearer token must be in request Authorization
-    # header for private post to be retrieved
+def user_comments(commenter_name):
+    # Retrieve all of a single user's comments in order of newest to oldest by
+    # specifying the commenter's username in the request URL; no bearer token
+    # needed; query params specify number of comments
     if request.method == 'GET':
-        return thought_writer.read_post(writer_name, post_timestamp)
-
-
-@app.route('/api/thought-writer/comment/<writer_name>/<post_timestamp>',
-    methods=['POST', 'PATCH', 'DELETE'])
-def comment(writer_name, post_timestamp):
-    # Post a comment to a thought post when client sends the post writer's
-    # username and the thought post's URI-encoded creation timestamp (UTC) in
-    # the request URL, the jsonified comment content in the request body, and a
-    # verified bearer token in the request Authorization header
-    if request.method == 'POST':
-        # Verify that user is logged in and return error status code if not
-        verification = user.verify_token()
-        if verification.status_code != 200:
-            return verification
-
-        # Get username from payload if user is logged in
-        payload = json.loads(verification.data.decode())
-        requester = payload['username']
-
-        return thought_writer.create_comment(requester, writer_name,
-            post_timestamp)
-
-    # Update a comment to a thought post when client sends the post writer's
-    # username and the thought post's URI-encoded creation timestamp (UTC) in
-    # the request URL, the jsonified comment content and original comment
-    # creation timestamp (UTC) in the request body, and a verified bearer token
-    # in the request Authorization header
-    if request.method == 'PATCH':
-        # Verify that user is logged in and return error status code if not
-        verification = user.verify_token()
-        if verification.status_code != 200:
-            return verification
-
-        # Get username from payload if user is logged in
-        payload = json.loads(verification.data.decode())
-        requester = payload['username']
-
-        return thought_writer.update_comment(requester, writer_name,
-            post_timestamp)
-
-    # Delete a comment to a thought post when client sends the post writer's
-    # username and the thought post's URI-encoded creation timestamp (UTC) in
-    # the request URL, the jsonified comment creation timestamp (UTC) in the
-    # request body, and a verified bearer token in request Authorization header
-    if request.method == 'DELETE':
-        # Verify that user is logged in and return error status code if not
-        verification = user.verify_token()
-        if verification.status_code != 200:
-            return verification
-
-        # Get username from payload if user is logged in
-        payload = json.loads(verification.data.decode())
-        requester = payload['username']
-
-        return thought_writer.delete_comment(requester, writer_name,
-            post_timestamp)
-
-
-@app.route('/api/thought-writer/posts', methods=['GET'])
-def posts():
-    # Retrieve all users' public thought posts; no bearer token needed; query
-    # params specify number of posts
-    if request.method == 'GET':
-        return thought_writer.read_posts()
-
-
-@app.route('/api/thought-writer/posts/<writer_name>', methods=['GET'])
-def user_posts(writer_name):
-    # Retrieve all of a single user's thought posts by specifying the writer's
-    # username in the request URL; verified bearer token for the writer is
-    # needed in the request Authorization header to send user's private and
-    # public posts; otherwise, only public posts will be sent; query params
-    # specify number of posts
-    if request.method == 'GET':
-        return thought_writer.read_posts_for_one_user(writer_name)
+        return thought_writer.read_comments_for_one_user(commenter_name)
 
 
 @app.route('/api/user', methods=['POST', 'GET', 'PATCH', 'DELETE'])
