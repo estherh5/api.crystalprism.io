@@ -35,7 +35,15 @@ Success
 
 ## CanvaShare API
 #### March 2017 - Present
-[CanvaShare](https://crystalprism.io/canvashare/index.html) is a community drawing gallery that lets users create drawings and post them to a public gallery. Each user has a folder on the server for their drawings, as well as a folder for the drawing's attributes (title, number of likes, number of views, list of liked users). Drawings are stored as PNG files with numeric file names (*1.png*, *2.png*, etc.), and drawing information files are stored as JSON files with the same numeric file names (*1.json*, *2.json*, etc.).
+[CanvaShare](https://crystalprism.io/canvashare/index.html) is a community drawing gallery that lets users create drawings and post them to a public gallery. Each user's drawings get saved to an Amazon S3 bucket, and drawing attributes (title, URL, view count, drawing likes) get saved in the Crystal Prism database "drawing" and "drawing_like" tables:
+![CanvaShare Database Tables](images/canvashare-tables.png)
+
+Note that the following environment variables must be set:
+  - ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the access key for your AWS account
+  - ["AWS_SECRET_ACCESS_KEY"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the secret key for your AWS account
+  - "S3_BUCKET" must be set to the name of your S3 bucket (e.g., 'crystalprism')
+  - "S3_CANVASHARE_DIR" must be set to the name of your S3 bucket's folder for CanvaShare drawings (e.g., 'canvashare/')
+  - "S3_URL" must be set as the URL for your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism/')
 
 **POST** /api/canvashare/drawing
 * Post a drawing by sending the jsonified drawing data URI in base64 format and drawing title in the request body. Note that there must be a verified bearer token in the request Authorization header.
@@ -47,75 +55,264 @@ Success
 }
 ```
 
-**GET** /api/canvashare/drawing/[artist]/[drawing_file]
-* Retrieve an artist's drawing PNG file by specifying the artist's username and the drawing file name (e.g., *1.png*) in the request URL. No bearer token is needed in the request Authorization header.
-* Example response body:<br />
-![Welcome](canvashare/drawings/UUID/1.png)
-
-**PATCH** /api/canvashare/drawing-info/[artist]/[drawing_id]
-* Update a drawing's attributes by specifying the artist's username and the drawing file name without the extension (e.g., *1*) in the request URL. Send the jsonified attribute request ("like", "unlike", "view") in the request body. Note that there must be a verified bearer token in the request Authorization header.
+**GET** /api/canvashare/drawing/[drawing_id]
+* Retrieve an artist's drawing attributes by specifying the drawing id in the request URL. No bearer token is needed in the request Authorization header.
 * Example response body:
 ```javascript
 {
-    "request": "view"
-}
-```
-
-**GET** /api/canvashare/drawing-info/[artist]/[drawing_id]
-* Retrieve an artist's drawing's attributes by specifying the artist's username and the drawing file name without the extension (e.g., *1*) in the request URL. No bearer token is needed in the request Authorization header.
-* Example response body:
-```javascript
-{
-    "liked_users": [
-      "esther"
+    "created": "2017-10-05T00:00:21.412Z",
+    "drawing_id": 1,
+    "like_count": 2,
+    "likers": [
+      {
+        "drawing_like_id": 2,
+        "username": "esther"
+      },
+      {
+        "drawing_like_id": 1,
+        "username": "admin"
+      }
     ],
-    "likes": 1,
-    "timestamp": "2017-10-05T00:00:00.000000+00:00",
     "title": "Welcome",
-    "views": 0
+    "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/1.png",
+    "username": "admin",
+    "views": 10
 }
 ```
 
-**GET** /api/canvashare/gallery?start=[request_start]&end=[request_end]
-* Retrieve all users' drawing file paths in the format "[artist]/[drawing_id].png", in order of newest to oldest drawings. Optionally specify the number of drawings via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
+**PATCH** /api/canvashare/drawing/[drawing_id]
+* Update a drawing's view count by specifying the drawing id in the request URL. No bearer token is needed in the request Authorization header.
+
+**DELETE** /api/canvashare/drawing/[drawing_id]
+* Delete a drawing by specifying the drawing id in the request URL. Note that there must be a verified bearer token for the artist in the request Authorization header.
+
+**GET** /api/canvashare/drawings?start=[request_start]&end=[request_end]
+* Retrieve all users' drawing attributes in order of newest to oldest. Optionally specify the number of drawings via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
 ```javascript
+[
+    {
+        "created": "2017-10-08T14:39:10.403Z",
+        "drawing_id": 4,
+        "like_count": 0,
+        "likers": [],
+        "title": "Dreams",
+        "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/4.png",
+        "username": "esther",
+        "views": 4
+    },
+    {
+        "created": "2017-10-07T10:23:19.232Z",
+        "drawing_id": 3,
+        "like_count": 1,
+        "likers": [
+          {
+            "drawing_like_id": 5,
+            "username": "esther"
+          }
+        ],
+        "title": "Good Night",
+        "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/3.png",
+        "username": "esther",
+        "views": 5
+    },
+    {
+        "created": "2017-10-06T20:34:20.490Z",
+        "drawing_id": 2,
+        "like_count": 1,
+        "likers": [
+          {
+            "drawing_like_id": 8,
+            "username": "esther"
+          }
+        ],
+        "title": "Strings",
+        "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/2.png",
+        "username": "esther",
+        "views": 1
+    },
+    {
+        "created": "2017-10-05T00:00:21.412Z",
+        "drawing_id": 1,
+        "like_count": 2,
+        "likers": [
+          {
+            "drawing_like_id": 2,
+            "username": "esther"
+          },
+          {
+            "drawing_like_id": 1,
+            "username": "admin"
+          }
+        ],
+        "title": "Welcome",
+        "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/1.png",
+        "username": "admin",
+        "views": 10
+    }
+]
+
+```
+
+**GET** /api/canvashare/drawings/[artist_name]?start=[request_start]&end=[request_end]
+* Retrieve all of a single user's drawing attributes in order of newest to oldest by specifying the artist's username in the request URL. Optionally specify the number of drawings via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
+* Example response body:
+```javascript
+[
+    {
+        "created": "2017-10-08T14:39:10.403Z",
+        "drawing_id": 4,
+        "like_count": 0,
+        "likers": [],
+        "title": "Dreams",
+        "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/4.png",
+        "username": "esther",
+        "views": 4
+    },
+    {
+        "created": "2017-10-07T10:23:19.232Z",
+        "drawing_id": 3,
+        "like_count": 1,
+        "likers": [
+          {
+            "drawing_like_id": 5,
+            "username": "esther"
+          }          
+        ],
+        "title": "Good Night",
+        "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/3.png",
+        "username": "esther",
+        "views": 5
+    },
+    {
+        "created": "2017-10-06T20:34:20.490Z",
+        "drawing_id": 2,
+        "like_count": 1,
+        "likers": [
+          {
+            "drawing_like_id": 8,
+            "username": "esther"
+          }
+        ],
+        "title": "Strings",
+        "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/2.png",
+        "username": "esther",
+        "views": 1
+    }
+]
+```
+
+**POST** /api/canvashare/drawing-like
+* Post a drawing like by sending the jsonified drawing id in the request body. Note that there must be a verified bearer token in the request Authorization header.
+* Example request body:
+```javascript
 {
-    [
-      "user/3.png",
-      "esther/12.png",
-      "esther/11.png",
-      "esther/10.png",
-      "user/2.png",
-      "esther/9.png",
-      "esther/8.png",
-      "esther/7.png",
-      "esther/6.png",
-      "esther/5.png",
-      "user/1.png"
-    ]
+    "drawing_id": 1
 }
 ```
 
-**GET** /api/canvashare/gallery/[artist]?start=[request_start]&end=[request_end]
-* Retrieve all of a single user's drawing file paths in the format "[artist]/[drawing_name].png", in order of newest to oldest drawings, by specifying the artist's username in the request URL. Optionally specify the number of drawings via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
+**GET** /api/canvashare/drawing-like/[drawing_like_id]
+* Retrieve a drawing like by specifying the drawing like in the request URL. No bearer token is needed in the request Authorization header.
 * Example response body:
 ```javascript
 {
-    [
-      "esther/14.png",
-      "esther/13.png",
-      "esther/12.png",
-      "esther/11.png",
-      "esther/10.png",
-      "esther/9.png",
-      "esther/8.png",
-      "esther/7.png",
-      "esther/6.png",
-      "esther/5.png",
-      "esther/4.png"
-    ]
+    "created": "2017-10-06T23:39:11.101Z",
+    "drawing_id": 1,
+    "drawing_like_id": 1,
+    "username": "admin"
 }
+```
+
+**DELETE** /api/canvashare/drawing-like/[drawing_like_id]
+* Delete a drawing like by specifying the drawing like id in the request URL. Note that there must be a verified bearer token for the liker in the request Authorization header.
+
+**GET** /api/canvashare/drawing-likes/drawing/[drawing_id]?start=[request_start]&end=[request_end]
+* Retrieve all users' likes for a drawing in order of newest to oldest by specifying the drawing id in the request URL. Optionally specify the number of likes via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
+* Example request body:
+```javascript
+{
+    "drawing_id": 1
+}
+```
+* Example response body:
+```javascript
+[
+    {
+      "created": "2017-10-07T21:32:20.028Z",
+      "drawing_id": 1,
+      "drawing_like_id": 2,
+      "username": "esther"
+    },
+    {
+      "created": "2017-10-06T23:39:11.101Z",
+      "drawing_id": 1,
+      "drawing_like_id": 1,
+      "username": "admin"
+    }
+]
+```
+
+**GET** /api/canvashare/drawing-likes/user/[liker_name]?start=[request_start]&end=[request_end]
+* Retrieve all of a single user's likes in order of newest to oldest by specifying the liker's username in the request URL. Optionally specify the number of liked drawings via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
+* Example response body:
+```javascript
+[
+    {
+      "artist_name": "esther",
+      "created": "2017-10-07T11:01:02.209Z",
+      "drawing_id": 3,
+      "drawing_like_id": 5,
+      "like_count": 1,
+      "likers": [
+        {
+          "drawing_like_id": 5,
+          "username": "esther"
+        }          
+      ],
+      "title": "Good Night",
+      "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/3.png",
+      "username": "esther",
+      "views": 5
+    },
+    {
+      "artist_name": "esther",
+      "created": "2017-10-07T10:21:20.320Z",
+      "drawing_id": 2,
+      "like_count": 1,
+      "likers": [
+        {
+          "drawing_like_id": 8,
+          "username": "esther"
+        }
+      ],
+      "drawing_like_id": 8,
+      "title": "Strings",
+      "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/2.png",
+      "username": "esther",
+      "views": 1
+    },
+    {
+      "artist_name": "admin",
+      "created": "2017-10-07T21:32:20.028Z",
+      "drawing_id": 1,
+      "drawing_like_id": 2,
+      "like_count": 2,
+      "likers": [
+        {
+          "drawing_like_id": 2,
+          "username": "esther"
+        },
+        {
+          "drawing_like_id": 1,
+          "username": "admin"
+        }
+      ],
+      "title": "Welcome",
+      "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/1.png",
+      "username": "esther",
+      "views": 10
+    }
+]
 ```
 
 ## Rhythm of Life API
