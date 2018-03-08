@@ -1,15 +1,12 @@
-import fcntl
-import json
+import boto3
 import os
+import psycopg2 as pg
+import psycopg2.extras
 
 from base64 import decodebytes
-from datetime import datetime, timezone
-from flask import jsonify, make_response, request, send_file
-from glob import glob
+from flask import jsonify, make_response, request
 
 from user import user
-
-cwd = os.path.dirname(__file__)
 
 
 def create_drawing(requester):
@@ -18,252 +15,211 @@ def create_drawing(requester):
     # title <str>
     data = request.get_json()
 
-    # Convert username to member_id for drawing storage and increase user's
-    # drawing count
-    with open(cwd + '/../user/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            if user_data['username'].lower() == requester.lower():
-                artist_id = user_data['member_id']
-                user_data['drawing_count'] += 1
-                # Get current drawing number to set as drawing file name
-                drawing_number = str(user_data['drawing_count'])
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-    # Create folder for artist's drawings if one does not already exist
-    if not os.path.exists(cwd + '/drawings/' + artist_id):
-        os.makedirs(cwd + '/drawings/' + artist_id)
+    cursor = conn.cursor()
 
-    # Save drawing as PNG file in artist's drawings folder
-    with open(cwd + '/drawings/' + artist_id + '/' + drawing_number +
-        '.png', 'wb') as drawing_file:
-        # Remove 'data:image/png;base64' from image data URL
-        drawing = data['drawing'].split(',')[1].encode('utf-8')
-        drawing_file.write(decodebytes(drawing))
+    # Add drawing to database
+    cursor.execute(
+        """
+        INSERT INTO drawing (member_id, title, url)
+        VALUES ((SELECT member_id FROM cp_user
+        WHERE LOWER(username) = %(username)s), %(title)s, %(url)s)
+        RETURNING drawing_id;
+        """,
+        {'username': requester.lower(),
+        'title': data['title'],
+        'url': 'placeholder'}
+        )
 
-    # Create folder for artist's drawing information if one does not already
-    # exist
-    if not os.path.exists(cwd + '/drawing_info/' + artist_id):
-        os.makedirs(cwd + '/drawing_info/' + artist_id)
+    conn.commit()
 
-    # Save drawing information as JSON file in artist's drawing_info folder
-    with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_number +
-        '.json', 'w') as info_file:
-        drawing_info = {
-            'title': data['title'],
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'likes': 0,
-            'views': 0,
-            'liked_users': []
-            }
-        json.dump(drawing_info, info_file)
+    drawing_id = cursor.fetchone()[0]
 
-    # Write changes to user file to update user's drawing count if drawing is
-    # created successfully
-    with open(cwd + '/../user/users.json', 'w') as users_file:
-        # Lock file to prevent overwrite
-        fcntl.flock(users_file, fcntl.LOCK_EX)
-        json.dump(users, users_file)
-        # Release lock on file
-        fcntl.flock(users_file, fcntl.LOCK_UN)
+    # Upload drawing to S3 bucket
+    s3 = boto3.resource('s3')
+    bucket_name = os.environ['S3_BUCKET']
+    bucket = s3.Bucket(bucket_name)
+    bucket_folder = os.environ['S3_CANVASHARE_DIR']
 
-    return make_response('Success', 201)
+    drawing_name = str(drawing_id) + '.png'
 
+    # Remove 'data:image/png;base64' from image data URL
+    drawing = data['drawing'].split(',')[1].encode('utf-8')
 
-def read_drawing(artist_name, drawing_file):
-    # Convert artist's username to member_id for drawing retrieval
-    with open(cwd + '/../user/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            if user_data['username'].lower() == artist_name.lower():
-                artist_id = user_data['member_id']
+    bucket.put_object(
+        Key=bucket_folder + drawing_name,
+        Body=decodebytes(drawing)
+        )
 
-                # Send drawing PNG file to client if it exists
-                if os.path.exists(cwd + '/drawings/' + artist_id + '/' +
-                    drawing_file):
+    # Add drawing URL to database
+    cursor.execute(
+        """
+        UPDATE drawing SET url = %(url)s WHERE drawing_id = %(drawing_id)s;
+        """,
+        {'url': os.environ['S3_URL'] + bucket_folder + drawing_name,
+        'drawing_id': drawing_id}
+        )
 
-                    return send_file(cwd + '/drawings/' + artist_id + '/' +
-                        drawing_file)
+    conn.commit()
 
-    # Return error if drawing file not found
-    return make_response('Not found', 404)
+    cursor.close()
+    conn.close()
+
+    return make_response(str(drawing_id), 201)
 
 
-def read_drawing_info(artist_name, drawing_id):
-    # Convert artist's username to member_id for drawing information retrieval
-    with open(cwd + '/../user/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            if user_data['username'].lower() == artist_name.lower():
-                artist_id = user_data['member_id']
+def read_drawing(drawing_id):
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-    # Return specified drawing information file by drawing name
-    if os.path.exists(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
-        '.json'):
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
 
-        with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
-            '.json', 'r') as info_file:
-            drawing_info = json.load(info_file)
+    # Retrieve drawing information from database
+    cursor.execute(
+        """
+        SELECT drawing.created, drawing.drawing_id, drawing.title, drawing.url,
+        drawing.views, cp_user.username FROM drawing
+        JOIN cp_user ON drawing.member_id = cp_user.member_id
+        WHERE drawing_id = %(drawing_id)s;
+        """,
+        {'drawing_id': drawing_id}
+        )
 
-            # Replace member_id with username for each user in drawing's liked
-            # users list
-            for i in range(len(drawing_info['liked_users'])):
-                liked_user = drawing_info['liked_users'][i]
-                with open(cwd + '/../user/users.json', 'r') as users_file:
-                    users = json.load(users_file)
-                    for user_data in users:
-                        if user_data['member_id'] == liked_user:
-                            liker_name = user_data['username']
-                            drawing_info['liked_users'][i] = liker_name
+    drawing_data = cursor.fetchone()
 
-            return jsonify(drawing_info)
-
-    # Return error if drawing information file not found
-    return make_response('Not found', 404)
-
-
-def update_drawing_info(artist_name, drawing_id):
-    # Request should contain:
-    # request <str; 'view', 'like', 'unlike'>
-    data = request.get_json()
-
-    # Convert artist's username to member_id for drawing retrieval
-    with open(cwd + '/../user/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            if user_data['username'].lower() == artist_name.lower():
-                artist_id = user_data['member_id']
-
-    # If request is for viewing the drawing, increase view count without
-    # requiring user to be logged in
-    if data['request'] == 'view':
-
-        if os.path.exists(cwd + '/drawing_info/' + artist_id + '/' +
-            drawing_id + '.json'):
-
-            with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
-                '.json', 'r') as info_file:
-                drawing_info = json.load(info_file)
-                # Increment drawing's views by 1
-                drawing_info['views'] += 1
-
-            with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
-                '.json', 'w') as info_file:
-                # Lock file to prevent overwrite
-                fcntl.flock(info_file, fcntl.LOCK_EX)
-                json.dump(drawing_info, info_file)
-                # Release lock on file
-                fcntl.flock(info_file, fcntl.LOCK_UN)
-                return make_response('Success', 200)
-
-        # Return error if drawing information file not found
+    # Return error if drawing not found
+    if not drawing_data:
         return make_response('Not found', 404)
 
-    # Otherwise, request is for liking/unliking drawing, so increase/decrease
-    # like count
+    # Otherwise, convert drawing data to dictionary
+    drawing_data = dict(drawing_data)
 
-    # Verify that user is logged in and return error status code if not
-    verification = user.verify_token()
-    if verification.status_code != 200:
-        return verification
+    # Get drawing's likers and like count from database
+    cursor.execute(
+        """
+        SELECT drawing_like.drawing_like_id, cp_user.username
+        FROM drawing_like
+        JOIN cp_user ON drawing_like.member_id = cp_user.member_id
+        WHERE drawing_id = %(drawing_id)s;
+        """,
+        {'drawing_id': drawing_id}
+        )
 
-    # Get username from payload if user is logged in
-    payload = json.loads(verification.data.decode())
-    requester = payload['username']
+    drawing_data['likers'] = []
 
-    # Convert requester's username to member_id for liker storage
-    with open(cwd + '/../user/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            if user_data['username'].lower() == requester.lower():
-                liker_id = user_data['member_id']
+    for row in cursor.fetchall():
+        drawing_data['likers'].append(dict(row))
 
-    if os.path.exists(cwd + '/drawing_info/' + artist_id + '/' +
-        drawing_id + '.json'):
+    drawing_data['like_count'] = len(drawing_data['likers'])
 
-        with open(cwd + '/drawing_info/' + artist_id + '/' + drawing_id +
-            '.json', 'r') as info_file:
-            drawing_info = json.load(info_file)
+    cursor.close()
+    conn.close()
 
-            # Decrement drawing's likes by 1 and remove liker from the
-            # drawing's liked users if the request is to unlike drawing
-            if data['request'] == 'unlike':
+    # Return drawing data to client
+    return jsonify(drawing_data)
 
-                # Check if requester is in list of liked users for drawing to
-                # prevent tampering with like count
-                if liker_id in drawing_info['liked_users']:
 
-                    drawing_info['likes'] -= 1
-                    drawing_info['liked_users'].remove(liker_id)
+def update_drawing(drawing_id):
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-                    # Remove drawing from liker's liked drawings list
-                    with open(cwd + '/../user/users.json', 'r') as users_file:
-                        users = json.load(users_file)
-                        for user_data in users:
-                            if user_data['member_id'] == liker_id:
-                                user_data['liked_drawings'].remove(
-                                    artist_id + '/' + drawing_id + '.png')
+    cursor = conn.cursor()
 
-                    with open(cwd + '/drawing_info/' + artist_id + '/' +
-                        drawing_id + '.json', 'w') as info_file:
-                        # Lock file to prevent overwrite
-                        fcntl.flock(info_file, fcntl.LOCK_EX)
-                        json.dump(drawing_info, info_file)
-                        # Release lock on file
-                        fcntl.flock(info_file, fcntl.LOCK_UN)
+    # Retrieve current drawing views from database
+    cursor.execute(
+        """
+        SELECT views FROM drawing WHERE drawing_id = %(drawing_id)s;
+        """,
+        {'drawing_id': drawing_id}
+        )
 
-                    # Write changes to user file to update user's liked
-                    # drawings list if drawing is unliked successfully
-                    with open(cwd + '/../user/users.json', 'w') as users_file:
-                        # Lock file to prevent overwrite
-                        fcntl.flock(users_file, fcntl.LOCK_EX)
-                        json.dump(users, users_file)
-                        # Release lock on file
-                        fcntl.flock(users_file, fcntl.LOCK_UN)
-                        return make_response('Success', 200)
+    drawing_views = cursor.fetchone()
 
-                return make_response('User did not like drawing', 400)
+    # Return error if drawing not found
+    if not drawing_views:
+        cursor.close()
+        conn.close()
 
-            # Increment drawing's likes by 1 and add liker to the drawing's
-            # liked users if the request is to like drawing
-            if data['request'] == 'like':
+        return make_response('Not found', 404)
 
-                # Ensure user is not already in list of liked users for drawing
-                # to prevent tampering with like count
-                if liker_id not in drawing_info['liked_users']:
+    # Increment views for drawing in database
+    cursor.execute(
+        """
+        UPDATE drawing SET views = %(views)s
+        WHERE drawing_id = %(drawing_id)s;
+        """,
+        {'views': drawing_views[0] + 1,
+        'drawing_id': drawing_id}
+        )
 
-                    drawing_info['likes'] += 1
-                    drawing_info['liked_users'].insert(0, liker_id)
+    conn.commit()
 
-                    # Add drawing to liker's liked drawings list
-                    with open(cwd + '/../user/users.json', 'r') as users_file:
-                        users = json.load(users_file)
-                        for user_data in users:
-                            if user_data['member_id'] == liker_id:
-                                user_data['liked_drawings'].insert(
-                                    0, artist_id + '/' + drawing_id + '.png')
+    cursor.close()
+    conn.close()
 
-                    with open(cwd + '/drawing_info/' + artist_id + '/' +
-                        drawing_id + '.json', 'w') as info_file:
-                        # Lock file to prevent overwrite
-                        fcntl.flock(info_file, fcntl.LOCK_EX)
-                        json.dump(drawing_info, info_file)
-                        # Release lock on file
-                        fcntl.flock(info_file, fcntl.LOCK_UN)
+    return make_response('Success', 200)
 
-                    # Write changes to user file to update user's liked
-                    # drawings list if drawing is liked successfully
-                    with open(cwd + '/../user/users.json', 'w') as users_file:
-                        # Lock file to prevent overwrite
-                        fcntl.flock(users_file, fcntl.LOCK_EX)
-                        json.dump(users, users_file)
-                        # Release lock on file
-                        fcntl.flock(users_file, fcntl.LOCK_UN)
-                        return make_response('Success', 200)
 
-                return make_response('User already liked drawing', 400)
+def delete_drawing(requester, drawing_id):
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-    # Return error if drawing information file is not found
-    return make_response('Not found', 404)
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+
+    # Get drawing from database
+    cursor.execute(
+        """
+        SELECT drawing.*, cp_user.username FROM drawing
+        JOIN cp_user ON drawing.member_id = cp_user.member_id
+        WHERE drawing_id = %(drawing_id)s;
+        """,
+        {'drawing_id': drawing_id}
+        )
+
+    drawing = cursor.fetchone()
+
+    # Return error if drawing not found
+    if not drawing:
+        cursor.close()
+        conn.close()
+
+        return make_response('Not found', 404)
+
+    # Otherwise, convert drawing to dictionary
+    drawing = dict(drawing)
+
+    # Return error if requester is not the artist
+    if requester.lower() != drawing['username'].lower():
+        cursor.close()
+        conn.close()
+
+        return make_response('Unauthorized', 401)
+
+    # Delete drawing from database
+    cursor.execute(
+        """
+        DELETE FROM drawing WHERE drawing_id = %(drawing_id)s;
+        """,
+        {'drawing_id': drawing_id}
+        )
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    # Remove drawing from S3 bucket
+    s3 = boto3.resource('s3')
+    bucket_name = os.environ['S3_BUCKET']
+    bucket_folder = os.environ['S3_CANVASHARE_DIR']
+
+    drawing_name = str(drawing_id) + '.png'
+
+    s3.Object(bucket_name, bucket_folder + drawing_name).delete()
+
+    return make_response('Success', 200)
 
 
 def read_drawings():
@@ -276,26 +232,49 @@ def read_drawings():
     if request_start > request_end:
         return make_response('Start param cannot be greater than end', 400)
 
-    # Get all drawings from all artists' folders
-    all_drawings = glob(cwd + '/drawings/*/*', recursive=True)
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-    # Sort all drawings from newest to oldest creation time
-    all_drawings.sort(key=os.path.getctime, reverse=True)
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
 
-    # Return requested drawings' file paths as '[artist_name]/[drawing_id].png'
-    requested_drawings = []
+    # Retrieve drawings from database
+    cursor.execute(
+        """
+        SELECT drawing.created, drawing.drawing_id, drawing.title, drawing.url,
+        drawing.views, cp_user.username FROM drawing
+        JOIN cp_user ON drawing.member_id = cp_user.member_id
+        ORDER BY created DESC;
+        """
+        )
 
-    for drawing in all_drawings[request_start:request_end]:
-        # Replace artist member_id with username
-        with open(cwd + '/../user/users.json', 'r') as users_file:
-            users = json.load(users_file)
-            for user_data in users:
-                if user_data['member_id'] == drawing.split('/')[-2]:
-                    artist_name = user_data['username']
+    drawings = []
 
-        requested_drawings.append(artist_name + '/' + drawing.split('/')[-1])
+    for row in cursor.fetchall():
+        drawings.append(dict(row))
 
-    return jsonify(requested_drawings)
+    # Get each drawing's likers and like count from database
+    for drawing in drawings:
+        cursor.execute(
+            """
+            SELECT drawing_like.drawing_like_id, cp_user.username
+            FROM drawing_like
+            JOIN cp_user ON drawing_like.member_id = cp_user.member_id
+            WHERE drawing_id = %(drawing_id)s;
+            """,
+            {'drawing_id': drawing['drawing_id']}
+            )
+
+        drawing['likers'] = []
+
+        for row in cursor.fetchall():
+            drawing['likers'].append(dict(row))
+
+        drawing['like_count'] = len(drawing['likers'])
+
+    cursor.close()
+    conn.close()
+
+    return jsonify(drawings[request_start:request_end])
 
 
 def read_drawings_for_one_user(artist_name):
@@ -308,24 +287,314 @@ def read_drawings_for_one_user(artist_name):
     if request_start > request_end:
         return make_response('Start param cannot be greater than end', 400)
 
-    # Convert artist's username to member_id for drawing retrieval
-    with open(cwd + '/../user/users.json', 'r') as users_file:
-        users = json.load(users_file)
-        for user_data in users:
-            if user_data['username'].lower() == artist_name.lower():
-                artist_id = user_data['member_id']
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
 
-    # Get all drawings from artist's drawings folder
-    all_drawings = glob(cwd + '/drawings/' + artist_id + '/*', recursive=True)
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
 
-    # Sort all drawings from newest to oldest creation time
-    all_drawings.sort(key=os.path.getctime, reverse=True)
+    # Retrieve drawings from database
+    cursor.execute(
+        """
+        SELECT drawing.created, drawing.drawing_id, drawing.title, drawing.url,
+        drawing.views, cp_user.username FROM drawing
+        JOIN cp_user ON drawing.member_id = cp_user.member_id
+        WHERE LOWER(cp_user.username) = %(username)s
+        ORDER BY created DESC;
+        """,
+        {'username': artist_name.lower()}
+        )
 
-    # Return requested drawings' file paths as '[artist_name]/[drawing_id].png'
-    # and replace artist's member_id with username
-    requested_drawings = [
-        artist_name + '/' + drawing.split('/')[-1]
-        for drawing in all_drawings[request_start:request_end]
-        ]
+    drawings = []
 
-    return jsonify(requested_drawings)
+    for row in cursor.fetchall():
+        drawings.append(dict(row))
+
+    # Get each drawing's likers and like count from database
+    for drawing in drawings:
+        cursor.execute(
+            """
+            SELECT drawing_like.drawing_like_id, cp_user.username
+            FROM drawing_like
+            JOIN cp_user ON drawing_like.member_id = cp_user.member_id
+            WHERE drawing_id = %(drawing_id)s;
+            """,
+            {'drawing_id': drawing['drawing_id']}
+            )
+
+        drawing['likers'] = []
+
+        for row in cursor.fetchall():
+            drawing['likers'].append(dict(row))
+
+        drawing['like_count'] = len(drawing['likers'])
+
+    cursor.close()
+    conn.close()
+
+    return jsonify(drawings[request_start:request_end])
+
+
+def create_drawing_like(requester):
+    # Request should contain:
+    # drawing_id <int>
+    data = request.get_json()
+
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor()
+
+    # Verify that drawing exists
+    cursor.execute(
+        """
+        SELECT exists (
+        SELECT 1 FROM drawing
+        WHERE drawing_id = %(drawing_id)s LIMIT 1);
+        """,
+        {'drawing_id': data['drawing_id']}
+        )
+
+    drawing = cursor.fetchone()[0]
+
+    # Return error if drawing not found
+    if not drawing:
+        cursor.close()
+        conn.close()
+
+        return make_response('Not found', 404)
+
+    # Verify that user did not like drawing previously
+    cursor.execute(
+        """
+        SELECT exists (
+        SELECT 1 FROM drawing_like
+        WHERE drawing_id = %(drawing_id)s AND member_id =
+        (SELECT member_id FROM cp_user
+        WHERE LOWER(username) = %(username)s) LIMIT 1);
+        """,
+        {'drawing_id': data['drawing_id'],
+        'username': requester.lower()}
+        )
+
+    drawing_like = cursor.fetchone()[0]
+
+    if drawing_like:
+        cursor.close()
+        conn.close()
+
+        return make_response('User already liked drawing', 400)
+
+    # Add drawing like to database
+    cursor.execute(
+        """
+        INSERT INTO drawing_like (member_id, drawing_id)
+        VALUES ((SELECT member_id FROM cp_user
+        WHERE LOWER(username) = %(username)s), %(drawing_id)s)
+        RETURNING drawing_like_id;
+        """,
+        {'username': requester.lower(),
+        'drawing_id': data['drawing_id']}
+        )
+
+    drawing_like_id = cursor.fetchone()[0]
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    return make_response(str(drawing_like_id), 201)
+
+
+def read_drawing_like(drawing_like_id):
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+
+    # Get drawing like from database
+    cursor.execute(
+        """
+        SELECT drawing_like.created, drawing_like.drawing_id,
+        drawing_like.drawing_like_id, cp_user.username FROM drawing_like
+        JOIN cp_user ON drawing_like.member_id = cp_user.member_id
+        WHERE drawing_like_id = %(drawing_like_id)s;
+        """,
+        {'drawing_like_id': drawing_like_id}
+        )
+
+    drawing_like = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    # Return error if drawing like not found
+    if not drawing_like:
+        return make_response('Not found', 404)
+
+    # Otherwise, convert drawing like data to dictionary
+    drawing_like = dict(drawing_like)
+
+    return jsonify(drawing_like)
+
+
+def delete_drawing_like(requester, drawing_like_id):
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+
+    # Verify that user liked drawing previously
+    cursor.execute(
+        """
+        SELECT drawing_like.*, cp_user.username FROM drawing_like
+        JOIN cp_user ON drawing_like.member_id = cp_user.member_id
+        WHERE drawing_like_id = %(drawing_like_id)s;
+        """,
+        {'drawing_like_id': drawing_like_id}
+        )
+
+    drawing_like = cursor.fetchone()
+
+    # Return error if user did not like drawing previously
+    if not drawing_like:
+        cursor.close()
+        conn.close()
+
+        return make_response('User did not like drawing', 400)
+
+    # Otherwise, convert drawing_like to dictionary
+    drawing_like = dict(drawing_like)
+
+    # Return error if requester is not the liker
+    if requester.lower() != drawing_like['username'].lower():
+        cursor.close()
+        conn.close()
+
+        return make_response('Unauthorized', 401)
+
+    # Delete like for drawing in database
+    cursor.execute(
+        """
+        DELETE FROM drawing_like
+        WHERE drawing_like_id = %(drawing_like_id)s;
+        """,
+        {'drawing_like_id': drawing_like_id}
+        )
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    return make_response('Success', 200)
+
+
+def read_drawing_likes(drawing_id):
+    # Get number of requested drawing likes from query parameters, using
+    # default if null
+    request_start = int(request.args.get('start', 0))
+    request_end = int(request.args.get('end', request_start + 10))
+
+    # Return error if start query parameter is greater than end
+    if request_start > request_end:
+        return make_response('Start param cannot be greater than end', 400)
+
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+
+    # Retrieve drawing likes from database
+    cursor.execute(
+        """
+        SELECT drawing_like.created, drawing_like.drawing_id,
+        drawing_like.drawing_like_id, cp_user.username FROM drawing_like
+        JOIN cp_user ON drawing_like.member_id = cp_user.member_id
+        INNER JOIN drawing ON drawing_like.drawing_id = drawing.drawing_id
+        WHERE drawing_like.drawing_id = %(drawing_id)s
+        ORDER BY created DESC;
+        """,
+        {'drawing_id': drawing_id}
+        )
+
+    drawing_likes = []
+
+    for row in cursor.fetchall():
+        drawing_likes.append(dict(row))
+
+    cursor.close()
+    conn.close()
+
+    return jsonify(drawing_likes[request_start:request_end])
+
+
+def read_drawing_likes_for_one_user(liker_name):
+    # Get number of requested drawings from query parameters, using default if
+    # null
+    request_start = int(request.args.get('start', 0))
+    request_end = int(request.args.get('end', request_start + 10))
+
+    # Return error if start query parameter is greater than end
+    if request_start > request_end:
+        return make_response('Start param cannot be greater than end', 400)
+
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+
+    # Retrieve drawing likes from database
+    cursor.execute(
+        """
+        SELECT drawing_like.created, drawing_like.drawing_like_id,
+        drawing.drawing_id, drawing.url, drawing.title, drawing.views,
+        drawing.member_id, cp_user.username FROM drawing_like
+        JOIN drawing ON drawing_like.drawing_id = drawing.drawing_id
+        JOIN cp_user ON drawing_like.member_id = cp_user.member_id
+        WHERE LOWER(cp_user.username) = %(username)s
+        ORDER BY drawing_like.created DESC;
+        """,
+        {'username': liker_name.lower()}
+        )
+
+    drawing_likes = []
+
+    for row in cursor.fetchall():
+        drawing_likes.append(dict(row))
+
+    # Replace each drawing artist's member id with username and get each
+    # drawing's likers and like count from database
+    for drawing_like in drawing_likes:
+        cursor.execute(
+            """
+            SELECT username FROM cp_user
+            WHERE member_id = %(member_id)s;
+            """,
+            {'member_id': drawing_like['member_id']}
+            )
+
+        drawing_like.pop('member_id')
+        drawing_like['artist_name'] = cursor.fetchone()[0]
+
+        cursor.execute(
+            """
+            SELECT drawing_like.drawing_like_id, cp_user.username
+            FROM drawing_like
+            JOIN cp_user ON drawing_like.member_id = cp_user.member_id
+            WHERE drawing_id = %(drawing_id)s;
+            """,
+            {'drawing_id': drawing_like['drawing_id']}
+            )
+
+        drawing_like['likers'] = []
+
+        for row in cursor.fetchall():
+            drawing_like['likers'].append(dict(row))
+
+        drawing_like['like_count'] = len(drawing_like['likers'])
+
+    cursor.close()
+    conn.close()
+
+    return jsonify(drawing_likes[request_start:request_end])
