@@ -1,14 +1,184 @@
-import fcntl
+import bcrypt
 import json
 import os
+import psycopg2 as pg
 import time
+import testing.postgresql
 import unittest
 
 from base64 import b64encode
 from server import app
+from testing.common.database import DatabaseFactory
+
+import management
 
 
 now = str(round(time.time()))  # Current time in ms
+
+
+# Create database tables and load initial data from fixtures into test database
+def initialize_test_database(postgresql):
+    db_port = postgresql.dsn()['port']
+    db_host = postgresql.dsn()['host']
+    db_user = postgresql.dsn()['user']
+    database = postgresql.dsn()['database']
+    os.environ['DB_NAME'] = database
+
+    os.environ['DB_CONNECTION'] = ('dbname=' + database + ' user=' + db_user +
+        ' host=' + db_host + ' port=' + str(db_port))
+
+    # Create database tables
+    management.initialize_database()
+
+    # Connect to database with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor()
+
+    # Add 10 sample user accounts to database
+    for id in range(1, 11):
+        username = 'user' + str(id)
+        password = 'password'
+
+        password = password.encode()
+        hashed_password = bcrypt.hashpw(password, bcrypt.gensalt())
+
+        cursor.execute(
+            """
+            INSERT INTO cp_user (username, password)
+            VALUES (%(username)s, %(password)s);
+            """,
+            {'username': username,
+            'password': hashed_password.decode()}
+            )
+
+    # Add 10 sample posts to database
+    posts_file = 'fixtures/test-post.json'
+    with open(posts_file, 'r') as post_data:
+        post = json.load(post_data)
+
+    for i in range(10):
+        cursor.execute(
+            """
+            INSERT INTO post (member_id, content, public, title)
+            VALUES ((SELECT member_id FROM cp_user
+            WHERE LOWER(username) = %(username)s), %(content)s, %(public)s,
+            %(title)s);
+            """,
+            {'username': 'user1',
+            'content': post['content'],
+            'public': post['public'],
+            'title': post['title']}
+            )
+
+    # Add 10 sample comments for post to database
+    comment_file = 'fixtures/test-comment.json'
+    with open(comment_file, 'r') as comment_data:
+        comment = json.load(comment_data)
+
+    for i in range(10):
+        cursor.execute(
+            """
+            INSERT INTO comment (member_id, post_id, content)
+            VALUES ((SELECT member_id FROM cp_user
+            WHERE LOWER(username) = %(username)s), %(post_id)s, %(content)s);
+            """,
+            {'username': 'user1',
+            'post_id': 1,
+            'content': comment['content']}
+            )
+
+    # Add 10 sample drawings to database
+    drawing_file = 'fixtures/test-drawing.json'
+    with open(drawing_file, 'r') as drawing_data:
+        drawing = json.load(drawing_data)
+
+    for i in range(10):
+        cursor.execute(
+            """
+            INSERT INTO drawing (member_id, title, url)
+            VALUES ((SELECT member_id FROM cp_user
+            WHERE LOWER(username) = %(username)s), %(title)s, %(url)s)
+            RETURNING drawing_id;
+            """,
+            {'username': 'user1',
+            'title': drawing['title'],
+            'url': drawing['url']}
+            )
+
+        drawing_id = cursor.fetchone()[0]
+
+        # Add 1 like for each drawing to database
+        cursor.execute(
+            """
+            INSERT INTO drawing_like (member_id, drawing_id)
+            VALUES ((SELECT member_id FROM cp_user
+            WHERE LOWER(username) = %(username)s), %(drawing_id)s);
+            """,
+            {'username': 'user1',
+            'drawing_id': drawing_id}
+            )
+
+    # Add 10 likes for one drawing to database
+    for id in range(1, 11):
+        username = 'user' + str(id)
+
+        cursor.execute(
+            """
+            INSERT INTO drawing_like (member_id, drawing_id)
+            VALUES ((SELECT member_id FROM cp_user
+            WHERE LOWER(username) = %(username)s), %(drawing_id)s);
+            """,
+            {'username': username.lower(),
+            'drawing_id': 1}
+            )
+
+    # Add 5 sample Shapes in Rain scores to database
+    shapes_file = 'fixtures/shapes_scores.json'
+    with open(shapes_file, 'r') as shapes_scores:
+        shapes_scores = json.load(shapes_scores)
+
+    for shapes_score in shapes_scores:
+        cursor.execute(
+            """
+            INSERT INTO shapes_score (member_id, score)
+            VALUES ((SELECT member_id FROM cp_user
+            WHERE LOWER(username) = %(username)s), %(score)s);
+            """,
+            {'username': 'user1',
+            'score': shapes_score['score']}
+            )
+
+    # Add 5 sample Rhythm of Life scores to database
+    rhythm_file = 'fixtures/rhythm_scores.json'
+    with open(rhythm_file, 'r') as rhythm_scores:
+        rhythm_scores = json.load(rhythm_scores)
+
+    for rhythm_score in rhythm_scores:
+        cursor.execute(
+            """
+            INSERT INTO rhythm_score (member_id, score)
+            VALUES ((SELECT member_id FROM cp_user
+            WHERE LOWER(username) = %(username)s), %(score)s);
+            """,
+            {'username': 'user1',
+            'score': rhythm_score['score']}
+            )
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+
+# Create factory instance of Postgresql class that has cached database for
+# testing
+class PostgresqlFactory(DatabaseFactory):
+    target_class = testing.postgresql.Postgresql
+
+
+Postgresql = PostgresqlFactory(cache_initialized_db=True,
+                               on_initialized=initialize_test_database)
 
 
 class CrystalPrismTestCase(unittest.TestCase):
@@ -16,10 +186,20 @@ class CrystalPrismTestCase(unittest.TestCase):
         self.client = app.test_client()
         self.token = ''  # Login JWT token
         self.username = ''  # Username of test user
+        self.postgresql = Postgresql()
+        self.db_port = self.postgresql.dsn()['port']
+        self.db_host = self.postgresql.dsn()['host']
+        self.db_user = self.postgresql.dsn()['user']
+        self.database = self.postgresql.dsn()['database']
+
+        os.environ['DB_CONNECTION'] = ('dbname=' + self.database + ' user=' +
+            self.db_user + ' host=' + self.db_host + ' port=' +
+            str(self.db_port))
 
     def tearDown(self):
         self.delete_user()
         self.delete_admin_user()
+        self.postgresql.stop()
 
     # Create test user
     def create_user(self, username='test' + now, password='password'):
@@ -32,7 +212,7 @@ class CrystalPrismTestCase(unittest.TestCase):
             content_type='application/json'
         )
 
-    # Login as test user and receive JWT token
+    # Log in as test user and receive JWT token
     def login(self, username='test' + now, password='password'):
         b64_user_pass = str(b64encode((username + ':' + password).encode())
             .decode())
@@ -44,38 +224,28 @@ class CrystalPrismTestCase(unittest.TestCase):
         )
         self.token = response.get_data(as_text=True)
 
-    # Delete test user
-    def delete_user(self, username='test' + now, password='password'):
-        self.login(username, password)
-
-        header = {'Authorization': 'Bearer ' + self.token}
-
-        response = self.client.delete(
-            '/api/user/' + username,
-            headers=header
-        )
-
-    # Delete user as admin
-    def delete_user_admin(self, username_to_delete='test' + now,
+    # Delete test user as admin
+    def delete_user(self, username_to_delete='test' + now,
         admin_username='admin' + now, admin_password='password'):
         self.create_user(admin_username, admin_password)
 
-        # Set 'admin' item in user account to True
-        with open(os.path.dirname(__file__) +
-            '/../user/users.json', 'r') as users_file:
-            users = json.load(users_file)
+        conn = pg.connect(os.environ['DB_CONNECTION'])
 
-            for user_data in users:
-                if user_data['username'].lower() == admin_username.lower():
-                    user_data['admin'] = True
+        cursor = conn.cursor()
 
-        with open(os.path.dirname(__file__) +
-            '/../user/users.json', 'w') as users_file:
-            # Lock file to prevent overwrite
-            fcntl.flock(users_file, fcntl.LOCK_EX)
-            json.dump(users, users_file)
-            # Release lock on file
-            fcntl.flock(users_file, fcntl.LOCK_UN)
+        # Set 'is_admin' item in user account to True
+        cursor.execute(
+            """
+            UPDATE cp_user SET is_admin = TRUE
+            WHERE username = %(username)s;
+            """,
+            {'username': admin_username}
+            )
+
+        conn.commit()
+
+        cursor.close()
+        conn.close()
 
         self.login(admin_username, admin_password)
         header = {'Authorization': 'Bearer ' + self.token}
