@@ -16,9 +16,11 @@ def application(environ, start_response):
         )
     os.environ['S3_BUCKET'] = environ.get('S3_BUCKET', '')
     os.environ['S3_URL'] = environ.get('S3_URL', '')
-    os.environ['S3_PHOTO_DIR'] = environ.get('S3_PHOTO_DIR', '')
-    os.environ['S3_CANVASHARE_DIR'] = environ.get('S3_CANVASHARE_DIR', '')
-    os.environ['S3_BACKUP_DIR'] = environ.get('S3_BACKUP_DIR', '')
+    os.environ['S3_PHOTO_DIR'] = environ.get('S3_PHOTO_DIR', 'photos/')
+    os.environ['S3_CANVASHARE_DIR'] = environ.get(
+        'S3_CANVASHARE_DIR', 'canvashare/'
+        )
+    os.environ['S3_BACKUP_DIR'] = environ.get('S3_BACKUP_DIR', 'db-backups/')
     os.environ['BACKUP_DIR'] = environ.get('BACKUP_DIR', '')
     os.environ['DB_CONNECTION'] = environ.get('DB_CONNECTION', '')
     os.environ['DB_NAME'] = environ.get('DB_NAME', '')

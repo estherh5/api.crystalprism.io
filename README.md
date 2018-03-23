@@ -4,24 +4,55 @@
 I started programming in January 2017 and am learning Python for back-end server development. api.crystalprism.io is the API for my website, [Crystal Prism](https://crystalprism.io). The API allows for the storage and retrieval of game scores, user-created drawings and thought posts, as well as user accounts. For user security, I implemented a JWT authentication flow from scratch that includes generating and verifying secure user tokens.
 
 ## Setup
-To create your own copy of the Crystal Prism API, first clone this repository on your server. Next, install requirements by running `pip install -r requirements.txt`. Create a PostgreSQL database to store user information, as well as a user that has all privileges on your database. Create an Amazon S3 bucket with separate folders for storing database backup files, homepage photos, and CanvaShare drawings. Create an AWS user with keys for accessing your bucket. Set the following environment variables for the API:
-* "SECRET_KEY" for the salt used to generate the signature portion of the JWT for user authentication (set this as a secret key that only you know; it is imperative to keep this private for user account protection)
-* "ENV_TYPE" for the environment status (set this to "Dev" for testing or "Prod" for live)
-* "VIRTUAL_ENV_NAME" for the name of your virtual environment (e.g., 'crystalprism'); this is used to schedule automatic database backups with crontab
-* "PATH" for the path to the executable files that will run when automatic database backups are performed via crontab; you should append the path to your PostgreSQL directory here (e.g., "$PATH:/Applications/Postgres.app/Contents/Versions/latest/bin")
-* ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the access key for your AWS account stored on Amazon S3 buckets
-* ["AWS_SECRET_ACCESS_KEY"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the secret key for your AWS account stored on Amazon S3 buckets
-* "S3_BUCKET" for the name of your S3 bucket (e.g., 'crystalprism')
-* "S3_URL" for the URL for your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism/')
-* "S3_PHOTO_DIR" for the name of the S3 bucket's folder for photos (e.g., 'photos/')
-* "S3_CANVASHARE_DIR" for the name of the S3 bucket's folder for CanvaShare drawings (e.g., 'canvashare/')
-* "S3_BACKUP_DIR" for the name of the S3 bucket's folder for database backups (e.g., 'db-backups/')
-* "BACKUP_DIR" for the directory where your database backups are stored locally
-* "DB_CONNECTION" for the [dsn parameter string](http://initd.org/psycopg/docs/module.html) to connect to your database via psycopg2 (e.g., 'dbname=<database_name> user=<database_user> password=<database_user_password> host=<database_host>')
-* "DB_NAME" for the name of your database
-* "DB_USER" for the user who has all privileges on your database
-
-Initialize the database by running `python management.py init_db`, and load initial data (webpage owner user, admin user, how-to Thought Writer posts, sample drawing) by running `python management.py load_data`. Set up weekly backups for the database by running `python management.py sched_backup`. Start the server by running `flask run` (if you are making changes while the server is running, enter `flask run --reload` instead for instant updates).
+1. Clone this repository on your server.
+2. Install requirements by running `pip install -r requirements.txt`.
+3. Create a PostgreSQL database to store user information, as well as a user that has all privileges on your database.
+4. Create an Amazon S3 bucket with folders for storing homepage photos, CanvaShare drawings, and database backup files. Create an AWS user with keys for accessing your bucket. Upload both thumbnails and full-size homepage photos to your S3 bucket's photos folder.
+    * Ensure objects in your S3 bucket folders for homepage photos and CanvaShare drawings are public by default when they are added to the bucket by adding a [bucket policy](https://awspolicygen.s3.amazonaws.com/policygen.html) to your bucket permissions. Your bucket policy should resemble the following:
+    ```
+    {
+        "Version": "2012-10-17",
+        "Id": "Policy1521914882085",
+        "Statement": [
+            {
+                "Sid": "Stmt1521914862695",
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::crystalprism/canvashare/*"
+            },
+            {
+                "Sid": "Stmt1521914879587",
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::crystalprism/photos/*"
+            }
+        ]
+    }
+    ```
+    * Full-size photos should be named as numbers (e.g., "1.png"), and thumbnails must be named the same plus the suffix "-thumb" (e.g., "1-thumb.png").
+    * For best display on the front-end, full-size photos should be 6 x 8 inches in size, and thumbnails should be 240 x 300 px.
+5. Set the following environment variables for the API:
+    * "FLASK_APP" for the Flask application name for your server ("server.py")
+    * "SECRET_KEY" for the salt used to generate the signature portion of the JWT for user authentication (set this as a secret key that only you know; it is imperative to keep this private for user account protection)
+    * "ENV_TYPE" for the environment status (set this to "Dev" for testing or "Prod" for live)
+    * "VIRTUAL_ENV_NAME" for the name of your virtual environment (e.g., 'crystalprism'); this is used to schedule automatic database backups with crontab
+    * "PATH" for the path to the executable files that will run when automatic database backups are performed via crontab; you should append the path to your PostgreSQL directory here (e.g., "$PATH:/Applications/Postgres.app/Contents/Versions/latest/bin")
+    * ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the access key for your AWS account stored on Amazon S3 buckets
+    * ["AWS_SECRET_ACCESS_KEY"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the secret key for your AWS account stored on Amazon S3 buckets
+    * "S3_BUCKET" for the name of your S3 bucket (e.g., 'crystalprism')
+    * "S3_URL" for the URL for your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism/')
+    * "S3_PHOTO_DIR" for the name of the S3 bucket's folder for photos (the default is 'photos/')
+    * "S3_CANVASHARE_DIR" for the name of the S3 bucket's folder for CanvaShare drawings (the default is 'canvashare/')
+    * "S3_BACKUP_DIR" for the name of the S3 bucket's folder for database backups (the default is 'db-backups/')
+    * "BACKUP_DIR" for the directory where your database backups are stored locally
+    * "DB_CONNECTION" for the [dsn parameter string](http://initd.org/psycopg/docs/module.html) to connect to your database via psycopg2 (e.g., 'dbname=<database_name> user=<database_user> password=<database_user_password> host=<database_host>')
+    * "DB_NAME" for the name of your database
+    * "DB_USER" for the user who has all privileges on your database
+6. Initialize the database by running `python management.py init_db`, and load initial data (webpage owner user whose posts appear on the homepage Ideas page, admin user, initial homepage Ideas page post written by webpage owner, how-to Thought Writer posts written by admin, sample drawing created by admin) by running `python management.py load_data`.
+7. Set up weekly backups for the database by running `python management.py sched_backup`.
+8. Start the server by running `flask run` (if you are making changes while the server is running, enter `flask run --reload` instead for instant updates).
 
 ## API Status
 To check if the API is online, a client can send a request to the following endpoint.
@@ -831,7 +862,7 @@ The Crystal Prism homepage has a Photos page that features photos I have taken t
   - ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the access key for your AWS account
   - ["AWS_SECRET_ACCESS_KEY"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the secret key for your AWS account
   - "S3_BUCKET" must be set to the name of your S3 bucket (e.g., 'crystalprism')
-  - "S3_PHOTO_DIR" must be set to the name of your S3 bucket's folder for photos (e.g., 'photos/')
+  - "S3_PHOTO_DIR" must be set to the name of your S3 bucket's folder for photos (the default is 'photos/')
   - "S3_URL" must be set as the URL for your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism/')
 
 **GET** /api/photos?start=[request_start]&end=[request_end]
