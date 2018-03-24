@@ -165,6 +165,31 @@ def initialize_test_database(postgresql):
             'score': rhythm_score['score']}
             )
 
+    # Create owner user and 10 homepage posts
+    cursor.execute(
+        """
+        INSERT INTO cp_user (username, is_owner, password)
+        VALUES (%(username)s, %(is_owner)s, %(password)s);
+        """,
+        {'username': 'owner',
+        'is_owner': True,
+        'password': hashed_password.decode()}
+        )
+
+    for i in range(10):
+        cursor.execute(
+            """
+            INSERT INTO post (member_id, content, public, title)
+            VALUES ((SELECT member_id FROM cp_user
+            WHERE LOWER(username) = %(username)s), %(content)s, %(public)s,
+            %(title)s);
+            """,
+            {'username': 'owner',
+            'content': post['content'],
+            'public': post['public'],
+            'title': post['title']}
+            )
+
     conn.commit()
 
     cursor.close()

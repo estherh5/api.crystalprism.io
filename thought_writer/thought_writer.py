@@ -237,7 +237,7 @@ def read_posts():
         SELECT post.content, post.created, post.post_id, post.public,
         post.title, cp_user.username FROM post
         JOIN cp_user ON post.member_id = cp_user.member_id
-        WHERE public = TRUE
+        WHERE public = TRUE AND cp_user.is_owner != TRUE
         ORDER BY created DESC;
         """
         )

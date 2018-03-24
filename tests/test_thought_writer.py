@@ -274,6 +274,9 @@ class TestPost(CrystalPrismTestCase):
 # Test /api/thought-writer/posts endpoint [GET]
 class TestPosts(CrystalPrismTestCase):
     def test_posts_get(self):
+        # Arrange
+        owner_name = 'owner'
+
         # Act
         get_response = self.client.get('/api/thought-writer/posts')
         posts = json.loads(get_response.get_data(as_text=True))
@@ -312,6 +315,11 @@ class TestPosts(CrystalPrismTestCase):
         # Ensure each writer is a string
         self.assertEqual(all(isinstance(
             post['username'], str) for post in posts), True)
+
+        # Ensure each writer is not the webpage owner
+        self.assertEqual(all(
+            post['username'] != owner_name for post in posts
+            ), True)
 
     def test_posts_get_none(self):
         # Arrange

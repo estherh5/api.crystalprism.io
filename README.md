@@ -497,7 +497,7 @@ Note that the following environment variables must be set:
 * Delete a thought post by sending the post id in the request URL. Note that there must be a verified bearer token for the writer in the request Authorization header.
 
 **GET** /api/thought-writer/posts?start=[request_start]&end=[request_end]
-* Retrieve all users' public thought posts in order of newest to oldest. Optionally specify the number of thought posts via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
+* Retrieve all users' public thought posts in order of newest to oldest, excluding the webpage owner's posts (the /api/homepage/ideas endpoint should be used for retrieving the owner's public posts). Optionally specify the number of thought posts via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
 ```javascript
 [
@@ -856,16 +856,31 @@ Users who want to join the Crystal Prism community can create an account to stor
 }
 ```
 
-## Amazon S3 API
+## Homepage API
 #### February 2018 - Present
-The Crystal Prism homepage has a Photos page that features photos I have taken that are stored in an Amazon S3 bucket. I use boto3 to initiate an s3 bucket resource and query the bucket to return a list of all the stored photo objects. Note that the following environment variables must be set:
+The Crystal Prism homepage has an Ideas page that displays Thought Writer posts written by the webpage owner. It also has a Photos page that displays photos I have taken that are stored in an Amazon S3 bucket. I use boto3 to initiate an s3 bucket resource and query the bucket to return a list of all the stored photo objects. Note that the following environment variables must be set:
   - ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the access key for your AWS account
   - ["AWS_SECRET_ACCESS_KEY"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the secret key for your AWS account
   - "S3_BUCKET" must be set to the name of your S3 bucket (e.g., 'crystalprism')
   - "S3_PHOTO_DIR" must be set to the name of your S3 bucket's folder for photos (the default is 'photos/')
   - "S3_URL" must be set as the URL for your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism/')
 
-**GET** /api/photos?start=[request_start]&end=[request_end]
+**GET** /api/homepage/ideas?start=[request_start]&end=[request_end]
+* Retrieve public thought posts written by the webpage owner in order of newest to oldest. Optionally specify the number of thought posts via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
+* Example response body:
+```javascript
+[
+    {
+      "content": "Welcome to my homepage! Click the different menu buttons to see my work. You can contact me using the information on the About page.",
+      "created": "2018-3-20T05:18:13.454Z",
+      "post_id": 11,
+      "title": "Welcome",
+      "username": "esther"
+    }
+]
+```
+
+**GET** /api/homepage/photos?start=[request_start]&end=[request_end]
 * Retrieve URLs for photos stored in an S3 bucket. Optionally specify the number of photos via the request URL's start and end query parameters.
 * Example response body:
 ```javascript
