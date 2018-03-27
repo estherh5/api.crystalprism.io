@@ -50,12 +50,15 @@ class TestPost(CrystalPrismTestCase):
         self.assertEqual(post['public'], False)
         self.assertEqual(post['username'], self.username)
 
-        # Ensure created timestamp matches UTC format
+        # Ensure created and modified timestamps match UTC format
         timestamp_pattern = re.compile(
             r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d\.\d{3}Z'
             )
         self.assertEqual(bool(timestamp_pattern.match(
             post['created'])), True
+            )
+        self.assertEqual(bool(timestamp_pattern.match(
+            post['modified'])), True
             )
 
         self.assertEqual(user_data['post_count'], 1)
@@ -293,12 +296,14 @@ class TestPosts(CrystalPrismTestCase):
         self.assertEqual(all(
             isinstance(post['content'], str) for post in posts), True)
 
-        # Ensure each created timestamp matches UTC format
+        # Ensure each created and modified timestamp matches UTC format
         timestamp_pattern = re.compile(
             r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d\.\d{3}Z'
             )
         self.assertEqual(all(bool(timestamp_pattern.match(
             post['created'])) for post in posts), True)
+        self.assertEqual(all(bool(timestamp_pattern.match(
+            post['modified'])) for post in posts), True)
 
         # Ensure each post id is an integer
         self.assertEqual(all(isinstance(
@@ -386,12 +391,14 @@ class TestPosts(CrystalPrismTestCase):
         self.assertEqual(all(
             isinstance(post['content'], str) for post in posts), True)
 
-        # Ensure each created timestamp matches UTC format
+        # Ensure each created and modified timestamp matches UTC format
         timestamp_pattern = re.compile(
             r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d\.\d{3}Z'
             )
         self.assertEqual(all(bool(timestamp_pattern.match(
             post['created'])) for post in posts), True)
+        self.assertEqual(all(bool(timestamp_pattern.match(
+            post['modified'])) for post in posts), True)
 
         # Ensure each post id is an integer
         self.assertEqual(all(isinstance(
@@ -597,12 +604,15 @@ class TestComment(CrystalPrismTestCase):
 
         self.assertEqual(post['comment_count'], comment_count + 1)
 
-        # Ensure created timestamp matches UTC format
+        # Ensure created and modified timestamp matches UTC format
         timestamp_pattern = re.compile(
             r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d\.\d{3}Z'
             )
         self.assertEqual(bool(timestamp_pattern.match(
             comment['created'])), True
+            )
+        self.assertEqual(bool(timestamp_pattern.match(
+            comment['modified'])), True
             )
 
         self.assertEqual(user_data['comment_count'], 1)
@@ -850,12 +860,14 @@ class TestComments(CrystalPrismTestCase):
         self.assertEqual(get_response.status_code, 200)
         self.assertEqual(len(comments), 10)
 
-        # Ensure each created timestamp matches UTC format
+        # Ensure each created and modified timestamp matches UTC format
         timestamp_pattern = re.compile(
             r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d\.\d{3}Z'
             )
         self.assertEqual(all(bool(timestamp_pattern.match(
             comment['created'])) for comment in comments), True)
+        self.assertEqual(all(bool(timestamp_pattern.match(
+            comment['modified'])) for comment in comments), True)
 
         # Ensure each comment id is an integer
         self.assertEqual(all(isinstance(comment['comment_id'], int)
@@ -933,12 +945,14 @@ class TestComments(CrystalPrismTestCase):
         self.assertEqual(get_response.status_code, 200)
         self.assertEqual(len(comments), 10)
 
-        # Ensure each created timestamp matches UTC format
+        # Ensure each created and modified timestamp matches UTC format
         timestamp_pattern = re.compile(
             r'\d{4}-[0-1]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-6]\d\.\d{3}Z'
             )
         self.assertEqual(all(bool(timestamp_pattern.match(
             comment['created'])) for comment in comments), True)
+        self.assertEqual(all(bool(timestamp_pattern.match(
+            comment['modified'])) for comment in comments), True)
 
         # Ensure each comment id is an integer
         self.assertEqual(all(isinstance(comment['comment_id'], int)

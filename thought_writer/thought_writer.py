@@ -53,8 +53,8 @@ def read_post(post_id):
     # Retrieve post from database
     cursor.execute(
         """
-        SELECT post.content, post.created, post.post_id, post.public,
-        post.title, cp_user.username FROM post
+        SELECT post.content, post.created, post.modified, post.post_id,
+        post.public, post.title, cp_user.username FROM post
         JOIN cp_user ON post.member_id = cp_user.member_id
         WHERE post_id = %(post_id)s;
         """,
@@ -148,6 +148,8 @@ def update_post(requester, post_id):
     cursor.execute(
         """
         UPDATE post SET title = %(title)s, content = %(content)s,
+        modified = to_char
+        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
         public = %(public)s
         WHERE post_id = %(post_id)s;
         """,
@@ -234,8 +236,8 @@ def read_posts():
     # Retrieve public posts from database
     cursor.execute(
         """
-        SELECT post.content, post.created, post.post_id, post.public,
-        post.title, cp_user.username FROM post
+        SELECT post.content, post.created, post.modified, post.post_id,
+        post.public, post.title, cp_user.username FROM post
         JOIN cp_user ON post.member_id = cp_user.member_id
         WHERE public = TRUE AND cp_user.is_owner != TRUE
         ORDER BY created DESC;
@@ -283,8 +285,8 @@ def read_posts_for_one_user(writer_name):
     # Retrieve posts from database
     cursor.execute(
         """
-        SELECT post.content, post.created, post.post_id, post.public,
-        post.title, cp_user.username FROM post
+        SELECT post.content, post.created, post.modified, post.post_id,
+        post.public, post.title, cp_user.username FROM post
         JOIN cp_user ON post.member_id = cp_user.member_id
         WHERE LOWER(cp_user.username) = %(username)s
         ORDER BY created DESC;
@@ -398,7 +400,7 @@ def read_comment(comment_id):
     cursor.execute(
         """
         SELECT comment.comment_id, comment.content, comment.created,
-        comment.post_id, cp_user.username FROM comment
+        comment.modified, comment.post_id, cp_user.username FROM comment
         JOIN cp_user ON comment.member_id = cp_user.member_id
         WHERE comment_id = %(comment_id)s;
         """,
@@ -462,7 +464,8 @@ def update_comment(requester, comment_id):
     # Update comment in database
     cursor.execute(
         """
-        UPDATE comment SET content = %(content)s
+        UPDATE comment SET content = %(content)s, modified = to_char
+        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
         WHERE comment_id = %(comment_id)s;
         """,
         {'content': data['content'],
@@ -547,7 +550,7 @@ def read_comments(post_id):
     cursor.execute(
         """
         SELECT comment.comment_id, comment.content, comment.created,
-        comment.post_id, cp_user.username FROM comment
+        comment.modified, comment.post_id, cp_user.username FROM comment
         JOIN cp_user ON comment.member_id = cp_user.member_id
         WHERE post_id = %(post_id)s
         ORDER BY created DESC;
@@ -585,8 +588,8 @@ def read_comments_for_one_user(commenter_name):
     cursor.execute(
         """
         SELECT comment.comment_id, comment.content, comment.created,
-        comment.post_id, post.content AS post_content, post.member_id,
-        post.title, cp_user.username FROM comment
+        comment.modified, comment.post_id, post.content AS post_content,
+        post.member_id, post.title, cp_user.username FROM comment
         JOIN post ON comment.post_id = post.post_id
         JOIN cp_user ON comment.member_id = cp_user.member_id
         WHERE LOWER(cp_user.username) = %(username)s

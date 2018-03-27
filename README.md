@@ -475,6 +475,7 @@ Note that the following environment variables must be set:
     "content": "Welcome to Thought Writer, a community post board for you to write your ideas for the world to see. You can also create your own private posts or comment on others' posts. Click the yellow paper icon to get started!",
     "comment_count": 2,
     "created": "2017-10-05T09:53:19.229Z",
+    "modified": "2017-10-05T09:53:19.229Z",
     "post_id": 1,
     "public": true,
     "title": "Welcome",
@@ -505,6 +506,7 @@ Note that the following environment variables must be set:
       "content": "<font color=\"#00c6fc\"><b>Only when you find yourself can you understand the world and your place within it. To deny oneself would be to have a limited view of the world, as you yourself are part of it not only in perception but in external interfacing and influence.</b></font>",
       "comment_count": 1,
       "created": "2017-10-27T04:31:07.332Z",
+      "modified": "2017-10-27T04:31:07.332Z",
       "post_id": 2,
       "public": true,
       "title": "Finding yourself",
@@ -514,6 +516,7 @@ Note that the following environment variables must be set:
       "content": "Welcome to Thought Writer, a community post board for you to write your ideas for the world to see. You can also create your own private posts or comment on others' posts. Click the yellow paper icon to get started!",
       "comment_count": 2,
       "created": "2017-10-05T09:53:19.229Z",
+      "modified": "2017-10-05T09:53:19.229Z",
       "post_id": 1,
       "public": true,
       "title": "Welcome",
@@ -531,6 +534,7 @@ Note that the following environment variables must be set:
       "content": "I often find inspiration in the color combinations found in nature.",
       "comment_count": 0,
       "created": "2017-10-27T04:31:07.249Z",
+      "modified": "2017-10-28T11:40:12.589Z",
       "post_id": 4,
       "public": false,
       "title": "The Beauty of Design",
@@ -540,6 +544,7 @@ Note that the following environment variables must be set:
       "content": "<font color=\"#00c6fc\"><b>Only when you find yourself can you understand the world and your place within it. To deny oneself would be to have a limited view of the world, as you yourself are part of it not only in perception but in external interfacing and influence.</b></font>",
       "comment_count": 1,
       "created": "2017-10-27T04:31:07.332Z",
+      "modified": "2017-10-27T04:31:07.332Z",
       "post_id": 2,
       "public": true,
       "title": "Finding yourself",
@@ -564,8 +569,9 @@ Note that the following environment variables must be set:
 ```javascript
 {
     "comment_id": 1,
-    "content": "I really like this post. Great writing!",
+    "content": "I really like this post.",
     "created": "2017-11-05T02:47:21.413Z",
+    "modified": "2017-11-05T02:47:21.413Z",
     "post_id": 1,
     "username": "esther"
 }
@@ -592,6 +598,7 @@ Note that the following environment variables must be set:
       "comment_id": 3,
       "content": "Anytime!",
       "created": "2017-11-05T03:32:59.182Z"
+      "modified": "2017-11-05T03:32:59.182Z"
       "post_id": 1,
       "username": "admin"
     },
@@ -599,6 +606,7 @@ Note that the following environment variables must be set:
       "comment_id": 2,
       "content": "Thanks for welcoming me!",
       "created": "2017-11-05T02:50:01.246Z"
+      "modified": "2017-11-05T02:50:01.246Z"
       "post_id": 1,
       "username": "esther"
     }
@@ -614,6 +622,7 @@ Note that the following environment variables must be set:
     "comment_id": 6,
     "content": "Wow... I feel the same way.",
     "created": "2017-12-01T01:25:20.435Z"
+    "modified": "2017-12-01T01:25:20.435Z"
     "post_id": 3,
     "post_content": "Sometimes life is hard.",
     "title": "Today I feel...",
@@ -624,6 +633,7 @@ Note that the following environment variables must be set:
     "comment_id": 2,
     "content": "Thanks for welcoming me!",
     "created": "2017-11-05T02:50:01.246Z"
+    "modified": "2017-11-05T02:50:01.246Z"
     "post_id": 1,
     "post_content": "Welcome to Thought Writer, a community post board for you to write your ideas for the world to see. You can also create your own private posts or comment on others' posts. Click the yellow paper icon to get started!",
     "title": "Welcome",
@@ -634,6 +644,7 @@ Note that the following environment variables must be set:
     "comment_id": 1,
     "content": "I really like this post. Great writing!",
     "created": "2017-11-05T02:47:21.413Z",
+    "modified": "2017-11-05T03:15:16.003Z",
     "post_id": 2,
     "post_content": "<font color=\"#00c6fc\"><b>Only when you find yourself can you understand the world and your place within it. To deny oneself would be to have a limited view of the world, as you yourself are part of it not only in perception but in external interfacing and influence.</b></font>",
     "title": "Finding yourself",
