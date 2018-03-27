@@ -252,6 +252,7 @@ def read_user(requester):
     # requester
     user_data.pop('is_owner')
     user_data.pop('member_id')
+    user_data.pop('modified')
     user_data.pop('password')
 
     return jsonify(user_data)
@@ -323,7 +324,8 @@ def update_user(requester):
         name_public = %(name_public)s, email = %(email)s,
         email_public = %(email_public)s,
         background_color = %(background_color)s, icon_color = %(icon_color)s,
-        about = %(about)s
+        about = %(about)s, modified = to_char
+        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
         WHERE LOWER(username) = %(old_username)s;
         """,
         {'username': username,
@@ -533,6 +535,7 @@ def read_user_public(username):
     user_data.pop('email_public')
     user_data.pop('is_owner')
     user_data.pop('member_id')
+    user_data.pop('modified')
     user_data.pop('name_public')
     user_data.pop('password')
 

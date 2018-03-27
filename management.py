@@ -46,6 +46,8 @@ def initialize_database():
         is_owner boolean NOT NULL DEFAULT false,
         last_name varchar(50),
         member_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+        modified text NOT NULL DEFAULT to_char
+        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
         name_public boolean DEFAULT false,
         password text NOT NULL,
         status status NOT NULL DEFAULT 'active',
@@ -72,6 +74,8 @@ def initialize_database():
         created text NOT NULL DEFAULT to_char
         (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
         member_id uuid REFERENCES cp_user(member_id) ON DELETE CASCADE,
+        modified text NOT NULL DEFAULT to_char
+        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
         post_id SERIAL PRIMARY KEY,
         public boolean NOT NULL DEFAULT false,
         title varchar(25) NOT NULL);
@@ -82,6 +86,8 @@ def initialize_database():
         created text NOT NULL DEFAULT to_char
         (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
         member_id uuid REFERENCES cp_user(member_id) ON DELETE CASCADE,
+        modified text NOT NULL DEFAULT to_char
+        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
         post_id int REFERENCES post(post_id) ON DELETE CASCADE);
 
         CREATE TABLE IF NOT EXISTS drawing (
