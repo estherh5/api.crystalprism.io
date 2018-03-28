@@ -5,6 +5,8 @@ import psycopg2.extras
 
 from base64 import decodebytes
 from flask import jsonify, make_response, request
+from io import BytesIO
+from PIL import Image
 
 from user import user
 
@@ -15,27 +17,49 @@ def create_drawing(requester):
     # title <str>
     data = request.get_json()
 
+    # Remove 'data:image/png;base64' from image data URL
+    drawing = decodebytes(data['drawing'].split(',')[1].encode('utf-8'))
+
+    # Reduce drawing size to generate average hash for assessing drawing
+    # uniqueness
+    drawing_small = Image.open(BytesIO(drawing)).resize(
+        (8, 8), Image.ANTIALIAS)
+
+    # Convert small drawing to grayscale
+    drawing_small = drawing_small.convert('L')
+
+    # Get average pixel value of small drawing
+    pixels = list(drawing_small.getdata())
+    average_pixels = sum(pixels) / len(pixels)
+
+    # Generate bit string by comparing each pixel in the small drawing to the
+    # average pixel value
+    bit_string = "".join(map(
+        lambda pixel: '1' if pixel < average_pixels else '0', pixels))
+
+    # Generate unique id for drawing by converting bit string to hexadecimal
+    drawing_id = int(bit_string, 2).__format__('016x')
+
     # Set up database connection with environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
 
     cursor = conn.cursor()
 
-    # Add drawing to database
+    # Check if drawing_id already exists in database (i.e., if user is
+    # submitting a duplicate drawing)
     cursor.execute(
         """
-        INSERT INTO drawing (member_id, title, url)
-        VALUES ((SELECT member_id FROM cp_user
-        WHERE LOWER(username) = %(username)s), %(title)s, %(url)s)
-        RETURNING drawing_id;
+        SELECT exists (
+        SELECT 1 FROM drawing WHERE drawing_id = %(drawing_id)s LIMIT 1);
         """,
-        {'username': requester.lower(),
-        'title': data['title'],
-        'url': 'placeholder'}
+        {'drawing_id': drawing_id}
         )
 
-    conn.commit()
+    if cursor.fetchone()[0]:
+        cursor.close()
+        conn.close()
 
-    drawing_id = cursor.fetchone()[0]
+        return make_response('Drawing already exists', 409)
 
     # Upload drawing to S3 bucket
     s3 = boto3.resource('s3')
@@ -43,23 +67,24 @@ def create_drawing(requester):
     bucket = s3.Bucket(bucket_name)
     bucket_folder = os.environ['S3_CANVASHARE_DIR']
 
-    drawing_name = str(drawing_id) + '.png'
-
-    # Remove 'data:image/png;base64' from image data URL
-    drawing = data['drawing'].split(',')[1].encode('utf-8')
+    drawing_name = drawing_id + '.png'
 
     bucket.put_object(
         Key=bucket_folder + drawing_name,
-        Body=decodebytes(drawing)
+        Body=drawing
         )
 
-    # Add drawing URL to database
+    # Add drawing to database
     cursor.execute(
         """
-        UPDATE drawing SET url = %(url)s WHERE drawing_id = %(drawing_id)s;
+        INSERT INTO drawing (drawing_id, member_id, title, url)
+        VALUES (%(drawing_id)s, (SELECT member_id FROM cp_user
+        WHERE LOWER(username) = %(username)s), %(title)s, %(url)s);
         """,
-        {'url': os.environ['S3_URL'] + bucket_folder + drawing_name,
-        'drawing_id': drawing_id}
+        {'drawing_id': drawing_id,
+        'username': requester.lower(),
+        'title': data['title'],
+        'url': os.environ['S3_URL'] + bucket_folder + drawing_name}
         )
 
     conn.commit()
@@ -67,7 +92,7 @@ def create_drawing(requester):
     cursor.close()
     conn.close()
 
-    return make_response(str(drawing_id), 201)
+    return make_response(drawing_id, 201)
 
 
 def read_drawing(drawing_id):
@@ -336,7 +361,7 @@ def read_drawings_for_one_user(artist_name):
 
 def create_drawing_like(requester):
     # Request should contain:
-    # drawing_id <int>
+    # drawing_id <str>
     data = request.get_json()
 
     # Set up database connection with environment variable

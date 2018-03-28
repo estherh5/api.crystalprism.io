@@ -59,7 +59,7 @@ class TestDrawing(CrystalPrismTestCase):
 
         # Assert [GET]
         self.assertEqual(get_response.status_code, 200)
-        self.assertEqual(drawing['drawing_id'], int(drawing_id))
+        self.assertEqual(drawing['drawing_id'], drawing_id)
         self.assertEqual(drawing['like_count'], 0)
         self.assertEqual(drawing['likers'], [])
         self.assertEqual(drawing['title'], 'Test')
@@ -131,6 +131,54 @@ class TestDrawing(CrystalPrismTestCase):
         # Assert
         self.assertEqual(post_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
+
+    @patch('canvashare.canvashare.boto3')
+    def test_drawing_post_not_unique_error(self, boto3):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        resource = boto3.resource.return_value
+        bucket = resource.Bucket.return_value
+
+        # Get sample image data URL
+        test_drawing = (
+            os.path.dirname(__file__) + '/../fixtures/test-drawing.txt'
+            )
+        with open(test_drawing, 'r') as drawing:
+            drawing = drawing.read()
+        data = {
+            'drawing': drawing,
+            'title': 'Test'
+            }
+
+        # Post drawing
+        post_response = self.client.post(
+            '/api/canvashare/drawing',
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        drawing_id = post_response.get_data(as_text=True)
+
+        # Act - attempt to post the same drawing
+        second_post_response = self.client.post(
+            '/api/canvashare/drawing',
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        error = second_post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(second_post_response.status_code, 409)
+        self.assertEqual(error, 'Drawing already exists')
+
+        # Delete drawing for clean-up
+        self.client.delete(
+            '/api/canvashare/drawing/' + drawing_id,
+            headers=header
+        )
 
     def test_drawing_patch_not_found_error(self):
         # Arrange
@@ -215,9 +263,9 @@ class TestDrawings(CrystalPrismTestCase):
         self.assertEqual(all(bool(timestamp_pattern.match(
             drawing['created'])) for drawing in drawings), True)
 
-        # Ensure each drawing id is an integer
+        # Ensure each drawing id is a string
         self.assertEqual(all(isinstance(
-            drawing['drawing_id'], int) for drawing in drawings), True)
+            drawing['drawing_id'], str) for drawing in drawings), True)
 
         # Ensure each like count is an integer
         self.assertEqual(all(
@@ -309,9 +357,9 @@ class TestDrawings(CrystalPrismTestCase):
         self.assertEqual(all(bool(timestamp_pattern.match(
             drawing['created'])) for drawing in drawings), True)
 
-        # Ensure each drawing id is an integer
+        # Ensure each drawing id is a string
         self.assertEqual(all(isinstance(
-            drawing['drawing_id'], int) for drawing in drawings), True)
+            drawing['drawing_id'], str) for drawing in drawings), True)
 
         # Ensure each like count is an integer
         self.assertEqual(all(
@@ -394,12 +442,12 @@ class TestDrawingLike(CrystalPrismTestCase):
         self.create_user()
         self.login()
         header = {'Authorization': 'Bearer ' + self.token}
-        drawing_id = 1
+        drawing_id = '1'
         data = {'drawing_id': drawing_id}
 
         # Get current number of drawing's likes
         initial_get_drawing_response = self.client.get(
-            '/api/canvashare/drawing/' + str(drawing_id)
+            '/api/canvashare/drawing/' + drawing_id
             )
         like_count = json.loads(
             initial_get_drawing_response.get_data(as_text=True))['like_count']
@@ -423,7 +471,7 @@ class TestDrawingLike(CrystalPrismTestCase):
         drawing_like = json.loads(get_response.get_data(as_text=True))
 
         get_drawing_response = self.client.get(
-            '/api/canvashare/drawing/' + str(drawing_id)
+            '/api/canvashare/drawing/' + drawing_id
             )
         drawing = json.loads(get_drawing_response.get_data(as_text=True))
 
@@ -436,7 +484,7 @@ class TestDrawingLike(CrystalPrismTestCase):
         # Assert [GET]
         self.assertEqual(get_response.status_code, 200)
         self.assertEqual(drawing_like['drawing_like_id'], int(drawing_like_id))
-        self.assertEqual(drawing_like['drawing_id'], 1)
+        self.assertEqual(drawing_like['drawing_id'], str(1))
         self.assertEqual(drawing_like['username'], self.username)
 
         # Ensure created timestamp matches UTC format
@@ -495,7 +543,7 @@ class TestDrawingLike(CrystalPrismTestCase):
         self.create_user()
         self.login()
         header = {'Authorization': 'Bearer ' + self.token}
-        data = {'drawing_id': 10000}
+        data = {'drawing_id': '10000'}
 
         # Act
         post_response = self.client.post(
@@ -515,7 +563,7 @@ class TestDrawingLike(CrystalPrismTestCase):
         self.create_user()
         self.login()
         header = {'Authorization': 'Bearer ' + self.token}
-        data = {'drawing_id': 1}
+        data = {'drawing_id': '1'}
 
         # Post a like for drawing
         self.client.post(
@@ -617,7 +665,7 @@ class TestDrawingLikes(CrystalPrismTestCase):
             for drawing_like in drawing_likes), True)
 
         # Ensure each drawing id is specified drawing id
-        self.assertEqual(all(drawing_like['drawing_id'] == 1
+        self.assertEqual(all(drawing_like['drawing_id'] == str(1)
             for drawing_like in drawing_likes), True)
 
         # Ensure each liker is a string
@@ -699,8 +747,8 @@ class TestDrawingLikes(CrystalPrismTestCase):
         self.assertEqual(all(isinstance(drawing_like['drawing_like_id'], int)
             for drawing_like in drawing_likes), True)
 
-        # Ensure each drawing id is an integer
-        self.assertEqual(all(isinstance(drawing_like['drawing_id'], int)
+        # Ensure each drawing id is a string
+        self.assertEqual(all(isinstance(drawing_like['drawing_id'], str)
             for drawing_like in drawing_likes), True)
 
         # Ensure each liked drawing's like count is an integer
