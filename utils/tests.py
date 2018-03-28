@@ -96,17 +96,15 @@ def initialize_test_database(postgresql):
     for i in range(10):
         cursor.execute(
             """
-            INSERT INTO drawing (member_id, title, url)
-            VALUES ((SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s), %(title)s, %(url)s)
-            RETURNING drawing_id;
+            INSERT INTO drawing (drawing_id, member_id, title, url)
+            VALUES (%(drawing_id)s, (SELECT member_id FROM cp_user
+            WHERE LOWER(username) = %(username)s), %(title)s, %(url)s);
             """,
-            {'username': 'user1',
+            {'drawing_id': str(i),
+            'username': 'user1',
             'title': drawing['title'],
             'url': drawing['url']}
             )
-
-        drawing_id = cursor.fetchone()[0]
 
         # Add 1 like for each drawing to database
         cursor.execute(
@@ -116,7 +114,7 @@ def initialize_test_database(postgresql):
             WHERE LOWER(username) = %(username)s), %(drawing_id)s);
             """,
             {'username': 'user1',
-            'drawing_id': drawing_id}
+            'drawing_id': str(i)}
             )
 
     # Add 10 likes for one drawing to database
@@ -130,7 +128,7 @@ def initialize_test_database(postgresql):
             WHERE LOWER(username) = %(username)s), %(drawing_id)s);
             """,
             {'username': username.lower(),
-            'drawing_id': 1}
+            'drawing_id': str(1)}
             )
 
     # Add 5 sample Shapes in Rain scores to database
