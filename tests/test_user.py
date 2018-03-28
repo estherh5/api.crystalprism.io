@@ -439,7 +439,7 @@ class TestUser(CrystalPrismTestCase):
         first_drawing_like_response = self.client.post(
             '/api/canvashare/drawing-like',
             headers=first_user_header,
-            data=json.dumps({'drawing_id': 1}),
+            data=json.dumps({'drawing_id': '1'}),
             content_type='application/json'
             )
         first_drawing_like_id = first_drawing_like_response.get_data(

@@ -11,6 +11,8 @@ import subprocess
 
 from base64 import decodebytes
 from crontab import CronTab
+from io import BytesIO
+from PIL import Image
 
 
 def initialize_database():
@@ -93,7 +95,7 @@ def initialize_database():
         CREATE TABLE IF NOT EXISTS drawing (
         created text NOT NULL DEFAULT to_char
         (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        drawing_id SERIAL PRIMARY KEY,
+        drawing_id text PRIMARY KEY,
         member_id uuid REFERENCES cp_user(member_id) ON DELETE CASCADE,
         title varchar(25) NOT NULL,
         url text NOT NULL,
@@ -102,7 +104,7 @@ def initialize_database():
         CREATE TABLE IF NOT EXISTS drawing_like (
         created text NOT NULL DEFAULT to_char
         (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        drawing_id int REFERENCES drawing(drawing_id) ON DELETE CASCADE,
+        drawing_id text REFERENCES drawing(drawing_id) ON DELETE CASCADE,
         drawing_like_id SERIAL PRIMARY KEY,
         member_id uuid REFERENCES cp_user(member_id) ON DELETE CASCADE);
         """
@@ -269,24 +271,30 @@ def create_drawings(username, drawings_filename):
 
     # Add drawings to database
     for drawing in drawings:
-        cursor.execute(
-            """
-            INSERT INTO drawing (member_id, title, url)
-            VALUES ((SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s), %(title)s, %(url)s)
-            RETURNING drawing_id;
-            """,
-            {'username': username.lower(),
-            'title': drawing['title'],
-            'url': drawing['url']}
-            )
-
-        conn.commit()
-
-        drawing_id = cursor.fetchone()[0]
 
         # Remove 'data:image/png;base64' from image data URL
-        drawing['url'] = drawing['url'].split(',')[1].encode('utf-8')
+        drawing_url = decodebytes(drawing['url'].split(',')[1].encode('utf-8'))
+
+        # Reduce drawing size to generate average hash for assessing drawing
+        # uniqueness
+        drawing_small = Image.open(BytesIO(drawing_url)).resize(
+            (8, 8), Image.ANTIALIAS)
+
+        # Convert small drawing to grayscale
+        drawing_small = drawing_small.convert('L')
+
+        # Get average pixel value of small drawing
+        pixels = list(drawing_small.getdata())
+        average_pixels = sum(pixels) / len(pixels)
+
+        # Generate bit string by comparing each pixel in the small drawing to
+        # the average pixel value
+        bit_string = "".join(map(
+            lambda pixel: '1' if pixel < average_pixels else '0', pixels))
+
+        # Generate unique id for drawing by converting bit string to
+        # hexadecimal
+        drawing_id = int(bit_string, 2).__format__('016x')
 
         # Upload drawing to S3 bucket
         s3 = boto3.resource('s3')
@@ -294,20 +302,29 @@ def create_drawings(username, drawings_filename):
         bucket = s3.Bucket(bucket_name)
         bucket_folder = os.environ['S3_CANVASHARE_DIR']
 
-        drawing_name = str(drawing_id) + '.png'
+        drawing_name = drawing_id + '.png'
 
         bucket.put_object(
             Key=bucket_folder + drawing_name,
-            Body=decodebytes(drawing['url'])
+            Body=drawing_url
             )
 
-        # Add drawing URL to database
+        # Set up database connection with environment variable
+        conn = pg.connect(os.environ['DB_CONNECTION'])
+
+        cursor = conn.cursor()
+
+        # Add drawing to database
         cursor.execute(
             """
-            UPDATE drawing SET url = %(url)s WHERE drawing_id = %(drawing_id)s;
+            INSERT INTO drawing (drawing_id, member_id, title, url)
+            VALUES (%(drawing_id)s, (SELECT member_id FROM cp_user
+            WHERE LOWER(username) = %(username)s), %(title)s, %(url)s);
             """,
-            {'url': os.environ['S3_URL'] + bucket_folder + drawing_name,
-            'drawing_id': drawing_id}
+            {'drawing_id': drawing_id,
+            'username': username.lower(),
+            'title': drawing['title'],
+            'url': os.environ['S3_URL'] + bucket_folder + drawing_name}
             )
 
         conn.commit()
@@ -315,7 +332,7 @@ def create_drawings(username, drawings_filename):
         cursor.close()
         conn.close()
 
-        print('Drawing "' + str(drawing_id) + '" added to database.')
+        print('Drawing "' + drawing_id + '" added to database.')
 
     return
 
