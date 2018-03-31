@@ -13,9 +13,21 @@ from user import user
 
 def create_drawing(requester):
     # Request should contain:
-    # image <data:image/png;base64...>
+    # drawing <data:image/png;base64...>
     # title <str>
     data = request.get_json()
+
+    # Return error if request is missing data
+    if not data or 'drawing' not in data or 'title' not in data:
+        return make_response('Request must contain drawing and title', 400)
+
+    # Return error if drawing is not base64-encoded PNG image
+    if 'data:image/png;base64' not in data['drawing']:
+        return make_response('Drawing must be base64-encoded PNG image', 400)
+
+    # Return error if title is blank
+    if not data['title']:
+        return make_response('Drawing title cannot be blank', 400)
 
     # Remove 'data:image/png;base64' from image data URL
     drawing = decodebytes(data['drawing'].split(',')[1].encode('utf-8'))
@@ -363,6 +375,14 @@ def create_drawing_like(requester):
     # Request should contain:
     # drawing_id <str>
     data = request.get_json()
+
+    # Return error if request is missing data
+    if not data or 'drawing_id' not in data:
+        return make_response('Request must contain drawing id', 400)
+
+    # Return error if drawing id is blank or not a string
+    if not data['drawing_id'] or not isinstance(data['drawing_id'], str):
+        return make_response('Drawing id must be a string', 400)
 
     # Set up database connection with environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])

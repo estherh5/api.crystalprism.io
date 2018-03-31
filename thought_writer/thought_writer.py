@@ -15,6 +15,23 @@ def create_post(requester):
     # title <str>
     data = request.get_json()
 
+    # Return error if request is missing data
+    if (not data or 'content' not in data or 'public' not in data or
+        'title' not in data):
+            return make_response('Request is missing required data', 400)
+
+    # Return error if post is blank
+    if not data['content']:
+        return make_response('Post cannot be blank', 400)
+
+    # Return error if title is blank
+    if not data['title']:
+        return make_response('Post title cannot be blank', 400)
+
+    # Return error if public status is not boolean
+    if not isinstance(data['public'], bool):
+        return make_response('Public status must be true or false', 400)
+
     # Set up database connection with environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
 
@@ -109,6 +126,23 @@ def update_post(requester, post_id):
     # public <boolean>
     # title <str>
     data = request.get_json()
+
+    # Return error if request is missing data
+    if (not data or 'content' not in data or 'public' not in data or
+        'title' not in data):
+            return make_response('Request is missing required data', 400)
+
+    # Return error if post is blank
+    if not data['content']:
+        return make_response('Post cannot be blank', 400)
+
+    # Return error if title is blank
+    if not data['title']:
+        return make_response('Post title cannot be blank', 400)
+
+    # Return error if public status is not boolean
+    if not isinstance(data['public'], bool):
+        return make_response('Public status must be true or false', 400)
 
     # Set up database connection with environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
@@ -338,6 +372,20 @@ def create_comment(requester):
     # post_id <int>
     data = request.get_json()
 
+    # Return error if request is missing data
+    if not data or 'content' not in data or 'post_id' not in data:
+        return make_response(
+            'Request must contain post id and comment content', 400
+            )
+
+    # Return error if post id is blank or not an integer
+    if not isinstance(data['post_id'], int):
+        return make_response('Post id must be an integer', 400)
+
+    # Return error if comment is blank
+    if not data['content']:
+        return make_response('Comment cannot be blank', 400)
+
     # Set up database connection with environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
 
@@ -426,6 +474,14 @@ def update_comment(requester, comment_id):
     # Request should contain:
     # content <str>
     data = request.get_json()
+
+    # Return error if request is missing data
+    if not data or 'content' not in data:
+        return make_response('Request must contain comment content', 400)
+
+    # Return error if comment is blank
+    if not data['content']:
+        return make_response('Comment cannot be blank', 400)
 
     # Set up database connection with environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])

@@ -310,7 +310,60 @@ class TestUser(CrystalPrismTestCase):
         # Hard-delete user for clean-up
         self.delete_user(updated_username)
 
-    def test_user_post_username_error(self):
+    def test_user_post_data_error(self):
+        # Act
+        post_response = self.client.post(
+            '/api/user'
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Request must contain username and password')
+
+    def test_user_post_username_blank_error(self):
+        # Arrange
+        username = ''
+        password = 'password'
+        post_data = {
+            'username': username,
+            'password': password
+            }
+
+        # Act
+        post_response = self.client.post(
+            '/api/user',
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Username cannot be blank')
+
+    def test_user_post_username_character_error(self):
+        # Arrange
+        username = 'test_user$'
+        password = 'password'
+        post_data = {
+            'username': username,
+            'password': password
+            }
+
+        # Act
+        post_response = self.client.post(
+            '/api/user',
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Username contains unacceptable characters')
+
+    def test_user_post_username_exists_error(self):
         # Arrange
         self.create_user()
         self.login()
@@ -338,6 +391,27 @@ class TestUser(CrystalPrismTestCase):
         self.assertEqual(post_response.status_code, 409)
         self.assertEqual(error, 'Username already exists')
 
+    def test_user_post_password_error(self):
+        # Arrange
+        username = 'new_user'
+        password = 'short'
+        post_data = {
+            'username': username,
+            'password': password
+            }
+
+        # Act
+        post_response = self.client.post(
+            '/api/user',
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Password too short')
+
     def test_user_get_unauthorized_error(self):
         # Act
         get_response = self.client.get('/api/user')
@@ -347,14 +421,48 @@ class TestUser(CrystalPrismTestCase):
         self.assertEqual(get_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
+    def test_user_patch_unauthorized_error(self):
+        # Act
+        patch_response = self.client.patch('/api/user')
+        error = patch_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(patch_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
+    def test_user_patch_data_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Act
+        patch_response = self.client.patch(
+            '/api/user',
+            headers=header
+            )
+        error = patch_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(patch_response.status_code, 400)
+        self.assertEqual(error, 'Request is missing required data')
+
     def test_user_patch_username_error(self):
         # Arrange
         self.create_user()
         self.login()
         header = {'Authorization': 'Bearer ' + self.token}
         data = {
-            'username': 'user1',
-            'password': 'password1'
+            'about': 'Test',
+            'background_color': '#000000',
+            'email': 'test@crystalprism.io',
+            'email_public': True,
+            'first_name': 'Test',
+            'icon_color': '#ffffff',
+            'last_name': 'Test',
+            'name_public': True,
+            'password': 'password1',
+            'username': 'user1'
             }
 
         # Act
@@ -369,15 +477,6 @@ class TestUser(CrystalPrismTestCase):
         # Assert
         self.assertEqual(patch_response.status_code, 409)
         self.assertEqual(error, 'Username already exists')
-
-    def test_user_patch_unauthorized_error(self):
-        # Act
-        patch_response = self.client.patch('/api/user')
-        error = patch_response.get_data(as_text=True)
-
-        # Assert
-        self.assertEqual(patch_response.status_code, 401)
-        self.assertEqual(error, 'Unauthorized')
 
     def test_user_delete_unauthorized_error(self):
         # Act
@@ -475,7 +574,7 @@ class TestUser(CrystalPrismTestCase):
         # Arrange - first user adds comment to post
         comment_data = {
             'content': 'Test',
-            'post_id': post_id
+            'post_id': int(post_id)
             }
 
         first_post_comment_response = self.client.post(

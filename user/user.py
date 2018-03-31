@@ -86,7 +86,22 @@ def create_user():
     # username <str>
     data = request.get_json()
 
+    # Return error if request is missing data
+    if not data or 'username' not in data or 'password' not in data:
+        return make_response('Request must contain username and password', 400)
+
     username = data['username']
+    password = data['password']
+
+    # Return error if username is blank
+    if not username:
+        return make_response('Username cannot be blank', 400)
+
+    # Return error if username contains unacceptable characters
+    pattern = re.compile(r'^[a-zA-Z0-9_-]+$')
+
+    if not pattern.match(username):
+        return make_response('Username contains unacceptable characters', 400)
 
     # Set up database connection wtih environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
@@ -107,6 +122,10 @@ def create_user():
         conn.close()
 
         return make_response('Username already exists', 409)
+
+    # Return error if password is too short
+    if len(password) < 8:
+        return make_response('Password too short', 400)
 
     # Generate hashed password with bcrypt cryptographic hash function and salt
     password = data['password'].encode()
@@ -271,6 +290,14 @@ def update_user(requester):
     # password <str>
     # username <str>
     data = request.get_json()
+
+    # Return error if request is missing data
+    if (not data or 'about' not in data or 'background_color' not in data or
+        'email' not in data or 'email_public' not in data or
+        'first_name' not in data or 'icon_color' not in data or
+        'last_name' not in data or 'name_public' not in data or
+        'password' not in data or 'username' not in data):
+            return make_response('Request is missing required data', 400)
 
     username = data['username']
     password = data['password']
