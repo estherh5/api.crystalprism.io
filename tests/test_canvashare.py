@@ -132,6 +132,77 @@ class TestDrawing(CrystalPrismTestCase):
         self.assertEqual(post_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
+    def test_drawing_post_data_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Act
+        post_response = self.client.post(
+            '/api/canvashare/drawing',
+            headers=header
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Request must contain drawing and title')
+
+    def test_drawing_image_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        data = {
+            'drawing': '',
+            'title': 'Test'
+            }
+
+        # Act
+        post_response = self.client.post(
+            '/api/canvashare/drawing',
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Drawing must be base64-encoded PNG image')
+
+    def test_drawing_post_title_blank_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Get sample image data URL
+        test_drawing = (
+            os.path.dirname(__file__) + '/../fixtures/test-drawing.txt'
+            )
+        with open(test_drawing, 'r') as drawing:
+            drawing = drawing.read()
+        data = {
+            'drawing': drawing,
+            'title': ''
+            }
+
+        # Act
+        post_response = self.client.post(
+            '/api/canvashare/drawing',
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Drawing title cannot be blank')
+
     @patch('canvashare.canvashare.boto3')
     def test_drawing_post_not_unique_error(self, boto3):
         # Arrange
@@ -537,6 +608,43 @@ class TestDrawingLike(CrystalPrismTestCase):
         # Assert
         self.assertEqual(post_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
+
+    def test_drawing_like_post_data_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Act
+        post_response = self.client.post(
+            '/api/canvashare/drawing-like',
+            headers=header
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Request must contain drawing id')
+
+    def test_drawing_like_post_id_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        data = {'drawing_id': ''}
+
+        # Act
+        post_response = self.client.post(
+            '/api/canvashare/drawing-like',
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Drawing id must be a string')
 
     def test_drawing_like_post_drawing_not_found_error(self):
         # Arrange
