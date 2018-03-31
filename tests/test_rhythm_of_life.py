@@ -131,6 +131,45 @@ class TestScore(CrystalPrismTestCase):
         self.assertEqual(post_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
+    def test_score_post_data_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Act
+        post_response = self.client.post(
+            '/api/rhythm-of-life/score',
+            headers=header
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Request must contain score')
+
+    def test_score_post_score_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        post_data = {
+            'score': ''
+            }
+
+        # Act
+        post_response = self.client.post(
+            '/api/rhythm-of-life/score',
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Score must be an integer')
+
     def test_score_delete_unauthorized_error(self):
         # Arrange
         score_id = '1'

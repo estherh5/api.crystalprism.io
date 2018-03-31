@@ -129,6 +129,95 @@ class TestPost(CrystalPrismTestCase):
         self.assertEqual(post_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
+    def test_post_post_data_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Act
+        post_response = self.client.post(
+            '/api/thought-writer/post',
+            headers=header
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Request is missing required data')
+
+    def test_post_post_content_blank_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        data = {
+            'content': '',
+            'public': False,
+            'title': 'Test'
+            }
+
+        # Act
+        post_response = self.client.post(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Post cannot be blank')
+
+    def test_post_post_title_blank_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        data = {
+            'content': 'Test',
+            'public': False,
+            'title': ''
+            }
+
+        # Act
+        post_response = self.client.post(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Post title cannot be blank')
+
+    def test_post_post_public_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        data = {
+            'content': 'Test',
+            'public': 'Test',
+            'title': 'Test'
+            }
+
+        # Act
+        post_response = self.client.post(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Public status must be true or false')
+
     def test_private_post_get_unauthorized_error(self):
         # Arrange
         self.create_user()
@@ -172,6 +261,151 @@ class TestPost(CrystalPrismTestCase):
         # Assert
         self.assertEqual(patch_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
+
+    def test_post_patch_data_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        post_data = {
+            'content': 'Test',
+            'public': False,
+            'title': 'Test'
+            }
+
+        # Create post
+        post_response = self.client.post(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        post_id = post_response.get_data(as_text=True)
+
+        # Act
+        patch_response = self.client.patch(
+            '/api/thought-writer/post/' + post_id,
+            headers=header
+            )
+        error = patch_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(patch_response.status_code, 400)
+        self.assertEqual(error, 'Request is missing required data')
+
+    def test_post_patch_content_blank_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        post_data = {
+            'content': 'Test',
+            'public': False,
+            'title': 'Test'
+            }
+        patch_data = {
+            'content': '',
+            'public': False,
+            'title': 'Test'
+        }
+
+        # Create post
+        post_response = self.client.post(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        post_id = post_response.get_data(as_text=True)
+
+        # Act
+        patch_response = self.client.patch(
+            '/api/thought-writer/post/' + post_id,
+            headers=header,
+            data=json.dumps(patch_data),
+            content_type='application/json'
+            )
+        error = patch_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(patch_response.status_code, 400)
+        self.assertEqual(error, 'Post cannot be blank')
+
+    def test_post_patch_title_blank_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        post_data = {
+            'content': 'Test',
+            'public': False,
+            'title': 'Test'
+            }
+        patch_data = {
+            'content': 'Test',
+            'public': False,
+            'title': ''
+        }
+
+        # Create post
+        post_response = self.client.post(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        post_id = post_response.get_data(as_text=True)
+
+        # Act
+        patch_response = self.client.patch(
+            '/api/thought-writer/post/' + post_id,
+            headers=header,
+            data=json.dumps(patch_data),
+            content_type='application/json'
+            )
+        error = patch_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(patch_response.status_code, 400)
+        self.assertEqual(error, 'Post title cannot be blank')
+
+    def test_post_patch_public_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        post_data = {
+            'content': 'Test',
+            'public': False,
+            'title': 'Test'
+            }
+        patch_data = {
+            'content': 'Test',
+            'public': 'Test',
+            'title': 'Test'
+        }
+
+        # Create post
+        post_response = self.client.post(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        post_id = post_response.get_data(as_text=True)
+
+        # Act
+        patch_response = self.client.patch(
+            '/api/thought-writer/post/' + post_id,
+            headers=header,
+            data=json.dumps(patch_data),
+            content_type='application/json'
+            )
+        error = patch_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(patch_response.status_code, 400)
+        self.assertEqual(error, 'Public status must be true or false')
 
     def test_post_patch_not_found_error(self):
         # Arrange
@@ -676,6 +910,71 @@ class TestComment(CrystalPrismTestCase):
         self.assertEqual(post_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
+    def test_comment_post_data_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Act
+        post_response = self.client.post(
+            '/api/thought-writer/comment',
+            headers=header
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(
+            error, 'Request must contain post id and comment content'
+            )
+
+    def test_comment_post_id_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        data = {
+            'content': 'Test',
+            'post_id': '1'
+            }
+
+        # Act
+        post_response = self.client.post(
+            '/api/thought-writer/comment',
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Post id must be an integer')
+
+    def test_comment_post_content_blank_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        data = {
+            'content': '',
+            'post_id': 1
+            }
+
+        # Act
+        post_response = self.client.post(
+            '/api/thought-writer/comment',
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        error = post_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(post_response.status_code, 400)
+        self.assertEqual(error, 'Comment cannot be blank')
+
     def test_comment_post_post_not_found_error(self):
         # Arrange
         self.create_user()
@@ -721,20 +1020,20 @@ class TestComment(CrystalPrismTestCase):
 
         comment_data = {
             'content': 'Test',
-            'post_id': post_id
+            'post_id': int(post_id)
             }
 
         # Act
-        post_response = self.client.post(
+        post_comment_response = self.client.post(
             '/api/thought-writer/comment',
             headers=header,
             data=json.dumps(comment_data),
             content_type='application/json'
             )
-        error = post_response.get_data(as_text=True)
+        error = post_comment_response.get_data(as_text=True)
 
         # Assert
-        self.assertEqual(post_response.status_code, 404)
+        self.assertEqual(post_comment_response.status_code, 404)
         self.assertEqual(error, 'Not found')
 
     def test_comment_patch_unauthorized_error(self):
@@ -750,6 +1049,71 @@ class TestComment(CrystalPrismTestCase):
         # Assert
         self.assertEqual(patch_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
+
+    def test_comment_patch_data_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        post_data = {
+            'content': 'Test',
+            'post_id': 1
+            }
+
+        # Create post
+        post_response = self.client.post(
+            '/api/thought-writer/comment',
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        comment_id = post_response.get_data(as_text=True)
+
+        # Act
+        patch_response = self.client.patch(
+            '/api/thought-writer/comment/' + comment_id,
+            headers=header
+            )
+        error = patch_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(patch_response.status_code, 400)
+        self.assertEqual(error, 'Request must contain comment content')
+
+    def test_post_patch_content_blank_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        post_data = {
+            'content': 'Test',
+            'post_id': 1
+            }
+        patch_data = {
+            'content': '',
+        }
+
+        # Create post
+        post_response = self.client.post(
+            '/api/thought-writer/comment',
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        comment_id = post_response.get_data(as_text=True)
+
+        # Act
+        patch_response = self.client.patch(
+            '/api/thought-writer/comment/' + comment_id,
+            headers=header,
+            data=json.dumps(patch_data),
+            content_type='application/json'
+            )
+        error = patch_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(patch_response.status_code, 400)
+        self.assertEqual(error, 'Comment cannot be blank')
 
     def test_comment_patch_not_found_error(self):
         # Arrange

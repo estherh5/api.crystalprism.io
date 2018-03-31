@@ -10,6 +10,14 @@ def create_score(requester):
     # score <int>
     data = request.get_json()
 
+    # Return error if request is missing data
+    if not data or 'score' not in data:
+        return make_response('Request must contain score', 400)
+
+    # Return error if score is not an integer
+    if not isinstance(data['score'], int):
+        return make_response('Score must be an integer', 400)
+
     # Set up database connection with environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
 

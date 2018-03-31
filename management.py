@@ -126,6 +126,22 @@ def create_owner_user(username):
 
     cursor = conn.cursor()
 
+    # Check if owner already exists in database
+    cursor.execute(
+        """
+        SELECT exists (
+        SELECT 1 FROM cp_user WHERE is_owner = TRUE LIMIT 1);
+        """
+        )
+
+    if cursor.fetchone()[0]:
+        cursor.close()
+        conn.close()
+
+        print('Owner user already exists')
+
+        return
+
     # Check if username already exists in database
     cursor.execute(
         """
@@ -139,12 +155,22 @@ def create_owner_user(username):
         cursor.close()
         conn.close()
 
+        # Prompt for a new username if the username already exists
         print('Username already exists')
+
+        new_username = input('Please enter a new username for the owner: ')
+        create_owner_user(new_username)
 
         return
 
-    # Generate hashed password with bcrypt cryptographic hash function and salt
+    # Prompt for password that is at least 8 characters long
     password = getpass.getpass('Enter password for ' + username + ': ')
+
+    while len(password) < 8:
+        print('Password must be at least 8 characters long')
+        password = getpass.getpass('Enter password for ' + username + ': ')
+
+    # Generate hashed password with bcrypt cryptographic hash function and salt
     password = password.encode()
     hashed_password = bcrypt.hashpw(password, bcrypt.gensalt())
 
@@ -189,12 +215,22 @@ def create_admin_user(username):
         cursor.close()
         conn.close()
 
+        # Prompt for a new username if the username already exists
         print('Username already exists')
+
+        new_username = input('Please enter a new username for the admin: ')
+        create_admin_user(new_username)
 
         return
 
-    # Generate hashed password with bcrypt cryptographic hash function and salt
+    # Prompt for password that is at least 8 characters long
     password = getpass.getpass('Enter password for ' + username + ': ')
+
+    while len(password) < 8:
+        print('Password must be at least 8 characters long')
+        password = getpass.getpass('Enter password for ' + username + ': ')
+
+    # Generate hashed password with bcrypt cryptographic hash function and salt
     password = password.encode()
     hashed_password = bcrypt.hashpw(password, bcrypt.gensalt())
 
