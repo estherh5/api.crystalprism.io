@@ -478,6 +478,37 @@ class TestUser(CrystalPrismTestCase):
         self.assertEqual(patch_response.status_code, 409)
         self.assertEqual(error, 'Username already exists')
 
+    def test_user_patch_email_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        data = {
+            'about': 'Test',
+            'background_color': '#000000',
+            'email': 'admin@crystalprism.io',
+            'email_public': True,
+            'first_name': 'Test',
+            'icon_color': '#ffffff',
+            'last_name': 'Test',
+            'name_public': True,
+            'password': 'password1',
+            'username': 'email_test'
+            }
+
+        # Act
+        patch_response = self.client.patch(
+            '/api/user',
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+        error = patch_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(patch_response.status_code, 409)
+        self.assertEqual(error, 'Email address already claimed')
+
     def test_user_delete_unauthorized_error(self):
         # Act
         delete_response = self.client.delete('/api/user')

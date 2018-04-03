@@ -325,6 +325,23 @@ def update_user(requester):
 
             return make_response('Username already exists', 409)
 
+    # Check if email address already exists in database
+    cursor.execute(
+        """
+        SELECT exists (
+        SELECT 1 FROM cp_user
+        WHERE email = %(email)s AND LOWER(username) != %(username)s LIMIT 1);
+        """,
+        {'email': data['email'],
+        'username': requester.lower()}
+        )
+
+    if cursor.fetchone()[0]:
+        cursor.close()
+        conn.close()
+
+        return make_response('Email address already claimed', 409)
+
     cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
 
     # Retrieve user account from database
