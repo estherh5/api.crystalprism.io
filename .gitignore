@@ -1,5 +1,7 @@
+.coverage
 .DS_Store
 __pycache__
+htmlcov/*
 *.json
 *.png
 *.pyc
