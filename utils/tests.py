@@ -166,10 +166,11 @@ def initialize_test_database(postgresql):
     # Create owner user and 10 homepage posts
     cursor.execute(
         """
-        INSERT INTO cp_user (username, is_owner, password)
-        VALUES (%(username)s, %(is_owner)s, %(password)s);
+        INSERT INTO cp_user (username, email, is_owner, password)
+        VALUES (%(username)s, %(email)s, %(is_owner)s, %(password)s);
         """,
         {'username': 'owner',
+        'email': 'admin@crystalprism.io',
         'is_owner': True,
         'password': hashed_password.decode()}
         )
