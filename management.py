@@ -72,25 +72,37 @@ def initialize_database():
         score_id SERIAL PRIMARY KEY);
 
         CREATE TABLE IF NOT EXISTS post (
-        content text NOT NULL,
         created text NOT NULL DEFAULT to_char
         (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
         member_id uuid REFERENCES cp_user(member_id) ON DELETE CASCADE,
         modified text NOT NULL DEFAULT to_char
         (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        post_id SERIAL PRIMARY KEY,
+        post_id SERIAL PRIMARY KEY);
+
+        CREATE TABLE IF NOT EXISTS post_content (
+        content text NOT NULL,
+        created text NOT NULL DEFAULT to_char
+        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+        post_content_id SERIAL PRIMARY KEY,
+        post_id int REFERENCES post(post_id) ON DELETE CASCADE,
         public boolean NOT NULL DEFAULT false,
         title varchar(25) NOT NULL);
 
         CREATE TABLE IF NOT EXISTS comment (
         comment_id SERIAL PRIMARY KEY,
-        content text NOT NULL,
         created text NOT NULL DEFAULT to_char
         (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
         member_id uuid REFERENCES cp_user(member_id) ON DELETE CASCADE,
         modified text NOT NULL DEFAULT to_char
         (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
         post_id int REFERENCES post(post_id) ON DELETE CASCADE);
+
+        CREATE TABLE IF NOT EXISTS comment_content (
+        comment_content_id SERIAL PRIMARY KEY,
+        comment_id int REFERENCES comment(comment_id) ON DELETE CASCADE,
+        content text NOT NULL,
+        created text NOT NULL DEFAULT to_char
+        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
 
         CREATE TABLE IF NOT EXISTS drawing (
         created text NOT NULL DEFAULT to_char
@@ -270,23 +282,31 @@ def create_posts(username, posts_filename):
     for post in posts:
         cursor.execute(
             """
-            INSERT INTO post (member_id, content, title, public)
+            INSERT INTO post (member_id)
             VALUES ((SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s), %(content)s, %(title)s,
-            %(public)s)
+            WHERE LOWER(username) = %(username)s))
             RETURNING post_id;
             """,
-            {'username': username.lower(),
-            'content': post['content'],
-            'title': post['title'],
-            'public': post['public']}
+            {'username': username.lower()}
+            )
+
+        post_id = cursor.fetchone()[0]
+
+        cursor.execute(
+            """
+            INSERT INTO post_content (content, created, post_id, public, title)
+            VALUES (%(content)s, (SELECT modified FROM post
+            WHERE post_id = %(post_id)s), %(post_id)s, %(public)s, %(title)s);
+            """,
+            {'content': post['content'],
+            'post_id': post_id,
+            'public': post['public'],
+            'title': post['title']}
             )
 
         conn.commit()
 
-        post['post_id'] = cursor.fetchone()[0]
-
-        print('Post "' + str(post['post_id']) + '" added to database.')
+        print('Post "' + str(post_id) + '" added to database.')
 
     cursor.close()
     conn.close()

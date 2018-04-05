@@ -60,16 +60,49 @@ def initialize_test_database(postgresql):
     for i in range(10):
         cursor.execute(
             """
-            INSERT INTO post (member_id, content, public, title)
+            INSERT INTO post (member_id)
             VALUES ((SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s), %(content)s, %(public)s,
-            %(title)s);
+            WHERE LOWER(username) = %(username)s))
+            RETURNING post_id;
             """,
-            {'username': 'user1',
-            'content': post['content'],
+            {'username': 'user1'}
+            )
+
+        post_id = cursor.fetchone()[0]
+
+        cursor.execute(
+            """
+            INSERT INTO post_content (content, created, post_id, public, title)
+            VALUES (%(content)s, (SELECT modified FROM post
+            WHERE post_id = %(post_id)s), %(post_id)s, %(public)s, %(title)s);
+            """,
+            {'content': post['content'],
+            'post_id': post_id,
             'public': post['public'],
             'title': post['title']}
             )
+
+    # Update a post to create post history
+    cursor.execute(
+        """
+        INSERT INTO post_content (content, created, post_id, public, title)
+        VALUES (%(content)s, %(created)s, %(post_id)s, %(public)s, %(title)s);
+        """,
+        {'content': post['content'],
+        'created': post['modified'],
+        'post_id': 1,
+        'public': post['public'],
+        'title': post['title']}
+        )
+
+    cursor.execute(
+        """
+        UPDATE post SET modified = %(modified)s
+        WHERE post_id = %(post_id)s;
+        """,
+        {'modified': post['modified'],
+        'post_id': 1}
+        )
 
     # Add 10 sample comments for post to database
     comment_file = 'fixtures/test-comment.json'
@@ -79,14 +112,46 @@ def initialize_test_database(postgresql):
     for i in range(10):
         cursor.execute(
             """
-            INSERT INTO comment (member_id, post_id, content)
+            INSERT INTO comment (member_id, post_id)
             VALUES ((SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s), %(post_id)s, %(content)s);
+            WHERE LOWER(username) = %(username)s), %(post_id)s)
+            RETURNING comment_id;
             """,
             {'username': 'user1',
-            'post_id': 1,
+            'post_id': 1}
+            )
+
+        comment_id = cursor.fetchone()[0]
+
+        cursor.execute(
+            """
+            INSERT INTO comment_content (comment_id, content, created)
+            VALUES (%(comment_id)s, %(content)s, (SELECT modified FROM comment
+            WHERE comment_id = %(comment_id)s));
+            """,
+            {'comment_id': comment_id,
             'content': comment['content']}
             )
+
+    # Update a comment to get comment history
+    cursor.execute(
+        """
+        INSERT INTO comment_content (comment_id, content, created)
+        VALUES (%(comment_id)s, %(content)s, %(created)s);
+        """,
+        {'comment_id': 1,
+        'content': comment['content'],
+        'created': comment['modified']}
+        )
+
+    cursor.execute(
+        """
+        UPDATE comment SET modified = %(modified)s
+        WHERE comment_id = %(comment_id)s;
+        """,
+        {'modified': comment['modified'],
+        'comment_id': 1}
+        )
 
     # Add 10 sample drawings to database
     drawing_file = 'fixtures/test-drawing.json'
@@ -178,16 +243,49 @@ def initialize_test_database(postgresql):
     for i in range(10):
         cursor.execute(
             """
-            INSERT INTO post (member_id, content, public, title)
+            INSERT INTO post (member_id)
             VALUES ((SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s), %(content)s, %(public)s,
-            %(title)s);
+            WHERE LOWER(username) = %(username)s))
+            RETURNING post_id;
             """,
-            {'username': 'owner',
-            'content': post['content'],
+            {'username': 'owner'}
+            )
+
+        post_id = cursor.fetchone()[0]
+
+        cursor.execute(
+            """
+            INSERT INTO post_content (content, created, post_id, public, title)
+            VALUES (%(content)s, (SELECT modified FROM post
+            WHERE post_id = %(post_id)s), %(post_id)s, %(public)s, %(title)s);
+            """,
+            {'content': post['content'],
+            'post_id': post_id,
             'public': post['public'],
             'title': post['title']}
             )
+
+    # Update a post to create post history
+    cursor.execute(
+        """
+        INSERT INTO post_content (content, created, post_id, public, title)
+        VALUES (%(content)s, %(created)s, %(post_id)s, %(public)s, %(title)s);
+        """,
+        {'content': post['content'],
+        'created': post['modified'],
+        'post_id': 11,
+        'public': post['public'],
+        'title': post['title']}
+        )
+
+    cursor.execute(
+        """
+        UPDATE post SET modified = %(modified)s
+        WHERE post_id = %(post_id)s;
+        """,
+        {'modified': post['modified'],
+        'post_id': 11}
+        )
 
     conn.commit()
 
