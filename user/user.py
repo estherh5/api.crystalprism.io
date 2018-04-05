@@ -37,7 +37,7 @@ def login():
     # Get hashed user password to check credentials against and user status
     cursor.execute(
         """
-        SELECT password, status FROM cp_user
+        SELECT username, password, status FROM cp_user
         WHERE LOWER(username) = %(username)s LIMIT 1;
         """,
         {'username': username.lower()}
@@ -65,7 +65,7 @@ def login():
         # Generate JWT token if password is correct
         header = urlsafe_b64encode(b'{"alg": "HS256", "typ": "JWT"}')
         payload = urlsafe_b64encode(json.dumps({
-            'username': username,
+            'username': user_data['username'],
             'exp': floor(time() + (60 * 60))  # in seconds
             }).encode())
         secret = os.environ['SECRET_KEY'].encode()
