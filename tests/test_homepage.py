@@ -32,6 +32,10 @@ class TestIdeas(CrystalPrismTestCase):
         self.assertEqual(all(bool(timestamp_pattern.match(
             post['created'])) for post in posts), True)
 
+        # Ensure each post's history is a list
+        self.assertEqual(all(
+            isinstance(post['history'], list) for post in posts), True)
+
         # Ensure each post id is an integer
         self.assertEqual(all(isinstance(
             post['post_id'], int) for post in posts), True)
