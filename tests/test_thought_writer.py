@@ -46,8 +46,9 @@ class TestPost(CrystalPrismTestCase):
         self.assertEqual(get_response.status_code, 200)
         self.assertEqual(post['comment_count'], 0)
         self.assertEqual(post['content'], 'Test')
-        self.assertEqual(post['title'], 'Test')
+        self.assertEqual(post['history'], [])
         self.assertEqual(post['public'], False)
+        self.assertEqual(post['title'], 'Test')
         self.assertEqual(post['username'], self.username)
 
         # Ensure created and modified timestamps match UTC format
@@ -88,9 +89,15 @@ class TestPost(CrystalPrismTestCase):
         self.assertEqual(patch_response.status_code, 200)
 
         self.assertEqual(patched_get_response.status_code, 200)
-        self.assertEqual(updated_post['title'], 'Test 2')
         self.assertEqual(updated_post['content'], 'Test 2')
+        self.assertEqual(updated_post['history'][0]['content'], 'Test')
+        self.assertEqual(
+            updated_post['history'][0]['created'], post['created']
+            )
+        self.assertEqual(updated_post['history'][0]['title'], 'Test')
+        self.assertEqual(updated_post['history'][0]['public'], False)
         self.assertEqual(updated_post['public'], True)
+        self.assertEqual(updated_post['title'], 'Test 2')
 
         # Act [DELETE]
         delete_response = self.client.delete(
@@ -539,13 +546,16 @@ class TestPosts(CrystalPrismTestCase):
         self.assertEqual(all(bool(timestamp_pattern.match(
             post['modified'])) for post in posts), True)
 
+        # Ensure each post's history is a list
+        self.assertEqual(all(isinstance(
+            post['history'], list) for post in posts), True)
+
         # Ensure each post id is an integer
         self.assertEqual(all(isinstance(
             post['post_id'], int) for post in posts), True)
 
-        # Ensure each post's public status is a boolean
-        self.assertEqual(all(isinstance(
-            post['public'], bool) for post in posts), True)
+        # Ensure each post's public status is True
+        self.assertEqual(all(post['public'] for post in posts), True)
 
         # Ensure each title is a string
         self.assertEqual(all(
@@ -588,7 +598,7 @@ class TestPosts(CrystalPrismTestCase):
         # Assert
         self.assertEqual(len(posts), 5)
 
-    def test_posts_get_error(self):
+    def test_posts_get_query_error(self):
         # Arrange
         query = {'start': 5, 'end': 0}
 
@@ -634,13 +644,16 @@ class TestPosts(CrystalPrismTestCase):
         self.assertEqual(all(bool(timestamp_pattern.match(
             post['modified'])) for post in posts), True)
 
+        # Ensure each post's history is a list
+        self.assertEqual(all(isinstance(
+            post['history'], list) for post in posts), True)
+
         # Ensure each post id is an integer
         self.assertEqual(all(isinstance(
             post['post_id'], int) for post in posts), True)
 
-        # Ensure each post's public status is a boolean
-        self.assertEqual(all(isinstance(
-            post['public'], bool) for post in posts), True)
+        # Ensure each post's public status is True
+        self.assertEqual(all(post['public'] for post in posts), True)
 
         # Ensure each title is a string
         self.assertEqual(all(
@@ -675,6 +688,13 @@ class TestPosts(CrystalPrismTestCase):
             'public': True
             }
 
+        public_patch_data = {
+            'title': 'Test',
+            'content': 'Test',
+            'created': '2050-01-01T00:00:00.000Z',
+            'public': True
+            }
+
         # Create private and public post for first user
         private_post_response = self.client.post(
             '/api/thought-writer/post',
@@ -691,6 +711,14 @@ class TestPosts(CrystalPrismTestCase):
             content_type='application/json'
             )
         public_post_id = public_post_response.get_data(as_text=True)
+
+        # Update public post to create content history
+        self.client.patch(
+            '/api/thought-writer/post/' + public_post_id,
+            headers=first_user_header,
+            data=json.dumps(public_patch_data),
+            content_type='application/json'
+            )
 
         # Act
         first_user_get_response = self.client.get(
@@ -763,7 +791,7 @@ class TestPosts(CrystalPrismTestCase):
         # Assert
         self.assertEqual(len(posts), 5)
 
-    def test_user_posts_get_error(self):
+    def test_user_posts_get_query_error(self):
         # Arrange
         writer_name = 'user1'
         query = {'start': 5, 'end': 0}
@@ -833,6 +861,7 @@ class TestComment(CrystalPrismTestCase):
         self.assertEqual(get_response.status_code, 200)
         self.assertEqual(comment['comment_id'], int(comment_id))
         self.assertEqual(comment['content'], 'Test')
+        self.assertEqual(comment['history'], [])
         self.assertEqual(comment['post_id'], 1)
         self.assertEqual(comment['username'], self.username)
 
@@ -873,6 +902,10 @@ class TestComment(CrystalPrismTestCase):
         self.assertEqual(patch_response.status_code, 200)
         self.assertEqual(patched_get_response.status_code, 200)
         self.assertEqual(updated_comment['content'], 'Test 2')
+        self.assertEqual(updated_comment['history'][0]['content'], 'Test')
+        self.assertEqual(
+            updated_comment['history'][0]['created'], comment['modified']
+            )
 
         # Act [DELETE]
         delete_response = self.client.delete(
@@ -1034,6 +1067,62 @@ class TestComment(CrystalPrismTestCase):
 
         # Assert
         self.assertEqual(post_comment_response.status_code, 404)
+        self.assertEqual(error, 'Not found')
+
+    def test_comment_get_post_private_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        post_data = {
+            'title': 'Test',
+            'content': 'Test',
+            'public': True
+            }
+        patch_data = {
+            'title': 'Test',
+            'content': 'Test',
+            'public': False
+            }
+
+        # Create public post and comment
+        post_response = self.client.post(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        post_id = post_response.get_data(as_text=True)
+
+        comment_data = {
+            'content': 'Test',
+            'post_id': int(post_id)
+            }
+
+        post_comment_response = self.client.post(
+            '/api/thought-writer/comment',
+            headers=header,
+            data=json.dumps(comment_data),
+            content_type='application/json'
+            )
+        comment_id = post_comment_response.get_data(as_text=True)
+
+        # Set post to private
+        self.client.patch(
+            '/api/thought-writer/post/' + post_id,
+            headers=header,
+            data=json.dumps(patch_data),
+            content_type='application/json'
+            )
+
+        # Act
+        get_comment_response = self.client.get(
+            '/api/thought-writer/comment/' + comment_id
+            )
+        error = get_comment_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(get_comment_response.status_code, 404)
         self.assertEqual(error, 'Not found')
 
     def test_comment_patch_unauthorized_error(self):
@@ -1241,6 +1330,10 @@ class TestComments(CrystalPrismTestCase):
         self.assertEqual(all(isinstance(comment['content'], str)
             for comment in comments), True)
 
+        # Ensure each comment's history is a list
+        self.assertEqual(all(isinstance(comment['history'], list)
+            for comment in comments), True)
+
         # Ensure each post id is specified post id
         self.assertEqual(all(comment['post_id'] == int(post_id)
             for comment in comments), True)
@@ -1279,7 +1372,7 @@ class TestComments(CrystalPrismTestCase):
         # Assert
         self.assertEqual(len(comments), 5)
 
-    def test_comments_get_error(self):
+    def test_comments_get_query_error(self):
         # Arrange
         post_id = '1'
         query = {'start': 5, 'end': 0}
@@ -1324,6 +1417,10 @@ class TestComments(CrystalPrismTestCase):
 
         # Ensure each comment's content is a string
         self.assertEqual(all(isinstance(comment['content'], str)
+            for comment in comments), True)
+
+        # Ensure each comment's history is a list
+        self.assertEqual(all(isinstance(comment['history'], list)
             for comment in comments), True)
 
         # Ensure each post id is an integer
@@ -1376,7 +1473,7 @@ class TestComments(CrystalPrismTestCase):
         # Assert
         self.assertEqual(len(comments), 5)
 
-    def test_user_comments_get_error(self):
+    def test_user_comments_get_query_error(self):
         # Arrange
         commenter_name = 'user1'
         query = {'start': 5, 'end': 0}

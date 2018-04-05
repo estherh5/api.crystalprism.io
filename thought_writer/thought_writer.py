@@ -40,20 +40,29 @@ def create_post(requester):
     # Add post to database
     cursor.execute(
         """
-        INSERT INTO post (member_id, content, public, title)
+        INSERT INTO post (member_id)
         VALUES ((SELECT member_id FROM cp_user
-        WHERE LOWER(username) = %(username)s), %(content)s, %(public)s,
-        %(title)s) RETURNING post_id;
+        WHERE LOWER(username) = %(username)s))
+        RETURNING post_id;
         """,
-        {'username': requester.lower(),
-        'content': data['content'],
+        {'username': requester.lower()}
+        )
+
+    post_id = cursor.fetchone()[0]
+
+    cursor.execute(
+        """
+        INSERT INTO post_content (content, created, post_id, public, title)
+        VALUES (%(content)s, (SELECT modified FROM post
+        WHERE post_id = %(post_id)s), %(post_id)s, %(public)s, %(title)s);
+        """,
+        {'content': data['content'],
+        'post_id': post_id,
         'public': data['public'],
         'title': data['title']}
         )
 
     conn.commit()
-
-    post_id = cursor.fetchone()[0]
 
     cursor.close()
     conn.close()
@@ -70,8 +79,8 @@ def read_post(post_id):
     # Retrieve post from database
     cursor.execute(
         """
-        SELECT post.content, post.created, post.modified, post.post_id,
-        post.public, post.title, cp_user.username FROM post
+        SELECT post.created, post.modified, post.post_id,
+        cp_user.username FROM post
         JOIN cp_user ON post.member_id = cp_user.member_id
         WHERE post_id = %(post_id)s;
         """,
@@ -87,6 +96,30 @@ def read_post(post_id):
     # Otherwise, convert post data to dictionary
     post = dict(post)
 
+    # Retrieve all post content versions from database
+    cursor.execute(
+        """
+        SELECT content, created, public, title FROM post_content
+        WHERE post_id = %(post_id)s;
+        """,
+        {'post_id': post_id}
+        )
+
+    post['history'] = []
+
+    for row in cursor.fetchall():
+        row = dict(row)
+
+        # Set current post content, public, and title items
+        if row['created'] == post['modified']:
+            post['content'] = row['content']
+            post['public'] = row['public']
+            post['title'] = row['title']
+
+        # Add rest of post versions to history item
+        else:
+            post['history'].append(row)
+
     # Retrieve comment count from database
     cursor.execute(
         """
@@ -101,22 +134,26 @@ def read_post(post_id):
     cursor.close()
     conn.close()
 
-    # If post is private, return post to client only if requester's user token
-    # is verified and requester is the writer
+    # Check if user is logged in
+    verification = user.verify_token()
+
+    # If requester's user token is verified and requester is the writer, return
+    # post and its entire history
+    if (verification.status_code == 200 and json.loads(verification.data
+        .decode())['username']
+        .lower() == post['username'].lower()):
+
+            return jsonify(post)
+
+    # if post is private and requester is not the writer, retun error
     if not post['public']:
-
-        # Check if user is logged in
-        verification = user.verify_token()
-
-        if (verification.status_code == 200 and
-            json.loads(verification.data.decode())['username']
-            .lower() == post['username'].lower()):
-
-                return jsonify(post)
-
         return make_response('Unauthorized', 401)
 
-    # Otherwise, if post is public, return post without login verification
+    # Otherwise, if post is public, return post with private history removed
+    # without login verification
+    post['history'] = [content for content in post['history']
+        if content['public']]
+
     return jsonify(post)
 
 
@@ -178,18 +215,28 @@ def update_post(requester, post_id):
 
         return make_response('Unauthorized', 401)
 
-    # Update post in database
+    # Add post content version to database
     cursor.execute(
         """
-        UPDATE post SET title = %(title)s, content = %(content)s,
-        modified = to_char
-        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        public = %(public)s
+        INSERT INTO post_content (content, post_id, public, title)
+        VALUES (%(content)s, %(post_id)s, %(public)s, %(title)s)
+        RETURNING created;
+        """,
+        {'content': data['content'],
+        'post_id': post_id,
+        'public': data['public'],
+        'title': data['title']}
+        )
+
+    content_timestamp = cursor.fetchone()[0]
+
+    # Update post modified time to created timestamp for post content version
+    cursor.execute(
+        """
+        UPDATE post SET modified = %(modified)s
         WHERE post_id = %(post_id)s;
         """,
-        {'title': data['title'],
-        'content': data['content'],
-        'public': data['public'],
+        {'modified': content_timestamp,
         'post_id': post_id}
         )
 
@@ -267,13 +314,15 @@ def read_posts():
 
     cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
 
-    # Retrieve public posts from database
+    # Retrieve all posts except for website owner's from database
     cursor.execute(
         """
-        SELECT post.content, post.created, post.modified, post.post_id,
-        post.public, post.title, cp_user.username FROM post
+        SELECT post.created, post.modified, post.post_id, post_content.public,
+        cp_user.username FROM post
+        JOIN post_content ON post_content.created = post.modified
+        AND post_content.post_id = post.post_id
         JOIN cp_user ON post.member_id = cp_user.member_id
-        WHERE public = TRUE AND cp_user.is_owner != TRUE
+        WHERE cp_user.is_owner != TRUE AND post_content.public = TRUE
         ORDER BY created DESC;
         """
         )
@@ -282,6 +331,30 @@ def read_posts():
 
     for row in cursor.fetchall():
         posts.append(dict(row))
+
+    # Retrieve each post's public content versions from database
+    for post in posts:
+        cursor.execute(
+            """
+            SELECT content, created, title FROM post_content
+            WHERE post_id = %(post_id)s AND public = TRUE;
+            """,
+            {'post_id': post['post_id']}
+            )
+
+        post['history'] = []
+
+        for row in cursor.fetchall():
+            row = dict(row)
+
+            # Set current post content, public, and title items
+            if row['created'] == post['modified']:
+                post['content'] = row['content']
+                post['title'] = row['title']
+
+            # Add rest of post versions to history item
+            else:
+                post['history'].append(row)
 
     # Retrieve each post's comment count from database
     for post in posts:
@@ -319,8 +392,10 @@ def read_posts_for_one_user(writer_name):
     # Retrieve posts from database
     cursor.execute(
         """
-        SELECT post.content, post.created, post.modified, post.post_id,
-        post.public, post.title, cp_user.username FROM post
+        SELECT post.created, post.modified, post.post_id, post_content.public,
+        cp_user.username FROM post
+        JOIN post_content ON post_content.created = post.modified
+        AND post_content.post_id = post.post_id
         JOIN cp_user ON post.member_id = cp_user.member_id
         WHERE LOWER(cp_user.username) = %(username)s
         ORDER BY created DESC;
@@ -342,11 +417,60 @@ def read_posts_for_one_user(writer_name):
         for row in cursor.fetchall():
             posts.append(dict(row))
 
+        # Retrieve each post's public and private content versions from
+        # database
+        for post in posts:
+            cursor.execute(
+                """
+                SELECT content, created, title FROM post_content
+                WHERE post_id = %(post_id)s;
+                """,
+                {'post_id': post['post_id']}
+                )
+
+            post['history'] = []
+
+            for row in cursor.fetchall():
+                row = dict(row)
+
+                # Set current post content, public, and title items
+                if row['created'] == post['modified']:
+                    post['content'] = row['content']
+                    post['title'] = row['title']
+
+                # Add rest of post versions to history item
+                else:
+                    post['history'].append(row)
+
     # Otherwise, return only public posts to client
     else:
         for row in cursor.fetchall():
             if row['public']:
                 posts.append(dict(row))
+
+        # Retrieve each post's public content versions from database
+        for post in posts:
+            cursor.execute(
+                """
+                SELECT content, created, title FROM post_content
+                WHERE post_id = %(post_id)s AND public = TRUE;
+                """,
+                {'post_id': post['post_id']}
+                )
+
+            post['history'] = []
+
+            for row in cursor.fetchall():
+                row = dict(row)
+
+                # Set current post content, public, and title items
+                if row['created'] == post['modified']:
+                    post['content'] = row['content']
+                    post['title'] = row['title']
+
+                # Add rest of post versions to history item
+                else:
+                    post['history'].append(row)
 
     # Retrieve each post's comment count from database
     for post in posts:
@@ -391,10 +515,11 @@ def create_comment(requester):
 
     cursor = conn.cursor()
 
-    # Get post from database and ensure it is public
+    # Get latest post content from database and ensure it is public
     cursor.execute(
         """
-        SELECT public FROM post WHERE post_id = %(post_id)s;
+        SELECT public FROM post_content WHERE post_id = %(post_id)s AND
+        created = (SELECT modified FROM post WHERE post_id = %(post_id)s);
         """,
         {'post_id': data['post_id']}
         )
@@ -418,17 +543,26 @@ def create_comment(requester):
     # Add comment to database
     cursor.execute(
         """
-        INSERT INTO comment (member_id, post_id, content)
+        INSERT INTO comment (member_id, post_id)
         VALUES ((SELECT member_id FROM cp_user
-        WHERE LOWER(username) = %(username)s), %(post_id)s, %(content)s)
+        WHERE LOWER(username) = %(username)s), %(post_id)s)
         RETURNING comment_id;
         """,
         {'username': requester.lower(),
-        'post_id': data['post_id'],
-        'content': data['content']}
+        'post_id': data['post_id']}
         )
 
     comment_id = cursor.fetchone()[0]
+
+    cursor.execute(
+        """
+        INSERT INTO comment_content (comment_id, content, created)
+        VALUES (%(comment_id)s, %(content)s, (SELECT modified FROM comment
+        WHERE comment_id = %(comment_id)s));
+        """,
+        {'comment_id': comment_id,
+        'content': data['content']}
+        )
 
     conn.commit()
 
@@ -447,8 +581,8 @@ def read_comment(comment_id):
     # Get comment from database
     cursor.execute(
         """
-        SELECT comment.comment_id, comment.content, comment.created,
-        comment.modified, comment.post_id, cp_user.username FROM comment
+        SELECT comment.comment_id, comment.created, comment.modified,
+        comment.post_id, cp_user.username FROM comment
         JOIN cp_user ON comment.member_id = cp_user.member_id
         WHERE comment_id = %(comment_id)s;
         """,
@@ -457,15 +591,55 @@ def read_comment(comment_id):
 
     comment = cursor.fetchone()
 
-    cursor.close()
-    conn.close()
-
     # Return error if comment not found
     if not comment:
         return make_response('Not found', 404)
 
     # Otherwise, convert comment data to dictionary
     comment = dict(comment)
+
+    # Get latest post content from database and ensure it is public
+    cursor.execute(
+        """
+        SELECT public FROM post_content WHERE post_id = %(post_id)s AND
+        created = (SELECT modified FROM post WHERE post_id = %(post_id)s);
+        """,
+        {'post_id': comment['post_id']}
+        )
+
+    public = cursor.fetchone()
+
+    # Return error if post not public
+    if not public[0]:
+        cursor.close()
+        conn.close()
+
+        return make_response('Not found', 404)
+
+    # Retrieve all comment content versions from database
+    cursor.execute(
+        """
+        SELECT content, created FROM comment_content
+        WHERE comment_id = %(comment_id)s;
+        """,
+        {'comment_id': comment_id}
+        )
+
+    comment['history'] = []
+
+    for row in cursor.fetchall():
+        row = dict(row)
+
+        # Set current comment content items
+        if row['created'] == comment['modified']:
+            comment['content'] = row['content']
+
+        # Add rest of comment versions to history item
+        else:
+            comment['history'].append(row)
+
+    cursor.close()
+    conn.close()
 
     return jsonify(comment)
 
@@ -517,14 +691,27 @@ def update_comment(requester, comment_id):
 
         return make_response('Unauthorized', 401)
 
-    # Update comment in database
+    # Add comment content version to database
     cursor.execute(
         """
-        UPDATE comment SET content = %(content)s, modified = to_char
-        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+        INSERT INTO comment_content (comment_id, content)
+        VALUES (%(comment_id)s, %(content)s)
+        RETURNING created;
+        """,
+        {'comment_id': comment_id,
+        'content': data['content']}
+        )
+
+    content_timestamp = cursor.fetchone()[0]
+
+    # Update comment modified time to created timestamp for comment content
+    # version
+    cursor.execute(
+        """
+        UPDATE comment SET modified = %(modified)s
         WHERE comment_id = %(comment_id)s;
         """,
-        {'content': data['content'],
+        {'modified': content_timestamp,
         'comment_id': comment_id}
         )
 
@@ -605,10 +792,13 @@ def read_comments(post_id):
     # Retrieve comments from database
     cursor.execute(
         """
-        SELECT comment.comment_id, comment.content, comment.created,
-        comment.modified, comment.post_id, cp_user.username FROM comment
+        SELECT comment.comment_id, comment.created, comment.modified,
+        comment.post_id, cp_user.username FROM comment
         JOIN cp_user ON comment.member_id = cp_user.member_id
-        WHERE post_id = %(post_id)s
+        JOIN post ON comment.post_id = post.post_id
+        JOIN post_content ON comment.post_id = post_content.post_id
+        AND post.modified = post_content.created
+        WHERE comment.post_id = %(post_id)s AND post_content.public = TRUE
         ORDER BY created DESC;
         """,
         {'post_id': post_id}
@@ -618,6 +808,29 @@ def read_comments(post_id):
 
     for row in cursor.fetchall():
         comments.append(dict(row))
+
+    for comment in comments:
+        # Retrieve each comment's content versions from database
+        cursor.execute(
+            """
+            SELECT content, created FROM comment_content
+            WHERE comment_id = %(comment_id)s;
+            """,
+            {'comment_id': comment['comment_id']}
+            )
+
+        comment['history'] = []
+
+        for row in cursor.fetchall():
+            row = dict(row)
+
+            # Set current comment content items
+            if row['created'] == comment['modified']:
+                comment['content'] = row['content']
+
+            # Add rest of comment versions to history item
+            else:
+                comment['history'].append(row)
 
     cursor.close()
     conn.close()
@@ -643,12 +856,15 @@ def read_comments_for_one_user(commenter_name):
     # Retrieve comments from database
     cursor.execute(
         """
-        SELECT comment.comment_id, comment.content, comment.created,
-        comment.modified, comment.post_id, post.content AS post_content,
-        post.member_id, post.title, cp_user.username FROM comment
+        SELECT comment.comment_id, comment.created, comment.modified,
+        comment.post_id, post_content.content AS post_content, post.member_id,
+        post_content.title, cp_user.username FROM comment
         JOIN post ON comment.post_id = post.post_id
+        JOIN post_content ON post_content.post_id = post.post_id
+        AND post_content.created = post.modified
         JOIN cp_user ON comment.member_id = cp_user.member_id
         WHERE LOWER(cp_user.username) = %(username)s
+        AND post_content.public = TRUE
         ORDER BY comment.created DESC;
         """,
         {'username': commenter_name.lower()}
@@ -659,8 +875,8 @@ def read_comments_for_one_user(commenter_name):
     for row in cursor.fetchall():
         comments.append(dict(row))
 
-    # Replace each post writer's member id with username
     for comment in comments:
+        # Replace each post writer's member id with username
         cursor.execute(
             """
             SELECT username FROM cp_user
@@ -671,6 +887,28 @@ def read_comments_for_one_user(commenter_name):
 
         comment.pop('member_id')
         comment['post_writer'] = cursor.fetchone()[0]
+
+        # Retrieve each comment's content versions from database
+        cursor.execute(
+            """
+            SELECT content, created FROM comment_content
+            WHERE comment_id = %(comment_id)s;
+            """,
+            {'comment_id': comment['comment_id']}
+            )
+
+        comment['history'] = []
+
+        for row in cursor.fetchall():
+            row = dict(row)
+
+            # Set current comment content items
+            if row['created'] == comment['modified']:
+                comment['content'] = row['content']
+
+            # Add rest of comment versions to history item
+            else:
+                comment['history'].append(row)
 
     cursor.close()
     conn.close()
