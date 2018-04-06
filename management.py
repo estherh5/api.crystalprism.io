@@ -132,7 +132,7 @@ def initialize_database():
     return
 
 
-def create_owner_user(username):
+def create_owner_user():
     # Set up database connection with environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
 
@@ -154,6 +154,8 @@ def create_owner_user(username):
 
         return
 
+    username = input('Enter username for webpage owner: ')
+
     # Check if username already exists in database
     cursor.execute(
         """
@@ -163,15 +165,15 @@ def create_owner_user(username):
         {'username': username.lower()}
         )
 
+    # Rerun function to prompt for a new username if the username already
+    # exists
     if cursor.fetchone()[0]:
         cursor.close()
         conn.close()
 
-        # Prompt for a new username if the username already exists
         print('Username already exists')
 
-        new_username = input('Please enter a new username for the owner: ')
-        create_owner_user(new_username)
+        create_owner_user()
 
         return
 
@@ -203,12 +205,14 @@ def create_owner_user(username):
     cursor.close()
     conn.close()
 
-    print('User "' + username + '" added to database.')
+    print('Owner user "' + username + '" added to database.')
 
     return
 
 
-def create_admin_user(username):
+def create_admin_user():
+    username = input('Enter username for admin: ')
+
     # Set up database connection with environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
 
@@ -223,15 +227,15 @@ def create_admin_user(username):
         {'username': username.lower()}
         )
 
+    # Rerun function to prompt for a new username if the username already
+    # exists
     if cursor.fetchone()[0]:
         cursor.close()
         conn.close()
 
-        # Prompt for a new username if the username already exists
         print('Username already exists')
 
-        new_username = input('Please enter a new username for the admin: ')
-        create_admin_user(new_username)
+        create_admin_user()
 
         return
 
@@ -267,16 +271,99 @@ def create_admin_user(username):
     return
 
 
-def create_posts(username, posts_filename):
-    # Open posts_filename to get initial post data
-    posts_file = 'fixtures/' + posts_filename
-    with open(posts_file, 'r') as post_data:
-        posts = json.load(post_data)
+def create_user():
+    username = input('Enter username for general user: ')
 
     # Set up database connection with environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
 
     cursor = conn.cursor()
+
+    # Check if username already exists in database
+    cursor.execute(
+        """
+        SELECT exists (
+        SELECT 1 FROM cp_user WHERE LOWER(username) = %(username)s LIMIT 1);
+        """,
+        {'username': username.lower()}
+        )
+
+    # Rerun function to prompt for a new username if the username already
+    # exists
+    if cursor.fetchone()[0]:
+        cursor.close()
+        conn.close()
+
+        print('Username already exists')
+
+        create_user()
+
+        return
+
+    # Prompt for password that is at least 8 characters long
+    password = getpass.getpass('Enter password for ' + username + ': ')
+
+    while len(password) < 8:
+        print('Password must be at least 8 characters long')
+        password = getpass.getpass('Enter password for ' + username + ': ')
+
+    # Generate hashed password with bcrypt cryptographic hash function and salt
+    password = password.encode()
+    hashed_password = bcrypt.hashpw(password, bcrypt.gensalt())
+
+    # Add user account to database
+    cursor.execute(
+        """
+        INSERT INTO cp_user (username, password)
+        VALUES (%(username)s, %(password)s);
+        """,
+        {'username': username,
+        'password': hashed_password.decode()}
+        )
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    print('User "' + username + '" added to database.')
+
+    return
+
+
+def create_posts(posts_filename):
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor()
+
+    username = input('Enter username for post writer: ')
+
+    # Check if username exists in database
+    cursor.execute(
+        """
+        SELECT exists (
+        SELECT 1 FROM cp_user WHERE LOWER(username) = %(username)s LIMIT 1);
+        """,
+        {'username': username.lower()}
+        )
+
+    # Rerun function to prompt for a new post writer if the username does not
+    # exist
+    if not cursor.fetchone()[0]:
+        cursor.close()
+        conn.close()
+
+        print('Username does not exist')
+
+        create_posts(posts_filename)
+
+        return
+
+    # Open posts_filename to get initial post data
+    posts_file = 'fixtures/' + posts_filename
+    with open(posts_file, 'r') as post_data:
+        posts = json.load(post_data)
 
     # Add posts to database
     for post in posts:
@@ -314,16 +401,112 @@ def create_posts(username, posts_filename):
     return
 
 
-def create_drawings(username, drawings_filename):
-    # Open drawings_filename to get initial drawing data
-    drawings_file = 'fixtures/' + drawings_filename
-    with open(drawings_file, 'r') as drawing_data:
-        drawings = json.load(drawing_data)
-
+def create_ideas(ideas_filename):
     # Set up database connection with environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
 
     cursor = conn.cursor()
+
+    # Check if owner user exists in database
+    cursor.execute(
+        """
+        SELECT exists (
+        SELECT 1 FROM cp_user WHERE is_owner = TRUE LIMIT 1);
+        """
+        )
+
+    # Rerun function to prompt for an owner user if the user does not exist
+    if not cursor.fetchone()[0]:
+        cursor.close()
+        conn.close()
+
+        print('Owner user does not exist')
+
+        # Prompt user to create webpage owner
+        create_owner = input('Create owner user? Y/N: ')
+        while create_owner.lower() != 'y' and create_owner.lower() != 'n':
+            create_owner = input('Create owner user? Y/N: ')
+
+        # Create webpage owner user if user specifies
+        if create_owner.lower() == 'y':
+            create_owner_user()
+            create_ideas(ideas_filename)
+
+        return
+
+    # Open posts_filename to get initial post data
+    posts_file = 'fixtures/' + ideas_filename
+    with open(posts_file, 'r') as post_data:
+        posts = json.load(post_data)
+
+    # Add posts to database
+    for post in posts:
+        cursor.execute(
+            """
+            INSERT INTO post (member_id)
+            VALUES ((SELECT member_id FROM cp_user
+            WHERE is_owner = TRUE))
+            RETURNING post_id;
+            """
+            )
+
+        post_id = cursor.fetchone()[0]
+
+        cursor.execute(
+            """
+            INSERT INTO post_content (content, created, post_id, public, title)
+            VALUES (%(content)s, (SELECT modified FROM post
+            WHERE post_id = %(post_id)s), %(post_id)s, %(public)s, %(title)s);
+            """,
+            {'content': post['content'],
+            'post_id': post_id,
+            'public': post['public'],
+            'title': post['title']}
+            )
+
+        conn.commit()
+
+        print('Post "' + str(post_id) + '" added to database.')
+
+    cursor.close()
+    conn.close()
+
+    return
+
+
+def create_drawings(drawings_filename):
+    # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+
+    cursor = conn.cursor()
+
+    username = input('Enter username for drawing artist: ')
+
+    # Check if username exists in database
+    cursor.execute(
+        """
+        SELECT exists (
+        SELECT 1 FROM cp_user WHERE LOWER(username) = %(username)s LIMIT 1);
+        """,
+        {'username': username.lower()}
+        )
+
+    # Rerun function to prompt for a new post writer if the username does not
+    # exist
+    if not cursor.fetchone()[0]:
+        cursor.close()
+        conn.close()
+
+        print('Username does not exist')
+
+        create_drawings(drawings_filename)
+
+        return
+
+    # Open drawings_filename to get initial drawing data
+    drawings_file = 'fixtures/' + drawings_filename
+    with open(drawings_file, 'r') as drawing_data:
+        drawings = json.load(drawing_data)
 
     # Add drawings to database
     for drawing in drawings:
@@ -352,64 +535,114 @@ def create_drawings(username, drawings_filename):
         # hexadecimal
         drawing_id = int(bit_string, 2).__format__('016x')
 
-        # Upload drawing to S3 bucket
-        s3 = boto3.resource('s3')
-        bucket_name = os.environ['S3_BUCKET']
-        bucket = s3.Bucket(bucket_name)
-        bucket_folder = os.environ['S3_CANVASHARE_DIR']
-
-        drawing_name = drawing_id + '.png'
-
-        bucket.put_object(
-            Key=bucket_folder + drawing_name,
-            Body=drawing_url
-            )
-
-        # Set up database connection with environment variable
-        conn = pg.connect(os.environ['DB_CONNECTION'])
-
-        cursor = conn.cursor()
-
-        # Add drawing to database
+        # Check if drawing already exists in database
         cursor.execute(
             """
-            INSERT INTO drawing (drawing_id, member_id, title, url)
-            VALUES (%(drawing_id)s, (SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s), %(title)s, %(url)s);
+            SELECT exists (
+            SELECT 1 FROM drawing WHERE drawing_id = %(drawing_id)s LIMIT 1);
             """,
-            {'drawing_id': drawing_id,
-            'username': username.lower(),
-            'title': drawing['title'],
-            'url': os.environ['S3_URL'] + bucket_folder + drawing_name}
+            {'drawing_id': drawing_id}
             )
 
-        conn.commit()
+        if cursor.fetchone()[0]:
+            print('Drawing "' + drawing_id + '" already exists')
 
-        cursor.close()
-        conn.close()
+        else:
+            # Upload drawing to S3 bucket
+            s3 = boto3.resource('s3')
+            bucket_name = os.environ['S3_BUCKET']
+            bucket = s3.Bucket(bucket_name)
+            bucket_folder = os.environ['S3_CANVASHARE_DIR']
 
-        print('Drawing "' + drawing_id + '" added to database.')
+            drawing_name = drawing_id + '.png'
+
+            bucket.put_object(
+                Key=bucket_folder + drawing_name,
+                Body=drawing_url
+                )
+
+            # Set up database connection with environment variable
+            conn = pg.connect(os.environ['DB_CONNECTION'])
+
+            cursor = conn.cursor()
+
+            # Add drawing to database
+            cursor.execute(
+                """
+                INSERT INTO drawing (drawing_id, member_id, title, url)
+                VALUES (%(drawing_id)s, (SELECT member_id FROM cp_user
+                WHERE LOWER(username) = %(username)s), %(title)s, %(url)s);
+                """,
+                {'drawing_id': drawing_id,
+                'username': username.lower(),
+                'title': drawing['title'],
+                'url': os.environ['S3_URL'] + bucket_folder + drawing_name}
+                )
+
+            conn.commit()
+
+            cursor.close()
+            conn.close()
+
+            print('Drawing "' + drawing_id + '" added to database.')
 
     return
 
 
 def load_initial_data():
-    # Create webpage owner user
-    user = input('Enter username for webpage owner: ')
-    create_owner_user(user)
+    # Prompt user to create webpage owner
+    create_owner = input('Create owner user? Y/N: ')
+    while create_owner.lower() != 'y' and create_owner.lower() != 'n':
+        create_owner = input('Create owner user? Y/N: ')
 
-    # Create admin user
-    admin = input('Enter username for admin user: ')
-    create_admin_user(admin)
+    # Create webpage owner user if user specifies
+    if create_owner.lower() == 'y':
+        create_owner_user()
 
-    # Create initial Thought Writer posts
-    create_posts(admin, 'thought-writer-posts.json')
+    # Prompt user to create admin
+    create_admin = input('Create admin user? Y/N: ')
+    while create_admin.lower() != 'y' and create_admin.lower() != 'n':
+        create_admin = input('Create admin user? Y/N: ')
 
-    # Create initial homepage post
-    create_posts(user, 'homepage-post.json')
+    # Create admin user if user specifies
+    if create_admin.lower() == 'y':
+        create_admin_user()
 
-    # Create initial drawing
-    create_drawings(admin, 'canvashare-drawing.json')
+    # Prompt user to create initial Thought Writer posts
+    create_init_posts = input('Create initial Thought Writer posts? Y/N: ')
+    while (create_init_posts.lower() != 'y' and
+        create_init_posts.lower() != 'n'):
+            create_init_posts = input(
+                'Create initial Thought Writer posts? Y/N: '
+                )
+
+    # Create initial Thought Writer posts if user specifies
+    if create_init_posts.lower() == 'y':
+        create_posts('thought-writer-posts.json')
+
+    # Prompt user to create initial homepage posts
+    create_init_ideas = input('Create initial homepage Ideas post? Y/N: ')
+    while (create_init_ideas.lower() != 'y' and
+        create_init_ideas.lower() != 'n'):
+            create_init_ideas = input(
+                'Create initial homepage Ideas post? Y/N: '
+                )
+
+    # Create initial homepage post if user specifies
+    if create_init_ideas.lower() == 'y':
+        create_ideas('homepage-post.json')
+
+    # Prompt user to create initial drawings
+    create_init_drawings = input('Create initial CanvaShare drawings? Y/N: ')
+    while (create_init_drawings.lower() != 'y' and
+        create_init_drawings.lower() != 'n'):
+            create_init_drawings = input(
+                'Create initial CanvaShare drawings? Y/N: '
+                )
+
+    # Create initial drawings if user specifies
+    if create_init_drawings.lower() == 'y':
+        create_drawings('canvashare-drawing.json')
 
     print('Initial database data loaded successfully.')
 
