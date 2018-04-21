@@ -56,10 +56,10 @@ def create_post(requester):
         VALUES (%(content)s, (SELECT modified FROM post
         WHERE post_id = %(post_id)s), %(post_id)s, %(public)s, %(title)s);
         """,
-        {'content': data['content'],
+        {'content': data['content'].strip(),
         'post_id': post_id,
         'public': data['public'],
-        'title': data['title']}
+        'title': data['title'].strip()}
         )
 
     conn.commit()
@@ -222,10 +222,10 @@ def update_post(requester, post_id):
         VALUES (%(content)s, %(post_id)s, %(public)s, %(title)s)
         RETURNING created;
         """,
-        {'content': data['content'],
+        {'content': data['content'].strip(),
         'post_id': post_id,
         'public': data['public'],
-        'title': data['title']}
+        'title': data['title'].strip()}
         )
 
     content_timestamp = cursor.fetchone()[0]
@@ -561,7 +561,7 @@ def create_comment(requester):
         WHERE comment_id = %(comment_id)s));
         """,
         {'comment_id': comment_id,
-        'content': data['content']}
+        'content': data['content'].strip()}
         )
 
     conn.commit()
@@ -699,7 +699,7 @@ def update_comment(requester, comment_id):
         RETURNING created;
         """,
         {'comment_id': comment_id,
-        'content': data['content']}
+        'content': data['content'].strip()}
         )
 
     content_timestamp = cursor.fetchone()[0]

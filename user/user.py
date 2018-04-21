@@ -26,7 +26,7 @@ def login():
         return make_response('Unauthorized', 401,
             {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
-    username = data.username
+    username = data.username.strip()
     password = data.password
 
     # Set up database connection wtih environment variable
@@ -90,7 +90,7 @@ def create_user():
     if not data or 'username' not in data or 'password' not in data:
         return make_response('Request must contain username and password', 400)
 
-    username = data['username']
+    username = data['username'].strip()
     password = data['password']
 
     # Return error if username is blank
@@ -299,7 +299,7 @@ def update_user(requester):
         'password' not in data or 'username' not in data):
             return make_response('Request is missing required data', 400)
 
-    username = data['username']
+    username = data['username'].strip()
     password = data['password']
 
     # Set up database connection wtih environment variable
@@ -332,7 +332,7 @@ def update_user(requester):
         SELECT 1 FROM cp_user
         WHERE email = %(email)s AND LOWER(username) != %(username)s LIMIT 1);
         """,
-        {'email': data['email'],
+        {'email': data['email'].strip(),
         'username': requester.lower()}
         )
 
@@ -374,14 +374,14 @@ def update_user(requester):
         """,
         {'username': username,
         'password': user_data['password'],
-        'first_name': data['first_name'],
-        'last_name': data['last_name'],
+        'first_name': data['first_name'].strip(),
+        'last_name': data['last_name'].strip(),
         'name_public': data['name_public'],
-        'email': data['email'],
+        'email': data['email'].strip(),
         'email_public': data['email_public'],
         'background_color': data['background_color'],
         'icon_color': data['icon_color'],
-        'about': data['about'],
+        'about': data['about'].strip(),
         'old_username': requester.lower()}
         )
 

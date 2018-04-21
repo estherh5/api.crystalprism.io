@@ -95,7 +95,7 @@ def create_drawing(requester):
         """,
         {'drawing_id': drawing_id,
         'username': requester.lower(),
-        'title': data['title'],
+        'title': data['title'].strip(),
         'url': os.environ['S3_URL'] + bucket_folder + drawing_name}
         )
 
