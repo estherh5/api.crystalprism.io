@@ -45,8 +45,9 @@ def initialize_test_database(postgresql):
 
         cursor.execute(
             """
-            INSERT INTO cp_user (username, password)
-            VALUES (%(username)s, %(password)s);
+            INSERT INTO cp_user
+                        (username, password)
+                 VALUES (%(username)s, %(password)s);
             """,
             {'username': username,
             'password': hashed_password.decode()}
@@ -61,9 +62,12 @@ def initialize_test_database(postgresql):
         cursor.execute(
             """
             INSERT INTO post (member_id)
-            VALUES ((SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s))
-            RETURNING post_id;
+                 VALUES (
+                         (SELECT member_id
+                            FROM cp_user
+                           WHERE LOWER(username) = %(username)s)
+                 )
+              RETURNING post_id;
             """,
             {'username': 'user1'}
             )
@@ -72,9 +76,13 @@ def initialize_test_database(postgresql):
 
         cursor.execute(
             """
-            INSERT INTO post_content (content, created, post_id, public, title)
-            VALUES (%(content)s, (SELECT modified FROM post
-            WHERE post_id = %(post_id)s), %(post_id)s, %(public)s, %(title)s);
+            INSERT INTO post_content
+                        (content, created, post_id, public, title)
+                 VALUES (%(content)s,
+                        (SELECT modified
+                           FROM post
+                          WHERE post_id = %(post_id)s),
+                        %(post_id)s, %(public)s, %(title)s);
             """,
             {'content': post['content'],
             'post_id': post_id,
@@ -85,8 +93,10 @@ def initialize_test_database(postgresql):
     # Update a post to create post history
     cursor.execute(
         """
-        INSERT INTO post_content (content, created, post_id, public, title)
-        VALUES (%(content)s, %(created)s, %(post_id)s, %(public)s, %(title)s);
+        INSERT INTO post_content
+                    (content, created, post_id, public, title)
+             VALUES (%(content)s, %(created)s, %(post_id)s, %(public)s,
+                    %(title)s);
         """,
         {'content': post['content'],
         'created': post['modified'],
@@ -97,8 +107,9 @@ def initialize_test_database(postgresql):
 
     cursor.execute(
         """
-        UPDATE post SET modified = %(modified)s
-        WHERE post_id = %(post_id)s;
+        UPDATE post
+           SET modified = %(modified)s
+         WHERE post_id = %(post_id)s;
         """,
         {'modified': post['modified'],
         'post_id': 1}
@@ -112,10 +123,15 @@ def initialize_test_database(postgresql):
     for i in range(10):
         cursor.execute(
             """
-            INSERT INTO comment (member_id, post_id)
-            VALUES ((SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s), %(post_id)s)
-            RETURNING comment_id;
+            INSERT INTO comment
+                        (member_id, post_id)
+                 VALUES (
+                         (SELECT member_id
+                            FROM cp_user
+                           WHERE LOWER(username) = %(username)s),
+                         %(post_id)s
+                )
+              RETURNING comment_id;
             """,
             {'username': 'user1',
             'post_id': 1}
@@ -125,9 +141,12 @@ def initialize_test_database(postgresql):
 
         cursor.execute(
             """
-            INSERT INTO comment_content (comment_id, content, created)
-            VALUES (%(comment_id)s, %(content)s, (SELECT modified FROM comment
-            WHERE comment_id = %(comment_id)s));
+            INSERT INTO comment_content
+                        (comment_id, content, created)
+                 VALUES (%(comment_id)s, %(content)s,
+                        (SELECT modified
+                           FROM comment
+                          WHERE comment_id = %(comment_id)s));
             """,
             {'comment_id': comment_id,
             'content': comment['content']}
@@ -136,8 +155,9 @@ def initialize_test_database(postgresql):
     # Update a comment to get comment history
     cursor.execute(
         """
-        INSERT INTO comment_content (comment_id, content, created)
-        VALUES (%(comment_id)s, %(content)s, %(created)s);
+        INSERT INTO comment_content
+                    (comment_id, content, created)
+             VALUES (%(comment_id)s, %(content)s, %(created)s);
         """,
         {'comment_id': 1,
         'content': comment['content'],
@@ -146,8 +166,9 @@ def initialize_test_database(postgresql):
 
     cursor.execute(
         """
-        UPDATE comment SET modified = %(modified)s
-        WHERE comment_id = %(comment_id)s;
+        UPDATE comment
+           SET modified = %(modified)s
+         WHERE comment_id = %(comment_id)s;
         """,
         {'modified': comment['modified'],
         'comment_id': 1}
@@ -161,9 +182,13 @@ def initialize_test_database(postgresql):
     for i in range(10):
         cursor.execute(
             """
-            INSERT INTO drawing (drawing_id, member_id, title, url)
-            VALUES (%(drawing_id)s, (SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s), %(title)s, %(url)s);
+            INSERT INTO drawing
+                        (drawing_id, member_id, title, url)
+                 VALUES (%(drawing_id)s,
+                        (SELECT member_id
+                           FROM cp_user
+                          WHERE LOWER(username) = %(username)s),
+                        %(title)s, %(url)s);
             """,
             {'drawing_id': str(i),
             'username': 'user1',
@@ -174,9 +199,14 @@ def initialize_test_database(postgresql):
         # Add 1 like for each drawing to database
         cursor.execute(
             """
-            INSERT INTO drawing_like (member_id, drawing_id)
-            VALUES ((SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s), %(drawing_id)s);
+            INSERT INTO drawing_like
+                        (member_id, drawing_id)
+                 VALUES (
+                         (SELECT member_id
+                            FROM cp_user
+                           WHERE LOWER(username) = %(username)s),
+                         %(drawing_id)s
+                 );
             """,
             {'username': 'user1',
             'drawing_id': str(i)}
@@ -188,9 +218,14 @@ def initialize_test_database(postgresql):
 
         cursor.execute(
             """
-            INSERT INTO drawing_like (member_id, drawing_id)
-            VALUES ((SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s), %(drawing_id)s);
+            INSERT INTO drawing_like
+                        (member_id, drawing_id)
+                 VALUES (
+                         (SELECT member_id
+                            FROM cp_user
+                           WHERE LOWER(username) = %(username)s),
+                         %(drawing_id)s
+                 );
             """,
             {'username': username.lower(),
             'drawing_id': str(1)}
@@ -204,9 +239,14 @@ def initialize_test_database(postgresql):
     for shapes_score in shapes_scores:
         cursor.execute(
             """
-            INSERT INTO shapes_score (member_id, score)
-            VALUES ((SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s), %(score)s);
+            INSERT INTO shapes_score
+                        (member_id, score)
+                 VALUES (
+                         (SELECT member_id
+                            FROM cp_user
+                           WHERE LOWER(username) = %(username)s),
+                         %(score)s
+                 );
             """,
             {'username': 'user1',
             'score': shapes_score['score']}
@@ -220,9 +260,14 @@ def initialize_test_database(postgresql):
     for rhythm_score in rhythm_scores:
         cursor.execute(
             """
-            INSERT INTO rhythm_score (member_id, score)
-            VALUES ((SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s), %(score)s);
+            INSERT INTO rhythm_score
+                        (member_id, score)
+                 VALUES (
+                         (SELECT member_id
+                            FROM cp_user
+                           WHERE LOWER(username) = %(username)s),
+                         %(score)s
+                 );
             """,
             {'username': 'user1',
             'score': rhythm_score['score']}
@@ -231,8 +276,9 @@ def initialize_test_database(postgresql):
     # Create owner user and 10 homepage posts
     cursor.execute(
         """
-        INSERT INTO cp_user (username, email, is_owner, password)
-        VALUES (%(username)s, %(email)s, %(is_owner)s, %(password)s);
+        INSERT INTO cp_user
+                    (username, email, is_owner, password)
+             VALUES (%(username)s, %(email)s, %(is_owner)s, %(password)s);
         """,
         {'username': 'owner',
         'email': 'admin@crystalprism.io',
@@ -243,10 +289,14 @@ def initialize_test_database(postgresql):
     for i in range(10):
         cursor.execute(
             """
-            INSERT INTO post (member_id)
-            VALUES ((SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s))
-            RETURNING post_id;
+            INSERT INTO post
+                        (member_id)
+                 VALUES (
+                         (SELECT member_id
+                            FROM cp_user
+                           WHERE LOWER(username) = %(username)s)
+                 )
+              RETURNING post_id;
             """,
             {'username': 'owner'}
             )
@@ -255,9 +305,13 @@ def initialize_test_database(postgresql):
 
         cursor.execute(
             """
-            INSERT INTO post_content (content, created, post_id, public, title)
-            VALUES (%(content)s, (SELECT modified FROM post
-            WHERE post_id = %(post_id)s), %(post_id)s, %(public)s, %(title)s);
+            INSERT INTO post_content
+                        (content, created, post_id, public, title)
+                 VALUES (%(content)s,
+                        (SELECT modified
+                           FROM post
+                          WHERE post_id = %(post_id)s),
+                        %(post_id)s, %(public)s, %(title)s);
             """,
             {'content': post['content'],
             'post_id': post_id,
@@ -268,8 +322,10 @@ def initialize_test_database(postgresql):
     # Update a post to create post history
     cursor.execute(
         """
-        INSERT INTO post_content (content, created, post_id, public, title)
-        VALUES (%(content)s, %(created)s, %(post_id)s, %(public)s, %(title)s);
+        INSERT INTO post_content
+                    (content, created, post_id, public, title)
+             VALUES (%(content)s, %(created)s, %(post_id)s, %(public)s,
+                    %(title)s);
         """,
         {'content': post['content'],
         'created': post['modified'],
@@ -280,8 +336,9 @@ def initialize_test_database(postgresql):
 
     cursor.execute(
         """
-        UPDATE post SET modified = %(modified)s
-        WHERE post_id = %(post_id)s;
+        UPDATE post
+           SET modified = %(modified)s
+         WHERE post_id = %(post_id)s;
         """,
         {'modified': post['modified'],
         'post_id': 11}
@@ -358,8 +415,9 @@ class CrystalPrismTestCase(unittest.TestCase):
         # Set 'is_admin' item in user account to True
         cursor.execute(
             """
-            UPDATE cp_user SET is_admin = TRUE
-            WHERE username = %(username)s;
+            UPDATE cp_user
+               SET is_admin = TRUE
+             WHERE username = %(username)s;
             """,
             {'username': admin_username}
             )
