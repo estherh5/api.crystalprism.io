@@ -26,10 +26,14 @@ def create_score(requester):
     # Add score to database
     cursor.execute(
         """
-        INSERT INTO shapes_score (member_id, score)
-        VALUES ((SELECT member_id FROM cp_user
-        WHERE LOWER(username) = %(username)s), %(score)s)
-        RETURNING score_id;
+        INSERT INTO shapes_score
+                    (member_id, score)
+             VALUES (
+                     (SELECT member_id
+                        FROM cp_user
+                       WHERE LOWER(username) = %(username)s),
+                     %(score)s)
+          RETURNING score_id;
         """,
         {'username': requester.lower(), 'score': data['score']}
         )
@@ -54,9 +58,11 @@ def read_score(score_id):
     cursor.execute(
         """
         SELECT shapes_score.created, shapes_score.score, shapes_score.score_id,
-        cp_user.username FROM shapes_score
-        JOIN cp_user ON shapes_score.member_id = cp_user.member_id
-        WHERE score_id = %(score_id)s;
+               cp_user.username
+          FROM shapes_score
+               JOIN cp_user
+                 ON shapes_score.member_id = cp_user.member_id
+         WHERE score_id = %(score_id)s;
         """,
         {'score_id': score_id}
         )
@@ -85,9 +91,11 @@ def delete_score(requester, score_id):
     # Get score from database
     cursor.execute(
         """
-        SELECT shapes_score.*, cp_user.username FROM shapes_score
-        JOIN cp_user ON shapes_score.member_id = cp_user.member_id
-        WHERE score_id = %(score_id)s;
+        SELECT shapes_score.*, cp_user.username
+          FROM shapes_score
+               JOIN cp_user
+                 ON shapes_score.member_id = cp_user.member_id
+         WHERE score_id = %(score_id)s;
         """,
         {'score_id': score_id}
         )
@@ -114,7 +122,8 @@ def delete_score(requester, score_id):
     # Delete score from database
     cursor.execute(
         """
-        DELETE FROM shapes_score WHERE score_id = %(score_id)s;
+        DELETE FROM shapes_score
+              WHERE score_id = %(score_id)s;
         """,
         {'score_id': score_id}
         )
@@ -145,9 +154,11 @@ def read_scores():
     # Get requested game scores, sorted by highest to lowest score
     cursor.execute(
         """
-        SELECT shapes_score.created, shapes_score.score, shapes_score.score_id,
-        cp_user.username FROM shapes_score
-        JOIN cp_user ON shapes_score.member_id = cp_user.member_id
+          SELECT shapes_score.created, shapes_score.score,
+                 shapes_score.score_id, cp_user.username
+            FROM shapes_score
+                 JOIN cp_user
+                   ON shapes_score.member_id = cp_user.member_id
         ORDER BY score DESC;
         """
         )
@@ -181,10 +192,12 @@ def read_scores_for_one_user(player_name):
     # Get requested game scores, sorted by highest to lowest score
     cursor.execute(
         """
-        SELECT shapes_score.created, shapes_score.score, shapes_score.score_id,
-        cp_user.username FROM shapes_score
-        JOIN cp_user ON shapes_score.member_id = cp_user.member_id
-        WHERE LOWER(cp_user.username) = %(username)s
+          SELECT shapes_score.created, shapes_score.score,
+                 shapes_score.score_id, cp_user.username
+            FROM shapes_score
+                 JOIN cp_user
+                   ON shapes_score.member_id = cp_user.member_id
+           WHERE LOWER(cp_user.username) = %(username)s
         ORDER BY score DESC;
         """,
         {'username': player_name.lower()}

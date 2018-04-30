@@ -37,8 +37,10 @@ def login():
     # Get hashed user password to check credentials against and user status
     cursor.execute(
         """
-        SELECT username, password, status FROM cp_user
-        WHERE LOWER(username) = %(username)s LIMIT 1;
+        SELECT username, password, status
+          FROM cp_user
+         WHERE LOWER(username) = %(username)s
+         LIMIT 1;
         """,
         {'username': username.lower()}
         )
@@ -111,8 +113,12 @@ def create_user():
     # Check if username already exists in database
     cursor.execute(
         """
-        SELECT exists (
-        SELECT 1 FROM cp_user WHERE LOWER(username) = %(username)s LIMIT 1);
+        SELECT EXISTS (
+                       SELECT 1
+                         FROM cp_user
+                        WHERE LOWER(username) = %(username)s
+                        LIMIT 1
+        );
         """,
         {'username': username.lower()}
         )
@@ -134,8 +140,9 @@ def create_user():
     # Add user account to database
     cursor.execute(
         """
-        INSERT INTO cp_user (username, password)
-        VALUES (%(username)s, %(password)s);
+        INSERT INTO cp_user
+                    (username, password)
+             VALUES (%(username)s, %(password)s);
         """,
         {'username': username, 'password': hashed_password.decode()}
         )
@@ -157,7 +164,9 @@ def read_user(requester):
     # Retrieve user account from database
     cursor.execute(
         """
-        SELECT * FROM cp_user WHERE LOWER(username) = %(username)s;
+        SELECT *
+          FROM cp_user
+         WHERE LOWER(username) = %(username)s;
         """,
         {'username': requester.lower()}
         )
@@ -167,8 +176,9 @@ def read_user(requester):
     # Get user's Shapes in Rain score count
     cursor.execute(
         """
-        SELECT COUNT(*) FROM shapes_score
-        WHERE member_id = %(member_id)s;
+        SELECT COUNT(*)
+          FROM shapes_score
+         WHERE member_id = %(member_id)s;
         """,
         {'member_id': user_data['member_id']}
         )
@@ -178,9 +188,11 @@ def read_user(requester):
     # Get user's Shapes in Rain high score
     cursor.execute(
         """
-        SELECT score FROM shapes_score
-        WHERE member_id = %(member_id)s
-        ORDER BY score DESC LIMIT 1;
+          SELECT score
+            FROM shapes_score
+           WHERE member_id = %(member_id)s
+        ORDER BY score DESC
+           LIMIT 1;
         """,
         {'member_id': user_data['member_id']}
         )
@@ -195,8 +207,9 @@ def read_user(requester):
     # Get user's Rhythm of Life score count
     cursor.execute(
         """
-        SELECT COUNT(*) FROM rhythm_score
-        WHERE member_id = %(member_id)s;
+        SELECT COUNT(*)
+          FROM rhythm_score
+         WHERE member_id = %(member_id)s;
         """,
         {'member_id': user_data['member_id']}
         )
@@ -206,9 +219,11 @@ def read_user(requester):
     # Get user's Rhythm of Life high score
     cursor.execute(
         """
-        SELECT score FROM rhythm_score
-        WHERE member_id = %(member_id)s
-        ORDER BY score DESC LIMIT 1;
+          SELECT score
+            FROM rhythm_score
+           WHERE member_id = %(member_id)s
+        ORDER BY score DESC
+           LIMIT 1;
         """,
         {'member_id': user_data['member_id']}
         )
@@ -223,8 +238,9 @@ def read_user(requester):
     # Get user's drawing count
     cursor.execute(
         """
-        SELECT COUNT(*) FROM drawing
-        WHERE member_id = %(member_id)s;
+        SELECT COUNT(*)
+          FROM drawing
+         WHERE member_id = %(member_id)s;
         """,
         {'member_id': user_data['member_id']}
         )
@@ -234,8 +250,9 @@ def read_user(requester):
     # Get user's drawing like count
     cursor.execute(
         """
-        SELECT COUNT(*) FROM drawing_like
-        WHERE member_id = %(member_id)s;
+        SELECT COUNT(*)
+          FROM drawing_like
+         WHERE member_id = %(member_id)s;
         """,
         {'member_id': user_data['member_id']}
         )
@@ -245,8 +262,9 @@ def read_user(requester):
     # Get user's post count
     cursor.execute(
         """
-        SELECT COUNT(*) FROM post
-        WHERE member_id = %(member_id)s;
+        SELECT COUNT(*)
+          FROM post
+         WHERE member_id = %(member_id)s;
         """,
         {'member_id': user_data['member_id']}
         )
@@ -256,8 +274,9 @@ def read_user(requester):
     # Get user's comment count
     cursor.execute(
         """
-        SELECT COUNT(*) FROM comment
-        WHERE member_id = %(member_id)s;
+        SELECT COUNT(*)
+          FROM comment
+         WHERE member_id = %(member_id)s;
         """,
         {'member_id': user_data['member_id']}
         )
@@ -312,9 +331,12 @@ def update_user(requester):
     if username.lower() != requester.lower():
         cursor.execute(
             """
-            SELECT exists (
-            SELECT 1 FROM cp_user
-            WHERE LOWER(username) = %(username)s LIMIT 1);
+            SELECT EXISTS (
+                           SELECT 1
+                             FROM cp_user
+                            WHERE LOWER(username) = %(username)s
+                            LIMIT 1
+            );
             """,
             {'username': username.lower()}
             )
@@ -328,9 +350,13 @@ def update_user(requester):
     # Check if email address already exists in database
     cursor.execute(
         """
-        SELECT exists (
-        SELECT 1 FROM cp_user
-        WHERE email = %(email)s AND LOWER(username) != %(username)s LIMIT 1);
+        SELECT EXISTS (
+                       SELECT 1
+                         FROM cp_user
+                        WHERE email = %(email)s
+                              AND LOWER(username) != %(username)s
+                        LIMIT 1
+        );
         """,
         {'email': data['email'].strip(),
         'username': requester.lower()}
@@ -347,7 +373,9 @@ def update_user(requester):
     # Retrieve user account from database
     cursor.execute(
         """
-        SELECT * FROM cp_user WHERE LOWER(username) = %(username)s;
+        SELECT *
+          FROM cp_user
+         WHERE LOWER(username) = %(username)s;
         """,
         {'username': requester.lower()}
         )
@@ -363,14 +391,16 @@ def update_user(requester):
     # Add updated information to user account in database
     cursor.execute(
         """
-        UPDATE cp_user SET username = %(username)s, password = %(password)s,
-        first_name = %(first_name)s, last_name = %(last_name)s,
-        name_public = %(name_public)s, email = %(email)s,
-        email_public = %(email_public)s,
-        background_color = %(background_color)s, icon_color = %(icon_color)s,
-        about = %(about)s, modified = to_char
-        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
-        WHERE LOWER(username) = %(old_username)s;
+        UPDATE cp_user
+           SET username = %(username)s, password = %(password)s,
+               first_name = %(first_name)s, last_name = %(last_name)s,
+               name_public = %(name_public)s, email = %(email)s,
+               email_public = %(email_public)s,
+               background_color = %(background_color)s,
+               icon_color = %(icon_color)s, about = %(about)s,
+               modified = to_char
+               (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+         WHERE LOWER(username) = %(old_username)s;
         """,
         {'username': username,
         'password': user_data['password'],
@@ -416,8 +446,9 @@ def delete_user_soft(requester):
     # Set user account to 'deleted' status in database
     cursor.execute(
         """
-        UPDATE cp_user SET status = 'deleted'
-        WHERE LOWER(username) = %(username)s;
+        UPDATE cp_user
+           SET status = 'deleted'
+         WHERE LOWER(username) = %(username)s;
         """,
         {'username': requester.lower()}
         )
@@ -439,7 +470,9 @@ def read_user_public(username):
     # Retrieve user account from database
     cursor.execute(
         """
-        SELECT * FROM cp_user WHERE LOWER(username) = %(username)s;
+        SELECT *
+          FROM cp_user
+         WHERE LOWER(username) = %(username)s;
         """,
         {'username': username.lower()}
         )
@@ -466,8 +499,9 @@ def read_user_public(username):
     # Get user's Shapes in Rain score count
     cursor.execute(
         """
-        SELECT COUNT(*) FROM shapes_score
-        WHERE member_id = %(member_id)s;
+        SELECT COUNT(*)
+          FROM shapes_score
+         WHERE member_id = %(member_id)s;
         """,
         {'member_id': user_data['member_id']}
         )
@@ -477,8 +511,9 @@ def read_user_public(username):
     # Get user's Shapes in Rain high score
     cursor.execute(
         """
-        SELECT score, created FROM shapes_score
-        WHERE member_id = %(member_id)s
+          SELECT score, created
+            FROM shapes_score
+           WHERE member_id = %(member_id)s
         ORDER BY score DESC;
         """,
         {'member_id': user_data['member_id']}
@@ -494,8 +529,9 @@ def read_user_public(username):
     # Get user's Rhythm of Life score count
     cursor.execute(
         """
-        SELECT COUNT(*) FROM rhythm_score
-        WHERE member_id = %(member_id)s;
+        SELECT COUNT(*)
+          FROM rhythm_score
+         WHERE member_id = %(member_id)s;
         """,
         {'member_id': user_data['member_id']}
         )
@@ -505,8 +541,9 @@ def read_user_public(username):
     # Get user's Rhythm of Life high score
     cursor.execute(
         """
-        SELECT score, created FROM rhythm_score
-        WHERE member_id = %(member_id)s
+          SELECT score, created
+            FROM rhythm_score
+           WHERE member_id = %(member_id)s
         ORDER BY score DESC;
         """,
         {'member_id': user_data['member_id']}
@@ -522,8 +559,9 @@ def read_user_public(username):
     # Get user's drawing count
     cursor.execute(
         """
-        SELECT COUNT(*) FROM drawing
-        WHERE member_id = %(member_id)s;
+        SELECT COUNT(*)
+          FROM drawing
+         WHERE member_id = %(member_id)s;
         """,
         {'member_id': user_data['member_id']}
         )
@@ -533,8 +571,9 @@ def read_user_public(username):
     # Get user's drawing like count
     cursor.execute(
         """
-        SELECT COUNT(*) FROM drawing_like
-        WHERE member_id = %(member_id)s;
+        SELECT COUNT(*)
+          FROM drawing_like
+         WHERE member_id = %(member_id)s;
         """,
         {'member_id': user_data['member_id']}
         )
@@ -544,8 +583,9 @@ def read_user_public(username):
     # Get user's post count
     cursor.execute(
         """
-        SELECT COUNT(*) FROM post
-        WHERE member_id = %(member_id)s;
+        SELECT COUNT(*)
+          FROM post
+         WHERE member_id = %(member_id)s;
         """,
         {'member_id': user_data['member_id']}
         )
@@ -555,8 +595,9 @@ def read_user_public(username):
     # Get user's comment count
     cursor.execute(
         """
-        SELECT COUNT(*) FROM comment
-        WHERE member_id = %(member_id)s;
+        SELECT COUNT(*)
+          FROM comment
+         WHERE member_id = %(member_id)s;
         """,
         {'member_id': user_data['member_id']}
         )
@@ -604,7 +645,9 @@ def delete_user_hard(username):
     # Retrieve requester's account from database
     cursor.execute(
         """
-        SELECT * FROM cp_user WHERE LOWER(username) = %(username)s;
+        SELECT *
+          FROM cp_user
+         WHERE LOWER(username) = %(username)s;
         """,
         {'username': requester.lower()}
         )
@@ -614,7 +657,9 @@ def delete_user_hard(username):
     # Retrieve user's account from database
     cursor.execute(
         """
-        SELECT * FROM cp_user WHERE LOWER(username) = %(username)s;
+        SELECT *
+          FROM cp_user
+         WHERE LOWER(username) = %(username)s;
         """,
         {'username': username.lower()}
         )
@@ -637,8 +682,9 @@ def delete_user_hard(username):
         # Retrieve user's drawings from database
         cursor.execute(
             """
-            SELECT drawing_id FROM drawing
-            WHERE member_id = %(member_id)s;
+            SELECT drawing_id
+              FROM drawing
+             WHERE member_id = %(member_id)s;
             """,
             {'member_id': user_data['member_id']}
             )
@@ -654,7 +700,8 @@ def delete_user_hard(username):
 
         cursor.execute(
             """
-            DELETE FROM cp_user WHERE LOWER(username) = %(username)s;
+            DELETE FROM cp_user
+                  WHERE LOWER(username) = %(username)s;
             """,
             {'username': username.lower()}
             )
@@ -706,7 +753,9 @@ def verify_token():
     # Verify that user account is active
     cursor.execute(
         """
-        SELECT status FROM cp_user WHERE LOWER(username) = %(username)s;
+        SELECT status
+          FROM cp_user
+         WHERE LOWER(username) = %(username)s;
         """,
         {'username': payload['username'].lower()}
         )
@@ -755,7 +804,9 @@ def read_users():
     # Retrieve user accounts from database
     cursor.execute(
         """
-        SELECT username FROM cp_user WHERE status = 'active';
+        SELECT username
+          FROM cp_user
+         WHERE status = 'active';
         """
         )
 
