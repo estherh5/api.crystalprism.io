@@ -27,98 +27,139 @@ def initialize_database():
         """
         DO $$
         BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status') THEN
-                CREATE TYPE status AS ENUM ('active', 'deleted');
-            END IF;
+             IF NOT EXISTS
+                          (SELECT 1
+                             FROM pg_type
+                            WHERE typname = 'status')
+                      THEN
+               CREATE TYPE status AS ENUM ('active', 'deleted');
+             END IF;
         END
         $$;
 
         CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
         CREATE TABLE IF NOT EXISTS cp_user (
-        about varchar(110),
-        background_color char(7) NOT NULL DEFAULT '#ffffff',
-        created text NOT NULL DEFAULT to_char
-        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        email text UNIQUE,
-        email_public boolean DEFAULT false,
-        first_name varchar(50),
-        icon_color char(7) NOT NULL DEFAULT '#000000',
-        is_admin boolean NOT NULL DEFAULT false,
-        is_owner boolean NOT NULL DEFAULT false,
-        last_name varchar(50),
-        member_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-        modified text NOT NULL DEFAULT to_char
-        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        name_public boolean DEFAULT false,
-        password text NOT NULL,
-        status status NOT NULL DEFAULT 'active',
-        username varchar(50) UNIQUE NOT NULL);
+            PRIMARY KEY (member_id),
+            member_id        UUID          DEFAULT uuid_generate_v4() NOT NULL,
+            status           STATUS        DEFAULT 'active'           NOT NULL,
+            username         VARCHAR(50)   NOT NULL                   UNIQUE,
+            password         TEXT          NOT NULL,
+            is_owner         BOOLEAN       DEFAULT false              NOT NULL,
+            is_admin         BOOLEAN       DEFAULT false              NOT NULL,
+            background_color CHAR(7)       DEFAULT '#ffffff'          NOT NULL,
+            icon_color       CHAR(7)       DEFAULT '#000000'          NOT NULL,
+            email            TEXT          UNIQUE,
+            email_public     BOOLEAN       DEFAULT false,
+            first_name       VARCHAR(50),
+            last_name        VARCHAR(50),
+            name_public      BOOLEAN       DEFAULT false,
+            about            VARCHAR(110),
+            created          TEXT          DEFAULT to_char
+                             (now() at time zone 'UTC',
+                             'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')         NOT NULL,
+            modified         TEXT          DEFAULT to_char
+                             (now() at time zone 'UTC',
+                             'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')         NOT NULL
+        );
 
-        CREATE UNIQUE INDEX ON cp_user (is_owner) WHERE is_owner = true;
+        CREATE UNIQUE INDEX ON cp_user (is_owner)
+            WHERE is_owner = true;
 
         CREATE TABLE IF NOT EXISTS rhythm_score (
-        created text NOT NULL DEFAULT to_char
-        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        member_id uuid REFERENCES cp_user(member_id) ON DELETE CASCADE,
-        score int NOT NULL,
-        score_id SERIAL PRIMARY KEY);
+            PRIMARY KEY (score_id),
+            score_id  SERIAL NOT NULL,
+            member_id UUID   REFERENCES cp_user (member_id) ON DELETE CASCADE,
+            score     INT    NOT NULL,
+            created   TEXT   DEFAULT to_char
+                      (now() at time zone 'UTC',
+                      'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')      NOT NULL
+        );
 
         CREATE TABLE IF NOT EXISTS shapes_score (
-        created text NOT NULL DEFAULT to_char
-        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        member_id uuid REFERENCES cp_user(member_id) ON DELETE CASCADE,
-        score int NOT NULL,
-        score_id SERIAL PRIMARY KEY);
+            PRIMARY KEY (score_id),
+            score_id  SERIAL NOT NULL,
+            member_id UUID   REFERENCES cp_user (member_id) ON DELETE CASCADE,
+            score     INT    NOT NULL,
+            created   TEXT   DEFAULT to_char
+                      (now() at time zone 'UTC',
+                      'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')      NOT NULL
+        );
 
         CREATE TABLE IF NOT EXISTS post (
-        created text NOT NULL DEFAULT to_char
-        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        member_id uuid REFERENCES cp_user(member_id) ON DELETE CASCADE,
-        modified text NOT NULL DEFAULT to_char
-        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        post_id SERIAL PRIMARY KEY);
+            PRIMARY KEY (post_id),
+            post_id   SERIAL      NOT NULL,
+            member_id UUID        REFERENCES cp_user (member_id)
+                      ON DELETE CASCADE,
+            created   TEXT        DEFAULT to_char
+                      (now() at time zone 'UTC',
+                      'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') NOT NULL,
+            modified  TEXT        DEFAULT to_char
+                      (now() at time zone 'UTC',
+                      'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') NOT NULL
+        );
 
         CREATE TABLE IF NOT EXISTS post_content (
-        content text NOT NULL,
-        created text NOT NULL DEFAULT to_char
-        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        post_content_id SERIAL PRIMARY KEY,
-        post_id int REFERENCES post(post_id) ON DELETE CASCADE,
-        public boolean NOT NULL DEFAULT false,
-        title varchar(25) NOT NULL);
+            PRIMARY KEY (post_content_id),
+            post_content_id SERIAL      NOT NULL,
+            post_id         INT         REFERENCES post(post_id)
+                            ON DELETE CASCADE,
+            content         TEXT        NOT NULL,
+            public          BOOLEAN     DEFAULT false        NOT NULL,
+            title           VARCHAR(25) NOT NULL,
+            created         TEXT        DEFAULT to_char
+                            (now() at time zone 'UTC',
+                            'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') NOT NULL
+        );
 
         CREATE TABLE IF NOT EXISTS comment (
-        comment_id SERIAL PRIMARY KEY,
-        created text NOT NULL DEFAULT to_char
-        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        member_id uuid REFERENCES cp_user(member_id) ON DELETE CASCADE,
-        modified text NOT NULL DEFAULT to_char
-        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        post_id int REFERENCES post(post_id) ON DELETE CASCADE);
+            PRIMARY KEY (comment_id),
+            comment_id SERIAL NOT NULL,
+            post_id    INT    REFERENCES post (post_id)      ON DELETE CASCADE,
+            member_id  UUID   REFERENCES cp_user (member_id) ON DELETE CASCADE,
+            created    TEXT   DEFAULT to_char
+                       (now() at time zone 'UTC',
+                       'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')      NOT NULL,
+            modified   TEXT   DEFAULT to_char
+                       (now() at time zone 'UTC',
+                       'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')      NOT NULL
+        );
 
         CREATE TABLE IF NOT EXISTS comment_content (
-        comment_content_id SERIAL PRIMARY KEY,
-        comment_id int REFERENCES comment(comment_id) ON DELETE CASCADE,
-        content text NOT NULL,
-        created text NOT NULL DEFAULT to_char
-        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
+            PRIMARY KEY (comment_content_id),
+            comment_content_id SERIAL NOT NULL,
+            comment_id         INT    REFERENCES comment(comment_id)
+                               ON DELETE CASCADE,
+            content            TEXT   NOT NULL,
+            created            TEXT   DEFAULT to_char
+                               (now() at time zone 'UTC',
+                               'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') NOT NULL
+        );
 
         CREATE TABLE IF NOT EXISTS drawing (
-        created text NOT NULL DEFAULT to_char
-        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        drawing_id text PRIMARY KEY,
-        member_id uuid REFERENCES cp_user(member_id) ON DELETE CASCADE,
-        title varchar(25) NOT NULL,
-        url text NOT NULL,
-        views int NOT NULL DEFAULT 0);
+            PRIMARY KEY (drawing_id),
+            drawing_id TEXT        NOT NULL,
+            member_id  UUID        REFERENCES cp_user (member_id)
+                       ON DELETE CASCADE,
+            title      VARCHAR(25) NOT NULL,
+            url        TEXT        NOT NULL,
+            views      INT         DEFAULT 0            NOT NULL,
+            created    TEXT        DEFAULT to_char
+                       (now() at time zone 'UTC',
+                       'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') NOT NULL
+        );
 
         CREATE TABLE IF NOT EXISTS drawing_like (
-        created text NOT NULL DEFAULT to_char
-        (now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        drawing_id text REFERENCES drawing(drawing_id) ON DELETE CASCADE,
-        drawing_like_id SERIAL PRIMARY KEY,
-        member_id uuid REFERENCES cp_user(member_id) ON DELETE CASCADE);
+            PRIMARY KEY (drawing_like_id),
+            drawing_like_id SERIAL NOT NULL,
+            drawing_id      TEXT   REFERENCES drawing (drawing_id)
+                            ON DELETE CASCADE,
+            member_id       UUID   REFERENCES cp_user (member_id)
+                            ON DELETE CASCADE,
+            created         TEXT   DEFAULT to_char
+                            (now() at time zone 'UTC',
+                            'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') NOT NULL
+        );
         """
         )
 
@@ -141,8 +182,12 @@ def create_owner_user():
     # Check if owner already exists in database
     cursor.execute(
         """
-        SELECT exists (
-        SELECT 1 FROM cp_user WHERE is_owner = TRUE LIMIT 1);
+        SELECT EXISTS (
+                       SELECT 1
+                         FROM cp_user
+                        WHERE is_owner = TRUE
+                        LIMIT 1
+        );
         """
         )
 
@@ -159,8 +204,12 @@ def create_owner_user():
     # Check if username already exists in database
     cursor.execute(
         """
-        SELECT exists (
-        SELECT 1 FROM cp_user WHERE LOWER(username) = %(username)s LIMIT 1);
+        SELECT EXISTS (
+                       SELECT 1
+                         FROM cp_user
+                        WHERE LOWER(username) = %(username)s
+                        LIMIT 1
+        );
         """,
         {'username': username.lower()}
         )
@@ -191,8 +240,9 @@ def create_owner_user():
     # Add user account to database
     cursor.execute(
         """
-        INSERT INTO cp_user (username, is_admin, is_owner, password)
-        VALUES (%(username)s, %(is_admin)s, %(is_owner)s, %(password)s);
+        INSERT INTO cp_user
+                    (username, is_admin, is_owner, password)
+             VALUES (%(username)s, %(is_admin)s, %(is_owner)s, %(password)s);
         """,
         {'username': username,
         'is_admin': True,
@@ -221,8 +271,12 @@ def create_admin_user():
     # Check if username already exists in database
     cursor.execute(
         """
-        SELECT exists (
-        SELECT 1 FROM cp_user WHERE LOWER(username) = %(username)s LIMIT 1);
+        SELECT EXISTS (
+                       SELECT 1
+                         FROM cp_user
+                        WHERE LOWER(username) = %(username)s
+                        LIMIT 1
+        );
         """,
         {'username': username.lower()}
         )
@@ -253,8 +307,9 @@ def create_admin_user():
     # Add user account to database
     cursor.execute(
         """
-        INSERT INTO cp_user (username, is_admin, password)
-        VALUES (%(username)s, %(is_admin)s, %(password)s);
+        INSERT INTO cp_user
+                    (username, is_admin, password)
+             VALUES (%(username)s, %(is_admin)s, %(password)s);
         """,
         {'username': username,
         'is_admin': True,
@@ -282,8 +337,12 @@ def create_user():
     # Check if username already exists in database
     cursor.execute(
         """
-        SELECT exists (
-        SELECT 1 FROM cp_user WHERE LOWER(username) = %(username)s LIMIT 1);
+        SELECT EXISTS (
+                       SELECT 1
+                         FROM cp_user
+                        WHERE LOWER(username) = %(username)s
+                        LIMIT 1
+        );
         """,
         {'username': username.lower()}
         )
@@ -314,8 +373,9 @@ def create_user():
     # Add user account to database
     cursor.execute(
         """
-        INSERT INTO cp_user (username, password)
-        VALUES (%(username)s, %(password)s);
+        INSERT INTO cp_user
+                    (username, password)
+             VALUES (%(username)s, %(password)s);
         """,
         {'username': username,
         'password': hashed_password.decode()}
@@ -342,8 +402,12 @@ def create_posts(posts_filename):
     # Check if username exists in database
     cursor.execute(
         """
-        SELECT exists (
-        SELECT 1 FROM cp_user WHERE LOWER(username) = %(username)s LIMIT 1);
+        SELECT EXISTS (
+                       SELECT 1
+                         FROM cp_user
+                        WHERE LOWER(username) = %(username)s
+                        LIMIT 1
+        );
         """,
         {'username': username.lower()}
         )
@@ -369,10 +433,14 @@ def create_posts(posts_filename):
     for post in posts:
         cursor.execute(
             """
-            INSERT INTO post (member_id)
-            VALUES ((SELECT member_id FROM cp_user
-            WHERE LOWER(username) = %(username)s))
-            RETURNING post_id;
+            INSERT INTO post
+                        (member_id)
+                 VALUES (
+                         (SELECT member_id
+                            FROM cp_user
+                           WHERE LOWER(username) = %(username)s)
+                 )
+              RETURNING post_id;
             """,
             {'username': username.lower()}
             )
@@ -381,9 +449,13 @@ def create_posts(posts_filename):
 
         cursor.execute(
             """
-            INSERT INTO post_content (content, created, post_id, public, title)
-            VALUES (%(content)s, (SELECT modified FROM post
-            WHERE post_id = %(post_id)s), %(post_id)s, %(public)s, %(title)s);
+            INSERT INTO post_content
+                        (content, created, post_id, public, title)
+                 VALUES (%(content)s,
+                        (SELECT modified
+                           FROM post
+                          WHERE post_id = %(post_id)s),
+                        %(post_id)s, %(public)s, %(title)s);
             """,
             {'content': post['content'],
             'post_id': post_id,
@@ -410,8 +482,12 @@ def create_ideas(ideas_filename):
     # Check if owner user exists in database
     cursor.execute(
         """
-        SELECT exists (
-        SELECT 1 FROM cp_user WHERE is_owner = TRUE LIMIT 1);
+        SELECT EXISTS (
+                       SELECT 1
+                         FROM cp_user
+                        WHERE is_owner = TRUE
+                        LIMIT 1
+        );
         """
         )
 
@@ -443,10 +519,14 @@ def create_ideas(ideas_filename):
     for post in posts:
         cursor.execute(
             """
-            INSERT INTO post (member_id)
-            VALUES ((SELECT member_id FROM cp_user
-            WHERE is_owner = TRUE))
-            RETURNING post_id;
+            INSERT INTO post
+                        (member_id)
+                 VALUES (
+                         (SELECT member_id
+                            FROM cp_user
+                           WHERE is_owner = TRUE)
+                 )
+              RETURNING post_id;
             """
             )
 
@@ -454,9 +534,13 @@ def create_ideas(ideas_filename):
 
         cursor.execute(
             """
-            INSERT INTO post_content (content, created, post_id, public, title)
-            VALUES (%(content)s, (SELECT modified FROM post
-            WHERE post_id = %(post_id)s), %(post_id)s, %(public)s, %(title)s);
+            INSERT INTO post_content
+                        (content, created, post_id, public, title)
+                 VALUES (%(content)s,
+                        (SELECT modified
+                           FROM post
+                          WHERE post_id = %(post_id)s),
+                        %(post_id)s, %(public)s, %(title)s);
             """,
             {'content': post['content'],
             'post_id': post_id,
@@ -485,8 +569,12 @@ def create_drawings(drawings_filename):
     # Check if username exists in database
     cursor.execute(
         """
-        SELECT exists (
-        SELECT 1 FROM cp_user WHERE LOWER(username) = %(username)s LIMIT 1);
+        SELECT EXISTS (
+                       SELECT 1
+                         FROM cp_user
+                        WHERE LOWER(username) = %(username)s
+                        LIMIT 1
+        );
         """,
         {'username': username.lower()}
         )
@@ -538,8 +626,12 @@ def create_drawings(drawings_filename):
         # Check if drawing already exists in database
         cursor.execute(
             """
-            SELECT exists (
-            SELECT 1 FROM drawing WHERE drawing_id = %(drawing_id)s LIMIT 1);
+            SELECT EXISTS (
+                           SELECT 1
+                             FROM drawing
+                            WHERE drawing_id = %(drawing_id)s
+                            LIMIT 1
+            );
             """,
             {'drawing_id': drawing_id}
             )
@@ -569,9 +661,13 @@ def create_drawings(drawings_filename):
             # Add drawing to database
             cursor.execute(
                 """
-                INSERT INTO drawing (drawing_id, member_id, title, url)
-                VALUES (%(drawing_id)s, (SELECT member_id FROM cp_user
-                WHERE LOWER(username) = %(username)s), %(title)s, %(url)s);
+                INSERT INTO drawing
+                            (drawing_id, member_id, title, url)
+                     VALUES (%(drawing_id)s,
+                            (SELECT member_id
+                               FROM cp_user
+                              WHERE LOWER(username) = %(username)s),
+                            %(title)s, %(url)s);
                 """,
                 {'drawing_id': drawing_id,
                 'username': username.lower(),

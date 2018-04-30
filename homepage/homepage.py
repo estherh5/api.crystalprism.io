@@ -24,12 +24,16 @@ def read_ideas():
     # Retrieve posts from database
     cursor.execute(
         """
-        SELECT post.created, post.modified, post.post_id, post_content.public,
-        cp_user.username FROM post
-        JOIN post_content ON post_content.created = post.modified
-        AND post_content.post_id = post.post_id
-        JOIN cp_user ON post.member_id = cp_user.member_id
-        WHERE cp_user.is_owner = TRUE AND public = TRUE
+          SELECT post.created, post.modified, post.post_id,
+                 post_content.public, cp_user.username
+            FROM post
+                 JOIN post_content
+                   ON post_content.created = post.modified
+                      AND post_content.post_id = post.post_id
+                 JOIN cp_user
+                   ON post.member_id = cp_user.member_id
+           WHERE cp_user.is_owner = TRUE
+                 AND public = TRUE
         ORDER BY created DESC;
         """
         )
@@ -43,8 +47,10 @@ def read_ideas():
     for post in posts:
         cursor.execute(
             """
-            SELECT content, created, title FROM post_content
-            WHERE post_id = %(post_id)s AND public = TRUE;
+            SELECT content, created, title
+              FROM post_content
+             WHERE post_id = %(post_id)s
+                   AND public = TRUE;
             """,
             {'post_id': post['post_id']}
             )

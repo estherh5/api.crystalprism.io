@@ -61,8 +61,12 @@ def create_drawing(requester):
     # submitting a duplicate drawing)
     cursor.execute(
         """
-        SELECT exists (
-        SELECT 1 FROM drawing WHERE drawing_id = %(drawing_id)s LIMIT 1);
+        SELECT EXISTS (
+                       SELECT 1
+                         FROM drawing
+                        WHERE drawing_id = %(drawing_id)s
+                        LIMIT 1
+        );
         """,
         {'drawing_id': drawing_id}
         )
@@ -90,8 +94,11 @@ def create_drawing(requester):
     cursor.execute(
         """
         INSERT INTO drawing (drawing_id, member_id, title, url)
-        VALUES (%(drawing_id)s, (SELECT member_id FROM cp_user
-        WHERE LOWER(username) = %(username)s), %(title)s, %(url)s);
+             VALUES (%(drawing_id)s,
+                    (SELECT member_id
+                       FROM cp_user
+                      WHERE LOWER(username) = %(username)s),
+                    %(title)s, %(url)s);
         """,
         {'drawing_id': drawing_id,
         'username': requester.lower(),
@@ -117,9 +124,11 @@ def read_drawing(drawing_id):
     cursor.execute(
         """
         SELECT drawing.created, drawing.drawing_id, drawing.title, drawing.url,
-        drawing.views, cp_user.username FROM drawing
-        JOIN cp_user ON drawing.member_id = cp_user.member_id
-        WHERE drawing_id = %(drawing_id)s;
+               drawing.views, cp_user.username
+          FROM drawing
+               JOIN cp_user
+                 ON drawing.member_id = cp_user.member_id
+         WHERE drawing_id = %(drawing_id)s;
         """,
         {'drawing_id': drawing_id}
         )
@@ -137,9 +146,10 @@ def read_drawing(drawing_id):
     cursor.execute(
         """
         SELECT drawing_like.drawing_like_id, cp_user.username
-        FROM drawing_like
-        JOIN cp_user ON drawing_like.member_id = cp_user.member_id
-        WHERE drawing_id = %(drawing_id)s;
+          FROM drawing_like
+               JOIN cp_user
+                 ON drawing_like.member_id = cp_user.member_id
+         WHERE drawing_id = %(drawing_id)s;
         """,
         {'drawing_id': drawing_id}
         )
@@ -167,7 +177,9 @@ def update_drawing(drawing_id):
     # Retrieve current drawing views from database
     cursor.execute(
         """
-        SELECT views FROM drawing WHERE drawing_id = %(drawing_id)s;
+        SELECT views
+          FROM drawing
+         WHERE drawing_id = %(drawing_id)s;
         """,
         {'drawing_id': drawing_id}
         )
@@ -184,8 +196,9 @@ def update_drawing(drawing_id):
     # Increment views for drawing in database
     cursor.execute(
         """
-        UPDATE drawing SET views = %(views)s
-        WHERE drawing_id = %(drawing_id)s;
+        UPDATE drawing
+           SET views = %(views)s
+         WHERE drawing_id = %(drawing_id)s;
         """,
         {'views': drawing_views[0] + 1,
         'drawing_id': drawing_id}
@@ -208,9 +221,11 @@ def delete_drawing(requester, drawing_id):
     # Get drawing from database
     cursor.execute(
         """
-        SELECT drawing.*, cp_user.username FROM drawing
-        JOIN cp_user ON drawing.member_id = cp_user.member_id
-        WHERE drawing_id = %(drawing_id)s;
+        SELECT drawing.*, cp_user.username
+          FROM drawing
+               JOIN cp_user
+                 ON drawing.member_id = cp_user.member_id
+         WHERE drawing_id = %(drawing_id)s;
         """,
         {'drawing_id': drawing_id}
         )
@@ -237,7 +252,8 @@ def delete_drawing(requester, drawing_id):
     # Delete drawing from database
     cursor.execute(
         """
-        DELETE FROM drawing WHERE drawing_id = %(drawing_id)s;
+        DELETE FROM drawing
+              WHERE drawing_id = %(drawing_id)s;
         """,
         {'drawing_id': drawing_id}
         )
@@ -277,9 +293,11 @@ def read_drawings():
     # Retrieve drawings from database
     cursor.execute(
         """
-        SELECT drawing.created, drawing.drawing_id, drawing.title, drawing.url,
-        drawing.views, cp_user.username FROM drawing
-        JOIN cp_user ON drawing.member_id = cp_user.member_id
+          SELECT drawing.created, drawing.drawing_id, drawing.title,
+                 drawing.url, drawing.views, cp_user.username
+            FROM drawing
+                 JOIN cp_user
+                   ON drawing.member_id = cp_user.member_id
         ORDER BY created DESC;
         """
         )
@@ -294,9 +312,10 @@ def read_drawings():
         cursor.execute(
             """
             SELECT drawing_like.drawing_like_id, cp_user.username
-            FROM drawing_like
-            JOIN cp_user ON drawing_like.member_id = cp_user.member_id
-            WHERE drawing_id = %(drawing_id)s;
+              FROM drawing_like
+                   JOIN cp_user
+                     ON drawing_like.member_id = cp_user.member_id
+             WHERE drawing_id = %(drawing_id)s;
             """,
             {'drawing_id': drawing['drawing_id']}
             )
@@ -332,10 +351,12 @@ def read_drawings_for_one_user(artist_name):
     # Retrieve drawings from database
     cursor.execute(
         """
-        SELECT drawing.created, drawing.drawing_id, drawing.title, drawing.url,
-        drawing.views, cp_user.username FROM drawing
-        JOIN cp_user ON drawing.member_id = cp_user.member_id
-        WHERE LOWER(cp_user.username) = %(username)s
+          SELECT drawing.created, drawing.drawing_id, drawing.title,
+                 drawing.url, drawing.views, cp_user.username
+            FROM drawing
+                 JOIN cp_user
+                   ON drawing.member_id = cp_user.member_id
+           WHERE LOWER(cp_user.username) = %(username)s
         ORDER BY created DESC;
         """,
         {'username': artist_name.lower()}
@@ -351,9 +372,10 @@ def read_drawings_for_one_user(artist_name):
         cursor.execute(
             """
             SELECT drawing_like.drawing_like_id, cp_user.username
-            FROM drawing_like
-            JOIN cp_user ON drawing_like.member_id = cp_user.member_id
-            WHERE drawing_id = %(drawing_id)s;
+              FROM drawing_like
+                   JOIN cp_user
+                     ON drawing_like.member_id = cp_user.member_id
+             WHERE drawing_id = %(drawing_id)s;
             """,
             {'drawing_id': drawing['drawing_id']}
             )
@@ -392,9 +414,12 @@ def create_drawing_like(requester):
     # Verify that drawing exists
     cursor.execute(
         """
-        SELECT exists (
-        SELECT 1 FROM drawing
-        WHERE drawing_id = %(drawing_id)s LIMIT 1);
+        SELECT EXISTS (
+                       SELECT 1
+                         FROM drawing
+                        WHERE drawing_id = %(drawing_id)s
+                        LIMIT 1
+        );
         """,
         {'drawing_id': data['drawing_id']}
         )
@@ -411,11 +436,18 @@ def create_drawing_like(requester):
     # Verify that user did not like drawing previously
     cursor.execute(
         """
-        SELECT exists (
-        SELECT 1 FROM drawing_like
-        WHERE drawing_id = %(drawing_id)s AND member_id =
-        (SELECT member_id FROM cp_user
-        WHERE LOWER(username) = %(username)s) LIMIT 1);
+        SELECT EXISTS (
+                       SELECT 1
+                         FROM drawing_like
+                        WHERE drawing_id = %(drawing_id)s
+                              AND member_id = (
+                                               SELECT member_id
+                                                 FROM cp_user
+                                                WHERE LOWER(username) =
+                                                      %(username)s
+                              )
+                        LIMIT 1
+        );
         """,
         {'drawing_id': data['drawing_id'],
         'username': requester.lower()}
@@ -433,9 +465,13 @@ def create_drawing_like(requester):
     cursor.execute(
         """
         INSERT INTO drawing_like (member_id, drawing_id)
-        VALUES ((SELECT member_id FROM cp_user
-        WHERE LOWER(username) = %(username)s), %(drawing_id)s)
-        RETURNING drawing_like_id;
+             VALUES (
+                     (SELECT member_id
+                        FROM cp_user
+                       WHERE LOWER(username) = %(username)s),
+                     %(drawing_id)s
+             )
+          RETURNING drawing_like_id;
         """,
         {'username': requester.lower(),
         'drawing_id': data['drawing_id']}
@@ -461,9 +497,11 @@ def read_drawing_like(drawing_like_id):
     cursor.execute(
         """
         SELECT drawing_like.created, drawing_like.drawing_id,
-        drawing_like.drawing_like_id, cp_user.username FROM drawing_like
-        JOIN cp_user ON drawing_like.member_id = cp_user.member_id
-        WHERE drawing_like_id = %(drawing_like_id)s;
+               drawing_like.drawing_like_id, cp_user.username
+          FROM drawing_like
+               JOIN cp_user
+                 ON drawing_like.member_id = cp_user.member_id
+         WHERE drawing_like_id = %(drawing_like_id)s;
         """,
         {'drawing_like_id': drawing_like_id}
         )
@@ -492,9 +530,11 @@ def delete_drawing_like(requester, drawing_like_id):
     # Verify that user liked drawing previously
     cursor.execute(
         """
-        SELECT drawing_like.*, cp_user.username FROM drawing_like
-        JOIN cp_user ON drawing_like.member_id = cp_user.member_id
-        WHERE drawing_like_id = %(drawing_like_id)s;
+        SELECT drawing_like.*, cp_user.username
+          FROM drawing_like
+               JOIN cp_user
+                 ON drawing_like.member_id = cp_user.member_id
+         WHERE drawing_like_id = %(drawing_like_id)s;
         """,
         {'drawing_like_id': drawing_like_id}
         )
@@ -522,7 +562,7 @@ def delete_drawing_like(requester, drawing_like_id):
     cursor.execute(
         """
         DELETE FROM drawing_like
-        WHERE drawing_like_id = %(drawing_like_id)s;
+              WHERE drawing_like_id = %(drawing_like_id)s;
         """,
         {'drawing_like_id': drawing_like_id}
         )
@@ -553,11 +593,14 @@ def read_drawing_likes(drawing_id):
     # Retrieve drawing likes from database
     cursor.execute(
         """
-        SELECT drawing_like.created, drawing_like.drawing_id,
-        drawing_like.drawing_like_id, cp_user.username FROM drawing_like
-        JOIN cp_user ON drawing_like.member_id = cp_user.member_id
-        INNER JOIN drawing ON drawing_like.drawing_id = drawing.drawing_id
-        WHERE drawing_like.drawing_id = %(drawing_id)s
+          SELECT drawing_like.created, drawing_like.drawing_id,
+                 drawing_like.drawing_like_id, cp_user.username
+            FROM drawing_like
+                 JOIN cp_user
+                   ON drawing_like.member_id = cp_user.member_id
+                 JOIN drawing
+                   ON drawing_like.drawing_id = drawing.drawing_id
+           WHERE drawing_like.drawing_id = %(drawing_id)s
         ORDER BY created DESC;
         """,
         {'drawing_id': drawing_id}
@@ -592,12 +635,15 @@ def read_drawing_likes_for_one_user(liker_name):
     # Retrieve drawing likes from database
     cursor.execute(
         """
-        SELECT drawing_like.created, drawing_like.drawing_like_id,
-        drawing.drawing_id, drawing.url, drawing.title, drawing.views,
-        drawing.member_id, cp_user.username FROM drawing_like
-        JOIN drawing ON drawing_like.drawing_id = drawing.drawing_id
-        JOIN cp_user ON drawing_like.member_id = cp_user.member_id
-        WHERE LOWER(cp_user.username) = %(username)s
+          SELECT drawing_like.created, drawing_like.drawing_like_id,
+                 drawing.drawing_id, drawing.url, drawing.title, drawing.views,
+                 drawing.member_id, cp_user.username
+            FROM drawing_like
+                 JOIN drawing
+                   ON drawing_like.drawing_id = drawing.drawing_id
+                 JOIN cp_user
+                   ON drawing_like.member_id = cp_user.member_id
+           WHERE LOWER(cp_user.username) = %(username)s
         ORDER BY drawing_like.created DESC;
         """,
         {'username': liker_name.lower()}
@@ -613,8 +659,9 @@ def read_drawing_likes_for_one_user(liker_name):
     for drawing_like in drawing_likes:
         cursor.execute(
             """
-            SELECT username FROM cp_user
-            WHERE member_id = %(member_id)s;
+            SELECT username
+              FROM cp_user
+             WHERE member_id = %(member_id)s;
             """,
             {'member_id': drawing_like['member_id']}
             )
@@ -625,9 +672,10 @@ def read_drawing_likes_for_one_user(liker_name):
         cursor.execute(
             """
             SELECT drawing_like.drawing_like_id, cp_user.username
-            FROM drawing_like
-            JOIN cp_user ON drawing_like.member_id = cp_user.member_id
-            WHERE drawing_id = %(drawing_id)s;
+              FROM drawing_like
+                   JOIN cp_user
+                     ON drawing_like.member_id = cp_user.member_id
+             WHERE drawing_id = %(drawing_id)s;
             """,
             {'drawing_id': drawing_like['drawing_id']}
             )

@@ -40,10 +40,14 @@ def create_post(requester):
     # Add post to database
     cursor.execute(
         """
-        INSERT INTO post (member_id)
-        VALUES ((SELECT member_id FROM cp_user
-        WHERE LOWER(username) = %(username)s))
-        RETURNING post_id;
+        INSERT INTO post
+                    (member_id)
+             VALUES (
+                     (SELECT member_id
+                        FROM cp_user
+                       WHERE LOWER(username) = %(username)s)
+             )
+          RETURNING post_id;
         """,
         {'username': requester.lower()}
         )
@@ -52,9 +56,13 @@ def create_post(requester):
 
     cursor.execute(
         """
-        INSERT INTO post_content (content, created, post_id, public, title)
-        VALUES (%(content)s, (SELECT modified FROM post
-        WHERE post_id = %(post_id)s), %(post_id)s, %(public)s, %(title)s);
+        INSERT INTO post_content
+                    (content, created, post_id, public, title)
+             VALUES (%(content)s,
+                    (SELECT modified
+                       FROM post
+                      WHERE post_id = %(post_id)s),
+                    %(post_id)s, %(public)s, %(title)s);
         """,
         {'content': data['content'].strip(),
         'post_id': post_id,
@@ -80,9 +88,11 @@ def read_post(post_id):
     cursor.execute(
         """
         SELECT post.created, post.modified, post.post_id,
-        cp_user.username FROM post
-        JOIN cp_user ON post.member_id = cp_user.member_id
-        WHERE post_id = %(post_id)s;
+               cp_user.username
+          FROM post
+               JOIN cp_user
+                 ON post.member_id = cp_user.member_id
+         WHERE post_id = %(post_id)s;
         """,
         {'post_id': post_id}
         )
@@ -99,8 +109,9 @@ def read_post(post_id):
     # Retrieve all post content versions from database
     cursor.execute(
         """
-        SELECT content, created, public, title FROM post_content
-        WHERE post_id = %(post_id)s;
+        SELECT content, created, public, title
+          FROM post_content
+         WHERE post_id = %(post_id)s;
         """,
         {'post_id': post_id}
         )
@@ -123,8 +134,9 @@ def read_post(post_id):
     # Retrieve comment count from database
     cursor.execute(
         """
-        SELECT COUNT(*) FROM comment
-        WHERE post_id = %(post_id)s;
+        SELECT COUNT(*)
+          FROM comment
+         WHERE post_id = %(post_id)s;
         """,
         {'post_id': post_id}
         )
@@ -189,9 +201,11 @@ def update_post(requester, post_id):
     # Get current post from database
     cursor.execute(
         """
-        SELECT post.*, cp_user.username FROM post
-        JOIN cp_user ON post.member_id = cp_user.member_id
-        WHERE post_id = %(post_id)s;
+        SELECT post.*, cp_user.username
+          FROM post
+               JOIN cp_user
+               ON post.member_id = cp_user.member_id
+         WHERE post_id = %(post_id)s;
         """,
         {'post_id': post_id}
         )
@@ -218,9 +232,10 @@ def update_post(requester, post_id):
     # Add post content version to database
     cursor.execute(
         """
-        INSERT INTO post_content (content, post_id, public, title)
-        VALUES (%(content)s, %(post_id)s, %(public)s, %(title)s)
-        RETURNING created;
+        INSERT INTO post_content
+                    (content, post_id, public, title)
+             VALUES (%(content)s, %(post_id)s, %(public)s, %(title)s)
+          RETURNING created;
         """,
         {'content': data['content'].strip(),
         'post_id': post_id,
@@ -233,8 +248,9 @@ def update_post(requester, post_id):
     # Update post modified time to created timestamp for post content version
     cursor.execute(
         """
-        UPDATE post SET modified = %(modified)s
-        WHERE post_id = %(post_id)s;
+        UPDATE post
+           SET modified = %(modified)s
+         WHERE post_id = %(post_id)s;
         """,
         {'modified': content_timestamp,
         'post_id': post_id}
@@ -257,9 +273,11 @@ def delete_post(requester, post_id):
     # Get post from database
     cursor.execute(
         """
-        SELECT post.*, cp_user.username FROM post
-        JOIN cp_user ON post.member_id = cp_user.member_id
-        WHERE post_id = %(post_id)s;
+        SELECT post.*, cp_user.username
+          FROM post
+               JOIN cp_user
+                 ON post.member_id = cp_user.member_id
+         WHERE post_id = %(post_id)s;
         """,
         {'post_id': post_id}
         )
@@ -286,7 +304,8 @@ def delete_post(requester, post_id):
     # Delete post from database
     cursor.execute(
         """
-        DELETE FROM post WHERE post_id = %(post_id)s;
+        DELETE FROM post
+              WHERE post_id = %(post_id)s;
         """,
         {'post_id': post_id}
         )
@@ -317,12 +336,16 @@ def read_posts():
     # Retrieve all posts except for website owner's from database
     cursor.execute(
         """
-        SELECT post.created, post.modified, post.post_id, post_content.public,
-        cp_user.username FROM post
-        JOIN post_content ON post_content.created = post.modified
-        AND post_content.post_id = post.post_id
-        JOIN cp_user ON post.member_id = cp_user.member_id
-        WHERE cp_user.is_owner != TRUE AND post_content.public = TRUE
+          SELECT post.created, post.modified, post.post_id,
+                 post_content.public, cp_user.username
+            FROM post
+                 JOIN post_content
+                   ON post_content.created = post.modified
+                      AND post_content.post_id = post.post_id
+                 JOIN cp_user
+                   ON post.member_id = cp_user.member_id
+           WHERE cp_user.is_owner != TRUE
+                 AND post_content.public = TRUE
         ORDER BY created DESC;
         """
         )
@@ -336,8 +359,10 @@ def read_posts():
     for post in posts:
         cursor.execute(
             """
-            SELECT content, created, title FROM post_content
-            WHERE post_id = %(post_id)s AND public = TRUE;
+            SELECT content, created, title
+              FROM post_content
+             WHERE post_id = %(post_id)s
+                   AND public = TRUE;
             """,
             {'post_id': post['post_id']}
             )
@@ -360,8 +385,9 @@ def read_posts():
     for post in posts:
         cursor.execute(
             """
-            SELECT COUNT(*) FROM comment
-            WHERE post_id = %(post_id)s;
+            SELECT COUNT(*)
+              FROM comment
+             WHERE post_id = %(post_id)s;
             """,
             {'post_id': post['post_id']}
             )
@@ -392,12 +418,15 @@ def read_posts_for_one_user(writer_name):
     # Retrieve posts from database
     cursor.execute(
         """
-        SELECT post.created, post.modified, post.post_id, post_content.public,
-        cp_user.username FROM post
-        JOIN post_content ON post_content.created = post.modified
-        AND post_content.post_id = post.post_id
-        JOIN cp_user ON post.member_id = cp_user.member_id
-        WHERE LOWER(cp_user.username) = %(username)s
+          SELECT post.created, post.modified, post.post_id,
+                 post_content.public, cp_user.username
+            FROM post
+                 JOIN post_content
+                   ON post_content.created = post.modified
+                      AND post_content.post_id = post.post_id
+                 JOIN cp_user
+                   ON post.member_id = cp_user.member_id
+           WHERE LOWER(cp_user.username) = %(username)s
         ORDER BY created DESC;
         """,
         {'username': writer_name.lower()}
@@ -422,8 +451,9 @@ def read_posts_for_one_user(writer_name):
         for post in posts:
             cursor.execute(
                 """
-                SELECT content, created, title FROM post_content
-                WHERE post_id = %(post_id)s;
+                SELECT content, created, title
+                  FROM post_content
+                 WHERE post_id = %(post_id)s;
                 """,
                 {'post_id': post['post_id']}
                 )
@@ -452,8 +482,10 @@ def read_posts_for_one_user(writer_name):
         for post in posts:
             cursor.execute(
                 """
-                SELECT content, created, title FROM post_content
-                WHERE post_id = %(post_id)s AND public = TRUE;
+                SELECT content, created, title
+                  FROM post_content
+                 WHERE post_id = %(post_id)s
+                       AND public = TRUE;
                 """,
                 {'post_id': post['post_id']}
                 )
@@ -476,8 +508,9 @@ def read_posts_for_one_user(writer_name):
     for post in posts:
         cursor.execute(
             """
-            SELECT COUNT(*) FROM comment
-            WHERE post_id = %(post_id)s;
+            SELECT COUNT(*)
+              FROM comment
+             WHERE post_id = %(post_id)s;
             """,
             {'post_id': post['post_id']}
             )
@@ -518,8 +551,14 @@ def create_comment(requester):
     # Get latest post content from database and ensure it is public
     cursor.execute(
         """
-        SELECT public FROM post_content WHERE post_id = %(post_id)s AND
-        created = (SELECT modified FROM post WHERE post_id = %(post_id)s);
+        SELECT public
+          FROM post_content
+         WHERE post_id = %(post_id)s
+               AND created = (
+                              SELECT modified
+                                FROM post
+                               WHERE post_id = %(post_id)s
+               );
         """,
         {'post_id': data['post_id']}
         )
@@ -543,10 +582,15 @@ def create_comment(requester):
     # Add comment to database
     cursor.execute(
         """
-        INSERT INTO comment (member_id, post_id)
-        VALUES ((SELECT member_id FROM cp_user
-        WHERE LOWER(username) = %(username)s), %(post_id)s)
-        RETURNING comment_id;
+        INSERT INTO comment
+                    (member_id, post_id)
+             VALUES (
+                     (SELECT member_id
+                        FROM cp_user
+                       WHERE LOWER(username) = %(username)s),
+                     %(post_id)s
+             )
+          RETURNING comment_id;
         """,
         {'username': requester.lower(),
         'post_id': data['post_id']}
@@ -556,9 +600,12 @@ def create_comment(requester):
 
     cursor.execute(
         """
-        INSERT INTO comment_content (comment_id, content, created)
-        VALUES (%(comment_id)s, %(content)s, (SELECT modified FROM comment
-        WHERE comment_id = %(comment_id)s));
+        INSERT INTO comment_content
+                    (comment_id, content, created)
+             VALUES (%(comment_id)s, %(content)s,
+                    (SELECT modified
+                       FROM comment
+                      WHERE comment_id = %(comment_id)s));
         """,
         {'comment_id': comment_id,
         'content': data['content'].strip()}
@@ -582,9 +629,11 @@ def read_comment(comment_id):
     cursor.execute(
         """
         SELECT comment.comment_id, comment.created, comment.modified,
-        comment.post_id, cp_user.username FROM comment
-        JOIN cp_user ON comment.member_id = cp_user.member_id
-        WHERE comment_id = %(comment_id)s;
+               comment.post_id, cp_user.username
+          FROM comment
+               JOIN cp_user
+                 ON comment.member_id = cp_user.member_id
+         WHERE comment_id = %(comment_id)s;
         """,
         {'comment_id': comment_id}
         )
@@ -601,8 +650,14 @@ def read_comment(comment_id):
     # Get latest post content from database and ensure it is public
     cursor.execute(
         """
-        SELECT public FROM post_content WHERE post_id = %(post_id)s AND
-        created = (SELECT modified FROM post WHERE post_id = %(post_id)s);
+        SELECT public
+          FROM post_content
+         WHERE post_id = %(post_id)s
+               AND created = (
+                              SELECT modified
+                                FROM post
+                               WHERE post_id = %(post_id)s
+               );
         """,
         {'post_id': comment['post_id']}
         )
@@ -619,8 +674,9 @@ def read_comment(comment_id):
     # Retrieve all comment content versions from database
     cursor.execute(
         """
-        SELECT content, created FROM comment_content
-        WHERE comment_id = %(comment_id)s;
+        SELECT content, created
+          FROM comment_content
+         WHERE comment_id = %(comment_id)s;
         """,
         {'comment_id': comment_id}
         )
@@ -665,9 +721,11 @@ def update_comment(requester, comment_id):
     # Get current comment from database
     cursor.execute(
         """
-        SELECT comment.*, cp_user.username FROM comment
-        JOIN cp_user ON comment.member_id = cp_user.member_id
-        WHERE comment_id = %(comment_id)s;
+        SELECT comment.*, cp_user.username
+          FROM comment
+               JOIN cp_user
+                 ON comment.member_id = cp_user.member_id
+         WHERE comment_id = %(comment_id)s;
         """,
         {'comment_id': comment_id}
         )
@@ -694,9 +752,10 @@ def update_comment(requester, comment_id):
     # Add comment content version to database
     cursor.execute(
         """
-        INSERT INTO comment_content (comment_id, content)
-        VALUES (%(comment_id)s, %(content)s)
-        RETURNING created;
+        INSERT INTO comment_content
+                    (comment_id, content)
+             VALUES (%(comment_id)s, %(content)s)
+          RETURNING created;
         """,
         {'comment_id': comment_id,
         'content': data['content'].strip()}
@@ -708,8 +767,9 @@ def update_comment(requester, comment_id):
     # version
     cursor.execute(
         """
-        UPDATE comment SET modified = %(modified)s
-        WHERE comment_id = %(comment_id)s;
+        UPDATE comment
+           SET modified = %(modified)s
+         WHERE comment_id = %(comment_id)s;
         """,
         {'modified': content_timestamp,
         'comment_id': comment_id}
@@ -732,9 +792,11 @@ def delete_comment(requester, comment_id):
     # Get current comment from database
     cursor.execute(
         """
-        SELECT comment.*, cp_user.username FROM comment
-        JOIN cp_user ON comment.member_id = cp_user.member_id
-        WHERE comment_id = %(comment_id)s;
+        SELECT comment.*, cp_user.username
+          FROM comment
+               JOIN cp_user
+                 ON comment.member_id = cp_user.member_id
+         WHERE comment_id = %(comment_id)s;
         """,
         {'comment_id': comment_id}
         )
@@ -761,7 +823,8 @@ def delete_comment(requester, comment_id):
     # Delete comment from database
     cursor.execute(
         """
-        DELETE FROM comment WHERE comment_id = %(comment_id)s;
+        DELETE FROM comment
+              WHERE comment_id = %(comment_id)s;
         """,
         {'comment_id': comment_id}
         )
@@ -792,13 +855,18 @@ def read_comments(post_id):
     # Retrieve comments from database
     cursor.execute(
         """
-        SELECT comment.comment_id, comment.created, comment.modified,
-        comment.post_id, cp_user.username FROM comment
-        JOIN cp_user ON comment.member_id = cp_user.member_id
-        JOIN post ON comment.post_id = post.post_id
-        JOIN post_content ON comment.post_id = post_content.post_id
-        AND post.modified = post_content.created
-        WHERE comment.post_id = %(post_id)s AND post_content.public = TRUE
+          SELECT comment.comment_id, comment.created, comment.modified,
+                 comment.post_id, cp_user.username
+            FROM comment
+                 JOIN cp_user
+                   ON comment.member_id = cp_user.member_id
+                 JOIN post
+                   ON comment.post_id = post.post_id
+                 JOIN post_content
+                   ON comment.post_id = post_content.post_id
+                      AND post.modified = post_content.created
+           WHERE comment.post_id = %(post_id)s
+                 AND post_content.public = TRUE
         ORDER BY created DESC;
         """,
         {'post_id': post_id}
@@ -813,8 +881,9 @@ def read_comments(post_id):
         # Retrieve each comment's content versions from database
         cursor.execute(
             """
-            SELECT content, created FROM comment_content
-            WHERE comment_id = %(comment_id)s;
+            SELECT content, created
+              FROM comment_content
+             WHERE comment_id = %(comment_id)s;
             """,
             {'comment_id': comment['comment_id']}
             )
@@ -856,15 +925,19 @@ def read_comments_for_one_user(commenter_name):
     # Retrieve comments from database
     cursor.execute(
         """
-        SELECT comment.comment_id, comment.created, comment.modified,
-        comment.post_id, post_content.content AS post_content, post.member_id,
-        post_content.title, cp_user.username FROM comment
-        JOIN post ON comment.post_id = post.post_id
-        JOIN post_content ON post_content.post_id = post.post_id
-        AND post_content.created = post.modified
-        JOIN cp_user ON comment.member_id = cp_user.member_id
-        WHERE LOWER(cp_user.username) = %(username)s
-        AND post_content.public = TRUE
+          SELECT comment.comment_id, comment.created, comment.modified,
+                 comment.post_id, post_content.content AS post_content,
+                 post.member_id, post_content.title, cp_user.username
+            FROM comment
+                 JOIN post
+                   ON comment.post_id = post.post_id
+                 JOIN post_content
+                   ON post_content.post_id = post.post_id
+                      AND post_content.created = post.modified
+                 JOIN cp_user
+                   ON comment.member_id = cp_user.member_id
+           WHERE LOWER(cp_user.username) = %(username)s
+                 AND post_content.public = TRUE
         ORDER BY comment.created DESC;
         """,
         {'username': commenter_name.lower()}
@@ -879,8 +952,9 @@ def read_comments_for_one_user(commenter_name):
         # Replace each post writer's member id with username
         cursor.execute(
             """
-            SELECT username FROM cp_user
-            WHERE member_id = %(member_id)s;
+            SELECT username
+              FROM cp_user
+             WHERE member_id = %(member_id)s;
             """,
             {'member_id': comment['member_id']}
             )
@@ -891,8 +965,9 @@ def read_comments_for_one_user(commenter_name):
         # Retrieve each comment's content versions from database
         cursor.execute(
             """
-            SELECT content, created FROM comment_content
-            WHERE comment_id = %(comment_id)s;
+            SELECT content, created
+              FROM comment_content
+             WHERE comment_id = %(comment_id)s;
             """,
             {'comment_id': comment['comment_id']}
             )
