@@ -31,6 +31,19 @@ I started programming in January 2017 and am learning Python for back-end server
         ]
     }
     ```
+    * Ensure your S3 bucket has a CORS configuration similar to the following:
+    ```
+    <?xml version="1.0" encoding="UTF-8"?>
+    <CORSConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+      <CORSRule>
+          <AllowedOrigin>*</AllowedOrigin>
+          <AllowedMethod>GET</AllowedMethod>
+          <AllowedMethod>HEAD</AllowedMethod>
+          <MaxAgeSeconds>3000</MaxAgeSeconds>
+          <AllowedHeader>*</AllowedHeader>
+      </CORSRule>
+    </CORSConfiguration>
+    ```
     * Full-size photos should be named as numbers (e.g., "1.png"), and thumbnails must be named the same plus the suffix "-thumb" (e.g., "1-thumb.png").
     * For best display on the front-end, full-size photos should be 6 x 8 inches in size, and thumbnails should be 240 x 300 px.
 5. Set the following environment variables for the API:
@@ -41,8 +54,8 @@ I started programming in January 2017 and am learning Python for back-end server
     * "PATH" for the path to the executable files that will run when automatic database backups are performed via crontab; you should append the path to your PostgreSQL directory here (e.g., "$PATH:/Applications/Postgres.app/Contents/Versions/latest/bin")
     * ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the access key for your AWS account stored on Amazon S3 buckets
     * ["AWS_SECRET_ACCESS_KEY"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the secret key for your AWS account stored on Amazon S3 buckets
-    * "S3_BUCKET" for the name of your S3 bucket (e.g., 'crystalprism')
-    * "S3_URL" for the URL for your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism/')
+    * "S3_BUCKET" for the name of your S3 bucket, which should not contain any periods (e.g., 'crystalprism')
+    * "S3_URL" for the domain-style URL for your S3 bucket (e.g., 'https://crystalprism.s3.us-east-2.amazonaws.com/')
     * "S3_PHOTO_DIR" for the name of the S3 bucket's folder for photos (the default is 'photos/')
     * "S3_CANVASHARE_DIR" for the name of the S3 bucket's folder for CanvaShare drawings (the default is 'canvashare/')
     * "S3_BACKUP_DIR" for the name of the S3 bucket's folder for database backups (the default is 'db-backups/')
