@@ -347,30 +347,33 @@ def update_user(requester):
 
             return make_response('Username already exists', 409)
 
-    # Check if email address already exists in database
-    cursor.execute(
-        """
-        SELECT EXISTS (
-                       SELECT 1
-                         FROM cp_user
-                        WHERE email = %(email)s
-                              AND LOWER(username) != %(username)s
-                        LIMIT 1
-        );
-        """,
-        {'email': data['email'].strip(),
-        'username': requester.lower()}
-        )
+    # Check if email address already exists in database if it is not null
+    if data['email']:
+        data['email'] = data['email'].strip()
 
-    if cursor.fetchone()[0]:
-        cursor.close()
-        conn.close()
+        cursor.execute(
+            """
+            SELECT EXISTS (
+                           SELECT 1
+                             FROM cp_user
+                            WHERE email = %(email)s
+                                  AND LOWER(username) != %(username)s
+                            LIMIT 1
+            );
+            """,
+            {'email': data['email'],
+            'username': requester.lower()}
+            )
 
-        return make_response('Email address already claimed', 409)
+        if cursor.fetchone()[0]:
+            cursor.close()
+            conn.close()
 
-    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+            return make_response('Email address already claimed', 409)
 
     # Retrieve user account from database
+    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+
     cursor.execute(
         """
         SELECT *
@@ -407,7 +410,7 @@ def update_user(requester):
         'first_name': data['first_name'].strip(),
         'last_name': data['last_name'].strip(),
         'name_public': data['name_public'],
-        'email': data['email'].strip(),
+        'email': data['email'],
         'email_public': data['email_public'],
         'background_color': data['background_color'],
         'icon_color': data['icon_color'],
