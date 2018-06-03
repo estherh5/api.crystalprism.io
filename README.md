@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/estherh5/api.crystalprism.io.svg?branch=master)](https://travis-ci.org/estherh5/api.crystalprism.io)
 [![codecov](https://codecov.io/gh/estherh5/api.crystalprism.io/branch/master/graph/badge.svg)](https://codecov.io/gh/estherh5/api.crystalprism.io)
 
 # api.crystalprism.io
