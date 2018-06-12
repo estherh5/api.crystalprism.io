@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <link href="../style.css" rel="stylesheet">
+    <title>{{ post['title'] }}</title>
+  </head>
+  <body style="background-color:{{ background_color }}; color:{{ font_color }};">
+    <!-- Link to main page -->
+    <div id="back">
+      <a href="../{{ username }}.html">&#8678; Back</a>
+    </div>
+
+    <!-- Main page container -->
+    <div class="page-container w-100 d-flex flex-column align-items-center justify-content-center">
+
+      <div>
+        <div id="title" class="d-flex align-items-center justify-content-center">
+          {% if post['public'] %}
+            <a href="https://crystalprism.io/thought-writer/post/?post={{ post['post_id'] }}">{{ post['title'] }}</a>
+          {% else %}
+            {{ post['title'] }}
+          {% endif %}
+        </div>
+        <div id="post-background" class="background d-flex flex-column align-items-center justify-content-center">
+          <div id="post-content" class="content">{{ post['content'] }}</div>
+        </div>
+        <div id="info">
+          <div>Created: {{ post['created'] }}</div>
+          {% if post['public'] %}
+            <div class="mt-5">
+              <a href="https://crystalprism.io/thought-writer/post/?post={{ post['post_id'] }}#comments">Comments: {{ post['comment_count'] }}</a>
+            </div>
+          {% else %}
+            <div class="mt-5">Private post</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="content-row w-100 d-flex flex-column align-items-center justify-content-center hidden">
+        <div class="row-title">Post History</div>
+        <div class="w-100 d-flex flex-row flex-wrap align-items-center justify-content-center">
+          {% for version in post['history'] %}
+            <div class="content-container d-flex flex-column align-items-center justify-content-center">
+              <div class="container-title">
+                {% if version['public'] %}
+                  <a href="https://crystalprism.io/thought-writer/post/?post={{ post['post_id'] }}">{{ version['title'] }}</a>
+                {% else %}
+                  {{ version['title'] }}
+                {% endif %}
+              </div>
+              <div class="post-board d-flex flex-column align-items-center justify-content-center">
+                <div class="post-content">{{ version['content'] }}</div>
+              </div>
+              <div class="info">
+                <div>Created: {{ version['created'] }}</div>
+                {% if version['public'] %}
+                  <div class="mt-2">Public post</div>
+                {% else %}
+                  <div class="mt-2">Private post</div>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+  </body>
+</html>

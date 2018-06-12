@@ -75,7 +75,7 @@ class TestLogin(CrystalPrismTestCase):
 
         # Soft-delete user
         self.client.delete(
-            '/api/user',
+            '/api/user/' + self.username,
             headers=header
             )
 
@@ -142,14 +142,13 @@ class TestUser(CrystalPrismTestCase):
 
         # Act [GET]
         get_response = self.client.get(
-            '/api/user',
+            '/api/user/' + username,
             headers=header
             )
         user_data = json.loads(get_response.get_data(as_text=True))
 
         get_public_response = self.client.get(
-            '/api/user/' + username,
-            headers=header
+            '/api/user/' + username
             )
         public_user_data = json.loads(
             get_public_response.get_data(as_text=True)
@@ -165,7 +164,6 @@ class TestUser(CrystalPrismTestCase):
         self.assertEqual(user_data['email'], None)
         self.assertEqual(user_data['email_public'], False)
         self.assertEqual(user_data['first_name'], None)
-        self.assertEqual(user_data['is_admin'], False)
         self.assertEqual(user_data['last_name'], None)
         self.assertEqual(user_data['icon_color'], '#000000')
         self.assertEqual(user_data['name_public'], False)
@@ -183,7 +181,6 @@ class TestUser(CrystalPrismTestCase):
         self.assertEqual(public_user_data['comment_count'], 0)
         self.assertEqual(public_user_data['drawing_count'], 0)
         self.assertEqual(public_user_data['drawing_like_count'], 0)
-        self.assertEqual(public_user_data['is_admin'], False)
         self.assertEqual(public_user_data['icon_color'], '#000000')
         self.assertEqual(public_user_data['post_count'], 0)
         self.assertEqual(public_user_data['rhythm_high_score'], 0)
@@ -219,7 +216,7 @@ class TestUser(CrystalPrismTestCase):
 
         # Act [PATCH]
         patch_response = self.client.patch(
-            '/api/user',
+            '/api/user/' + username,
             headers=header,
             data=json.dumps(patch_data),
             content_type='application/json'
@@ -228,7 +225,7 @@ class TestUser(CrystalPrismTestCase):
         patched_header = {'Authorization': 'Bearer ' + patched_token}
 
         patched_get_response = self.client.get(
-            '/api/user',
+            '/api/user/' + updated_username,
             headers=patched_header
             )
         patched_user_data = json.loads(
@@ -281,19 +278,18 @@ class TestUser(CrystalPrismTestCase):
 
         # Act [DELETE]
         delete_response = self.client.delete(
-            '/api/user',
+            '/api/user/' + updated_username,
             headers=patched_header
             )
 
         deleted_get_response = self.client.get(
-            '/api/user',
+            '/api/user/' + updated_username,
             headers=patched_header
             )
         deleted_error = deleted_get_response.get_data(as_text=True)
 
         deleted_get_public_response = self.client.get(
-            '/api/user/' + updated_username,
-            headers=patched_header
+            '/api/user/' + updated_username
             )
         deleted_public_error = deleted_get_public_response.get_data(
             as_text=True
@@ -301,8 +297,8 @@ class TestUser(CrystalPrismTestCase):
 
         # Assert [DELETE]
         self.assertEqual(delete_response.status_code, 200)
-        self.assertEqual(deleted_get_response.status_code, 401)
-        self.assertEqual(deleted_error, 'Unauthorized')
+        self.assertEqual(deleted_get_response.status_code, 404)
+        self.assertEqual(deleted_error, 'Not found')
 
         self.assertEqual(deleted_get_public_response.status_code, 404)
         self.assertEqual(deleted_public_error, 'Not found')
@@ -375,7 +371,7 @@ class TestUser(CrystalPrismTestCase):
 
         # Soft-delete user
         self.client.delete(
-            '/api/user',
+            '/api/user/' + self.username,
             headers=header
             )
 
@@ -412,18 +408,32 @@ class TestUser(CrystalPrismTestCase):
         self.assertEqual(post_response.status_code, 400)
         self.assertEqual(error, 'Password too short')
 
-    def test_user_get_unauthorized_error(self):
+    def test_user_patch_unauthorized_error(self):
+        # Arrange
+        username = 'user1'
+
         # Act
-        get_response = self.client.get('/api/user')
-        error = get_response.get_data(as_text=True)
+        patch_response = self.client.patch(
+            '/api/user/' + username
+            )
+        error = patch_response.get_data(as_text=True)
 
         # Assert
-        self.assertEqual(get_response.status_code, 401)
+        self.assertEqual(patch_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
-    def test_user_patch_unauthorized_error(self):
+    def test_user_patch_not_user_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        username = 'user1'
+
         # Act
-        patch_response = self.client.patch('/api/user')
+        patch_response = self.client.patch(
+            '/api/user/' + username,
+            headers=header
+            )
         error = patch_response.get_data(as_text=True)
 
         # Assert
@@ -438,7 +448,7 @@ class TestUser(CrystalPrismTestCase):
 
         # Act
         patch_response = self.client.patch(
-            '/api/user',
+            '/api/user/' + self.username,
             headers=header
             )
         error = patch_response.get_data(as_text=True)
@@ -467,7 +477,7 @@ class TestUser(CrystalPrismTestCase):
 
         # Act
         patch_response = self.client.patch(
-            '/api/user',
+            '/api/user/' + self.username,
             headers=header,
             data=json.dumps(data),
             content_type='application/json'
@@ -498,7 +508,7 @@ class TestUser(CrystalPrismTestCase):
 
         # Act
         patch_response = self.client.patch(
-            '/api/user',
+            '/api/user/' + self.username,
             headers=header,
             data=json.dumps(data),
             content_type='application/json'
@@ -510,24 +520,115 @@ class TestUser(CrystalPrismTestCase):
         self.assertEqual(error, 'Email address already claimed')
 
     def test_user_delete_unauthorized_error(self):
+        # Arrange
+        username = 'user1'
+
         # Act
-        delete_response = self.client.delete('/api/user')
+        delete_response = self.client.delete(
+            '/api/user/' + username
+            )
         error = delete_response.get_data(as_text=True)
 
         # Assert
         self.assertEqual(delete_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
-    def test_public_user_get_error(self):
-        username = 'fakeuseraccount'
+    def test_user_delete_not_user_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        username = 'user1'
 
         # Act
-        get_response = self.client.get('/api/user/' + username)
+        delete_response = self.client.delete(
+            '/api/user/' + username,
+            headers=header
+            )
+        error = delete_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(delete_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
+
+# Test /api/user/data endpoint [GET, DELETE]
+class TestUserData(CrystalPrismTestCase):
+    def test_user_data_get(self):
+        # Arrange
+        username = 'user1'
+        self.login(username)
+        header = {'Authorization': 'Bearer ' + self.token}
+
+        # Act
+        get_response = self.client.get(
+            '/api/user/data/' + username,
+            headers=header
+            )
+
+        # Act - update user data
+        data = {
+            'about': 'Test',
+            'background_color': '#000000',
+            'email': None,
+            'email_public': False,
+            'first_name': 'Test',
+            'icon_color': '#ffffff',
+            'last_name': 'Test',
+            'name_public': True,
+            'password': 'password',
+            'username': username
+            }
+
+        patch_response = self.client.patch(
+            '/api/user/' + username,
+            headers=header,
+            data=json.dumps(data),
+            content_type='application/json'
+            )
+
+        patched_get_response = self.client.get(
+            '/api/user/data/' + username,
+            headers=header
+            )
+
+        # Assert
+        self.assertEqual(get_response.status_code, 200)
+        self.assertEqual(get_response.mimetype, 'application/zip')
+        self.assertEqual(patched_get_response.status_code, 200)
+        self.assertEqual(patched_get_response.mimetype, 'application/zip')
+
+    def test_user_data_get_unauthorized_error(self):
+        # Arrange
+        username = 'user1'
+
+        # Act
+        get_response = self.client.get(
+            '/api/user/data/' + username
+            )
         error = get_response.get_data(as_text=True)
 
         # Assert
-        self.assertEqual(get_response.status_code, 404)
-        self.assertEqual(error, 'Not found')
+        self.assertEqual(get_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
+    def test_user_data_get_not_user_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        username = 'user1'
+
+        # Act
+        get_response = self.client.get(
+            '/api/user/data/' + username,
+            headers=header
+            )
+        error = get_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(get_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
 
     @patch('canvashare.canvashare.boto3')
     def test_user_hard_delete(self, boto3):
@@ -649,7 +750,7 @@ class TestUser(CrystalPrismTestCase):
 
         # Act - attempt to delete first user account as second user
         delete_unauthorized_response = self.client.delete(
-            '/api/user/' + first_username,
+            '/api/user/data/' + first_username,
             headers=second_user_header
             )
         unauthorized_error = delete_unauthorized_response.get_data(
@@ -658,7 +759,7 @@ class TestUser(CrystalPrismTestCase):
 
         # Act - delete first user account as first user
         delete_response = self.client.delete(
-            '/api/user/' + first_username,
+            '/api/user/data/' + first_username,
             headers=first_user_header
             )
 
@@ -784,7 +885,7 @@ class TestUser(CrystalPrismTestCase):
 
         # Act
         delete_response = self.client.delete(
-            '/api/user/' + username
+            '/api/user/data/' + username
             )
         error = delete_response.get_data(as_text=True)
 
@@ -801,7 +902,7 @@ class TestUser(CrystalPrismTestCase):
 
         # Act
         delete_response = self.client.delete(
-            '/api/user/' + username,
+            '/api/user/data/' + username,
             headers=header
             )
         error = delete_response.get_data(as_text=True)
@@ -836,7 +937,9 @@ class TestVerify(CrystalPrismTestCase):
 
     def test_verify_get_data_missing_error(self):
         # Act
-        get_response = self.client.get('/api/user/verify')
+        get_response = self.client.get(
+            '/api/user/verify'
+            )
         error = get_response.get_data(as_text=True)
 
         # Assert
@@ -899,7 +1002,7 @@ class TestVerify(CrystalPrismTestCase):
 
         # Soft-delete user
         self.client.delete(
-            '/api/user',
+            '/api/user/' + self.username,
             headers=header
         )
 
@@ -1033,7 +1136,9 @@ class TestUsers(CrystalPrismTestCase):
 
     def test_users_get_unauthorized_error(self):
         # Act
-        get_response = self.client.get('/api/users')
+        get_response = self.client.get(
+            '/api/users'
+            )
         error = get_response.get_data(as_text=True)
 
         # Assert

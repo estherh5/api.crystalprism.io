@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <link href="../style.css" rel="stylesheet">
+    <title>Comment {{ comment['comment_id'] }}</title>
+  </head>
+  <body style="background-color:{{ background_color }}; color:{{ font_color }};">
+    <!-- Link to main page -->
+    <div id="back">
+      <a href="../{{ username }}.html">&#8678; Back</a>
+    </div>
+
+    <!-- Main page container -->
+    <div class="page-container w-100 d-flex flex-column align-items-center justify-content-center">
+
+      <div>
+        <div id="comment-background" class="background d-flex flex-column align-items-center justify-content-center">
+          <div id="comment-content" class="content">{{ comment['content'] }}</div>
+        </div>
+        <div id="info">
+          <div>Created: {{ comment['created'] }}</div>
+          <div class="mt-5">
+            <a href="https://crystalprism.io/thought-writer/post/?post={{ comment['post_id'] }}#comment{{ comment['comment_id'] }}">Post: {{ comment['title'] }}</a>
+          </div>
+          <div class="mt-5">
+            <a href="https://crystalprism.io/user/?username={{ comment['post_writer'] }}">Post Writer: {{ comment['post_writer'] }}</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-row w-100 d-flex flex-column align-items-center justify-content-center hidden">
+        <div class="row-title">Comment History</div>
+        <div class="w-100 d-flex flex-row flex-wrap align-items-center justify-content-center">
+          {% for version in comment['history'] %}
+            <div class="content-container d-flex flex-column align-items-center justify-content-center">
+              <div class="comment-board d-flex flex-column align-items-center justify-content-center">
+                <div class="comment-content">{{ version['content'] }}</div>
+              </div>
+              <div class="info">
+                <div>Created: {{ version['created'] }}</div>
+                <div class="mt-2">Last Modified: {{ version['modified'] }}</div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+  </body>
+</html>
