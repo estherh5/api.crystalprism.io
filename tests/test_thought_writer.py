@@ -37,8 +37,7 @@ class TestPost(CrystalPrismTestCase):
         post = json.loads(get_response.get_data(as_text=True))
 
         get_user_response = self.client.get(
-            '/api/user',
-            headers=header
+            '/api/user/' + self.username
             )
         user_data = json.loads(get_user_response.get_data(as_text=True))
 
@@ -112,8 +111,7 @@ class TestPost(CrystalPrismTestCase):
         error = deleted_get_response.get_data(as_text=True)
 
         deleted_get_user_response = self.client.get(
-            '/api/user',
-            headers=header
+            '/api/user/' + self.username
             )
         updated_user_data = json.loads(
             deleted_get_user_response.get_data(as_text=True)
@@ -890,8 +888,7 @@ class TestComment(CrystalPrismTestCase):
         post = json.loads(get_post_response.get_data(as_text=True))
 
         get_user_response = self.client.get(
-            '/api/user',
-            headers=header
+            '/api/user/' + self.username
             )
         user_data = json.loads(get_user_response.get_data(as_text=True))
 
@@ -957,8 +954,7 @@ class TestComment(CrystalPrismTestCase):
         error = deleted_get_response.get_data(as_text=True)
 
         deleted_get_user_response = self.client.get(
-            '/api/user',
-            headers=header
+            '/api/user/' + self.username
             )
         updated_user_data = json.loads(
             deleted_get_user_response.get_data(as_text=True)

@@ -43,18 +43,9 @@ class TestScore(CrystalPrismTestCase):
         score_data = json.loads(get_response.get_data(as_text=True))
 
         get_user_response = self.client.get(
-            '/api/user',
-            headers=header
+            '/api/user/' + self.username
             )
         user_data = json.loads(get_user_response.get_data(as_text=True))
-
-        get_public_user_response = self.client.get(
-            '/api/user/' + self.username,
-            headers=header
-            )
-        public_user_data = json.loads(
-            get_public_user_response.get_data(as_text=True)
-            )
 
         # Assert [GET]
         self.assertEqual(get_response.status_code, 200)
@@ -72,8 +63,6 @@ class TestScore(CrystalPrismTestCase):
 
         self.assertEqual(user_data['rhythm_score_count'], 2)
         self.assertEqual(user_data['rhythm_high_score'], 360000)
-        self.assertEqual(public_user_data['rhythm_score_count'], 2)
-        self.assertEqual(public_user_data['rhythm_high_score'], 360000)
 
         # Act [DELETE]
         delete_response = self.client.delete(
@@ -93,19 +82,10 @@ class TestScore(CrystalPrismTestCase):
         deleted_get_error = deleted_get_response.get_data(as_text=True)
 
         deleted_get_user_response = self.client.get(
-            '/api/user',
-            headers=header
+            '/api/user/' + self.username
             )
         updated_user_data = json.loads(deleted_get_user_response.get_data(
             as_text=True)
-            )
-
-        deleted_get_public_user_response = self.client.get(
-            '/api/user/' + self.username,
-            headers=header
-            )
-        updated_public_user_data = json.loads(
-            deleted_get_public_user_response.get_data(as_text=True)
             )
 
         # Assert [DELETE]
@@ -119,8 +99,6 @@ class TestScore(CrystalPrismTestCase):
 
         self.assertEqual(updated_user_data['rhythm_score_count'], 1)
         self.assertEqual(updated_user_data['rhythm_high_score'], 100000)
-        self.assertEqual(updated_public_user_data['rhythm_score_count'], 1)
-        self.assertEqual(updated_public_user_data['rhythm_high_score'], 100000)
 
     def test_score_post_unauthorized_error(self):
         # Act

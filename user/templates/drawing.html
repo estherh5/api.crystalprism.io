@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <link href="../style.css" rel="stylesheet">
+    <title>Drawing {{ drawing['title'] }}</title>
+  </head>
+  <body style="background-color:{{ background_color }}; color:{{ font_color }};">
+    <!-- Link to main page -->
+    <div id="back">
+      <a href="../{{ username }}.html">&#8678; Back</a>
+    </div>
+
+    <!-- Main page container -->
+    <div class="page-container w-100 d-flex flex-column align-items-center justify-content-center">
+
+      <div>
+        <div id="title" class="d-flex align-items-center justify-content-center">
+          <a href="https://crystalprism.io/canvashare/easel/?drawing={{ drawing['drawing_id'] }}">{{ drawing['title'] }}</a>
+        </div>
+          {% if drawing['artist_name'] is defined %}
+            <img id="drawing-background" class="background" src={{ drawing['url'] }}>
+          {% else %}
+            <img id="drawing-background" class="background" src="{{ drawing['drawing_id'] }}.png">
+          {% endif %}
+        <div id="info">
+          {% if drawing['artist_name'] is defined %}
+            <div>
+              <a href="https://crystalprism.io/user/?username={{ drawing['artist_name'] }}">Artist: {{ drawing['artist_name'] }}</a>
+            </div>
+            <div class="mt-5">Liked: {{ drawing['created'] }}</div>
+          {% else %}
+            <div>Created: {{ drawing['created'] }}</div>
+            <div class="mt-5">Likes: {{ drawing['like_count'] }}</div>
+            <div class="mt-5">Views: {{ drawing['views'] }}</div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </body>
+</html>

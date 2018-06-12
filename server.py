@@ -441,30 +441,25 @@ def user_comments(commenter_name):
         return thought_writer.read_comments_for_one_user(commenter_name)
 
 
-@app.route('/api/user', methods=['POST', 'GET', 'PATCH', 'DELETE'])
-def user_private():
+@app.route('/api/user', methods=['POST'])
+def user_account():
     # Create a user account when client sends the jsonified username and
     # password in the request body
     if request.method == 'POST':
         return user.create_user()
 
-    # Retrieve a user's complete account information when client sends verified
-    # bearer token for the user in the request Authorization header
+
+@app.route('/api/user/<username>', methods=['GET', 'PATCH', 'DELETE'])
+def user_account_id(username):
+    # Retrieve a user's account information; complete information will be sent
+    # if client sends verified bearer token for the user in the request
+    # Authorization header; otherwise, only public information will be sent
     if request.method == 'GET':
-        # Verify that user is logged in and return error status code if not
-        verification = user.verify_token()
-        if verification.status_code != 200:
-            return verification
+        return user.read_user(username)
 
-        # Get username from payload if user is logged in
-        payload = json.loads(verification.data.decode())
-        requester = payload['username']
-
-        return user.read_user(requester)
-
-    # Update a user's account when client sends the jsonified account
-    # updates in the request body and a verified bearer token for the user in
-    # the request Authorization header
+    # Update a user's account when client sends the jsonified account updates
+    # in the request body and a verified bearer token for the user in the
+    # request Authorization header
     if request.method == 'PATCH':
         # Verify that user is logged in and return error status code if not
         verification = user.verify_token()
@@ -475,10 +470,15 @@ def user_private():
         payload = json.loads(verification.data.decode())
         requester = payload['username']
 
+        # Return error if requester is not the user
+        if requester.lower() != username.lower():
+            return make_response('Unauthorized', 401)
+
         return user.update_user(requester)
 
-    # Change a user's account status to deleted when client sends a verified
-    # bearer token for the user in the request Authorization header
+    # Change a user's account status to deleted (while keeping his/her data
+    # intact) when client sends a verified bearer token for the user in the
+    # request Authorization header
     if request.method == 'DELETE':
         # Verify that user is logged in and return error status code if not
         verification = user.verify_token()
@@ -489,20 +489,48 @@ def user_private():
         payload = json.loads(verification.data.decode())
         requester = payload['username']
 
+        # Return error if requester is not the user
+        if requester.lower() != username.lower():
+            return make_response('Unauthorized', 401)
+
         return user.delete_user_soft(requester)
 
 
-@app.route('/api/user/<username>', methods=['GET', 'DELETE'])
-def user_public(username):
-    # Retrieve a user's public account information; no bearer token needed
+@app.route('/api/user/data/<username>', methods=['GET', 'DELETE'])
+def user_account_data(username):
+    # Send all of a user's data (drawings, posts, etc.) in a downloadable zip
+    # file when client sends a verified bearer token for the user in the
+    # request Authorization header
     if request.method == 'GET':
-        return user.read_user_public(username)
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
 
-    # Delete all of a user's account data and set status to deleted when client
-    # sends a verified bearer token for the user or for an admin in the request
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        # Return error if requester is not the user
+        if requester.lower() != username.lower():
+            return make_response('Unauthorized', 401)
+
+        return user.read_user_data(requester)
+
+    # Delete all of a user's data and set status to deleted when client sends a
+    # verified bearer token for the user or for an admin in the request
     # Authorization header
     if request.method == 'DELETE':
-        return user.delete_user_hard(username)
+        # Verify that user is logged in and return error status code if not
+        verification = user.verify_token()
+        if verification.status_code != 200:
+            return verification
+
+        # Get username from payload if user is logged in
+        payload = json.loads(verification.data.decode())
+        requester = payload['username']
+
+        return user.delete_user_hard(requester, username)
 
 
 @app.route('/api/user/verify', methods=['GET'])
