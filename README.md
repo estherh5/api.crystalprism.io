@@ -824,7 +824,7 @@ Note that the following environment variables must be set:
 
 ## User Account API
 #### September 2017 - Present
-Users who want to join the Crystal Prism community can create an account to store their Shapes in Rain and Rhythm of Life scores, their CanvaShare drawings, and their Thought Writer posts. User information is stored in the "cp_user" database table:
+Users who want to join the Crystal Prism community can create an account to store their Shapes in Rain and Rhythm of Life scores, their CanvaShare drawings, and their Thought Writer posts and comments. Users can download all of their data whenever they want to. User information is stored in the "cp_user" database table:
 <p align="center"><img title="User Database Table" src ="images/user-table.png" /></p>
 
 \
@@ -839,8 +839,8 @@ Users who want to join the Crystal Prism community can create an account to stor
 ```
 
 \
-**GET** /api/user
-* Retrieve a user's complete account information. Note that there must be a verified bearer token for the user in the request Authorization header.
+**GET** /api/user/[username]
+* Retrieve a user's account information. If there is a verified bearer token for the user in the request Authorization header, the server will send the user's private and public information; otherwise, only the public information will be sent.
 * Example response body:
 ```javascript
 {
@@ -850,13 +850,12 @@ Users who want to join the Crystal Prism community can create an account to stor
     "comment_count": 1, // Number of post comments user has created
     "drawing_count": 1, // Number of drawings user has created
     "drawing_like_count": 1, // Number of drawings user has liked
-    "email": "", // User-entered on My Account page
-    "email_public": false, // User specifies if email is viewable on public profile
-    "first_name": "", // User-entered on My Account page
+    "email": "", // User-entered on My Account page; only returned if verified bearer token for the user is included or if "email_public" is True
+    "email_public": false, // User specifies if email is viewable on public profile; only returned if verified bearer token for the user is included
+    "first_name": "", // User-entered on My Account page; only returned if verified bearer token for the user is included or if "name_public" is true
     "icon_color": "#000000", // User-chosen icon color of public profile
-    "is_admin": true, // Admin status
-    "last_name": "", // User-entered on My Account page
-    "name_public": false, // User specifies if name is viewable on public profile
+    "last_name": "", // User-entered on My Account page; only returned if verified bearer token for the user is included or if "name_public" is true
+    "name_public": false, // User specifies if name is viewable on public profile; only returned if verified bearer token for the user is included
     "post_count": 10, // Number of posts user has created
     "rhythm_high_score": 0, // User's high score for Rhythm of Life
     "rhythm_score_count": 0, // Number of times user has played Rhythm of Life
@@ -868,7 +867,7 @@ Users who want to join the Crystal Prism community can create an account to stor
 ```
 
 \
-**PATCH** /api/user
+**PATCH** /api/user/[username]
 * Update a user's account information by specifying the jsonified account updates in the request body. Note that there must be a verified bearer token for the user in the request Authorization header.
 * Example request body:
 ```javascript
@@ -887,37 +886,16 @@ Users who want to join the Crystal Prism community can create an account to stor
 ```
 
 \
-**DELETE** /api/user
-* Soft-delete a user's account as the user (i.e., change the account's status to "deleted" while leaving drawings, posts, scores, personal information, etc. intact, in case the user wants to reactivate the account). Note that there must be a verified bearer token for the user in the request Authorization header.
-
-\
-**GET** /api/user/[username]
-* Retrieve a user's public account information. No bearer token is needed in the request Authorization header.
-* Example response body:
-```javascript
-{
-    "about": "",
-    "created": "2017-10-04T00:00:00.000Z",
-    "background_color": "#ffffff",
-    "comment_count": 0,
-    "drawing_count": 1,
-    "drawing_like_count": 0,
-    "email": "admin@crystalprism.io",
-    "icon_color": "#000000",
-    "is_admin": true,
-    "post_count": 0,
-    "rhythm_high_score": 0,
-    "rhythm_score_count": 0,
-    "shapes_high_score": 0,
-    "shapes_score_count": 0,
-    "status": "active",
-    "username": "admin"
-}
-```
-
-\
 **DELETE** /api/user/[username]
-* Hard-delete a user's account as the user or as an admin user (i.e., delete all of the user's drawings, posts, scores, personal information, etc. in addition to changing the account status to "deleted"). Note that there must be a verified bearer token for the user or for an admin user in the request Authorization header.
+* Soft-delete a user's account as the user (i.e., change the account's status to "deleted" while leaving drawings, posts, comments, scores, personal information, etc. intact, in case the user wants to reactivate the account). Note that there must be a verified bearer token for the user in the request Authorization header.
+
+\
+**GET** /api/user/data/[username]
+* Retrieve all of a user's data (drawings, posts, comments, scores, personal information, etc.) in a downloadable zip file. Note that there must be a verified bearer token for the user in the request Authorization header.
+
+\
+**DELETE** /api/user/data/[username]
+* Hard-delete a user's account and their data as the user or as an admin user (i.e., delete all of the user's drawings, posts, comments, scores, personal information, etc. in addition to changing the account status to "deleted"). Note that there must be a verified bearer token for the user or for an admin user in the request Authorization header.
 
 \
 **GET** /api/user/verify

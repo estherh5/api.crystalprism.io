@@ -431,7 +431,7 @@ class CrystalPrismTestCase(unittest.TestCase):
         header = {'Authorization': 'Bearer ' + self.token}
 
         response = self.client.delete(
-            '/api/user/' + username_to_delete,
+            '/api/user/data/' + username_to_delete,
             headers=header
         )
 
@@ -442,6 +442,6 @@ class CrystalPrismTestCase(unittest.TestCase):
         header = {'Authorization': 'Bearer ' + self.token}
 
         response = self.client.delete(
-            '/api/user/' + username,
+            '/api/user/data/' + username,
             headers=header
         )

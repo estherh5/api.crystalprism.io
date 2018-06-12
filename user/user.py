@@ -6,10 +6,15 @@ import os
 import psycopg2 as pg
 import psycopg2.extras
 import re
+import requests
+import shutil
+import tempfile
 
 from base64 import urlsafe_b64decode, urlsafe_b64encode
-from flask import jsonify, make_response, request
+from datetime import datetime, timezone
+from flask import jsonify, make_response, request, send_file
 from hashlib import sha256
+from jinja2 import Environment, PackageLoader, select_autoescape
 from math import floor
 from time import time
 
@@ -155,7 +160,7 @@ def create_user():
     return make_response('Success', 201)
 
 
-def read_user(requester):
+def read_user(username):
     # Set up database connection wtih environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
 
@@ -168,10 +173,27 @@ def read_user(requester):
           FROM cp_user
          WHERE LOWER(username) = %(username)s;
         """,
-        {'username': requester.lower()}
+        {'username': username.lower()}
         )
 
-    user_data = dict(cursor.fetchone())
+    user_data = cursor.fetchone()
+
+    # Return error if user account is not found
+    if not user_data:
+        cursor.close()
+        conn.close()
+
+        return make_response('Not found', 404)
+
+    # Otherwise, convert user data to dictionary
+    user_data = dict(user_data)
+
+    # Return error if user account is deleted
+    if user_data['status'] == 'deleted':
+        cursor.close()
+        conn.close()
+
+        return make_response('Not found', 404)
 
     # Get user's Shapes in Rain score count
     cursor.execute(
@@ -286,12 +308,33 @@ def read_user(requester):
     cursor.close()
     conn.close()
 
-    # Remove private information from user_data and return user_data to
-    # requester
+    # Remove admin information from user_data
+    user_data.pop('is_admin')
     user_data.pop('is_owner')
     user_data.pop('member_id')
     user_data.pop('modified')
     user_data.pop('password')
+
+    # Check if user is logged in
+    verification = verify_token()
+
+    # If requester's user token is verified and requester is the user, return
+    # complete user data
+    if (verification.status_code == 200 and json.loads(verification.data
+        .decode())['username'].lower() == username.lower()):
+            return jsonify(user_data)
+
+    # Otherwise, remove private information from user data before sending it to
+    # client
+    if not user_data['email_public']:
+        user_data.pop('email')
+
+    if not user_data['name_public']:
+        user_data.pop('first_name')
+        user_data.pop('last_name')
+
+    user_data.pop('email_public')
+    user_data.pop('name_public')
 
     return jsonify(user_data)
 
@@ -464,182 +507,466 @@ def delete_user_soft(requester):
     return make_response('Success', 200)
 
 
-def read_user_public(username):
-    # Set up database connection wtih environment variable
-    conn = pg.connect(os.environ['DB_CONNECTION'])
+def read_user_data(requester):
+    # Create temporary directory for user files that deletes after context is
+    # closed
+    with tempfile.TemporaryDirectory() as data_dir:
+        # Copy stylesheet to new directory
+        shutil.copyfile(os.path.dirname(os.path.abspath(__file__)) +
+            '/templates/style.css', data_dir + '/style.css')
 
-    cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+        # Create directory for user drawings
+        drawing_dir = os.makedirs(data_dir + '/drawings')
 
-    # Retrieve user account from database
-    cursor.execute(
-        """
-        SELECT *
-          FROM cp_user
-         WHERE LOWER(username) = %(username)s;
-        """,
-        {'username': username.lower()}
-        )
+        # Create directory for user posts
+        post_dir = os.makedirs(data_dir + '/posts')
 
-    user_data = cursor.fetchone()
+        # Create directory for user comments
+        comment_dir = os.makedirs(data_dir + '/comments')
 
-    # Return error if user account is not found
-    if not user_data:
+        # Set up database connection wtih environment variable
+        conn = pg.connect(os.environ['DB_CONNECTION'])
+
+        cursor = conn.cursor(cursor_factory=pg.extras.DictCursor)
+
+        # Get user's account data
+        cursor.execute(
+            """
+            SELECT *
+              FROM cp_user
+             WHERE LOWER(username) = %(username)s;
+            """,
+            {'username': requester.lower()}
+            )
+
+        user_data = dict(cursor.fetchone())
+
+        # Set main data page's icon background color based on RGB content of
+        # icon color
+        rgb_icon = sum([int(
+            user_data['icon_color'].lstrip('#')[i:(i + 2)], 16)
+            for i in (0, 2, 4)])
+
+        if rgb_icon > 670:
+            icon_background_color = '#000000'
+
+        else:
+            icon_background_color = '#ffffff'
+
+        # Set data pages' font color based on RGB content of background color
+        rgb_background = sum([int(
+            user_data['background_color'].lstrip('#')[i:(i + 2)], 16)
+            for i in (0, 2, 4)])
+
+        if rgb_background > 670:
+            font_color = '#000000'
+
+        else:
+            font_color = '#ffffff'
+
+        # Convert user account created timestamp to readable timestamp format
+        user_data['created'] = datetime.strptime(
+            user_data['created'], '%Y-%m-%dT%X.%fZ').replace(
+            tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+
+        # Get user's Shapes in Rain game scores, sorted by highest to lowest
+        # score
+        cursor.execute(
+            """
+              SELECT shapes_score.created, shapes_score.score,
+                     shapes_score.score_id, cp_user.username
+                FROM shapes_score
+                     JOIN cp_user
+                       ON shapes_score.member_id = cp_user.member_id
+               WHERE LOWER(cp_user.username) = %(username)s
+            ORDER BY score DESC;
+            """,
+            {'username': requester.lower()}
+            )
+
+        shapes_scores = []
+
+        for row in cursor.fetchall():
+            shapes_scores.append(dict(row))
+
+        # Convert each score's created timestamp to readable timestamp format
+        for score in shapes_scores:
+            score['created'] = datetime.strptime(
+                score['created'], '%Y-%m-%dT%X.%fZ').replace(
+                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+
+        # Get user's Rhythm of Life game scores, sorted by highest to lowest
+        # score
+        cursor.execute(
+            """
+              SELECT rhythm_score.created, rhythm_score.score,
+                     rhythm_score.score_id, cp_user.username
+                FROM rhythm_score
+                     JOIN cp_user
+                       ON rhythm_score.member_id = cp_user.member_id
+               WHERE LOWER(cp_user.username) = %(username)s
+            ORDER BY score DESC;
+            """,
+            {'username': requester.lower()}
+            )
+
+        rhythm_scores = []
+
+        for row in cursor.fetchall():
+            rhythm_scores.append(dict(row))
+
+        # Convert each score's created timestamp to readable timestamp format
+        for score in rhythm_scores:
+            score['created'] = datetime.strptime(
+                score['created'], '%Y-%m-%dT%X.%fZ').replace(
+                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+
+        # Get user's drawings
+        cursor.execute(
+            """
+              SELECT drawing.created, drawing.drawing_id, drawing.title,
+                     drawing.url, drawing.views, cp_user.username
+                FROM drawing
+                     JOIN cp_user
+                       ON drawing.member_id = cp_user.member_id
+               WHERE LOWER(cp_user.username) = %(username)s
+            ORDER BY created DESC;
+            """,
+            {'username': requester.lower()}
+            )
+
+        drawings = []
+
+        for row in cursor.fetchall():
+            drawings.append(dict(row))
+
+        # Get each drawing's like count
+        for drawing in drawings:
+            cursor.execute(
+                """
+                SELECT COUNT(*)
+                  FROM drawing_like
+                 WHERE drawing_id = %(drawing_id)s;
+                """,
+                {'drawing_id': drawing['drawing_id']}
+                )
+
+            drawing['like_count'] = cursor.fetchone()[0]
+
+            # Save drawing as file in user's drawings folder
+            drawing_data = requests.get(drawing['url']).content
+
+            with open(data_dir + '/drawings/' + drawing['drawing_id'] + '.png',
+                'wb') as drawing_file:
+                    drawing_file.write(drawing_data)
+
+            drawing['url'] = 'drawings/' + drawing['drawing_id'] + '.png'
+
+            # Convert each drawing's created timestamp to readable timestamp
+            # format
+            drawing['created'] = datetime.strptime(
+                drawing['created'], '%Y-%m-%dT%X.%fZ').replace(
+                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+
+        # Get user's liked drawings
+        cursor.execute(
+            """
+              SELECT drawing_like.created, drawing_like.drawing_like_id,
+                     drawing.drawing_id, drawing.url, drawing.title,
+                     drawing.member_id, cp_user.username
+                FROM drawing_like
+                     JOIN drawing
+                       ON drawing_like.drawing_id = drawing.drawing_id
+                     JOIN cp_user
+                       ON drawing_like.member_id = cp_user.member_id
+               WHERE LOWER(cp_user.username) = %(username)s
+            ORDER BY drawing_like.created DESC;
+            """,
+            {'username': requester.lower()}
+            )
+
+        liked_drawings = []
+
+        for row in cursor.fetchall():
+            liked_drawings.append(dict(row))
+
+        # Replace each drawing artist's member id with username
+        for drawing_like in liked_drawings:
+            cursor.execute(
+                """
+                SELECT username
+                  FROM cp_user
+                 WHERE member_id = %(member_id)s;
+                """,
+                {'member_id': drawing_like['member_id']}
+                )
+
+            drawing_like.pop('member_id')
+            drawing_like['artist_name'] = cursor.fetchone()[0]
+
+            # Convert each drawing like's created timestamp to readable
+            # timestamp format
+            drawing_like['created'] = datetime.strptime(
+                drawing_like['created'], '%Y-%m-%dT%X.%fZ').replace(
+                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+
+        # Get user's posts
+        cursor.execute(
+            """
+              SELECT post.created, post.modified, post.post_id,
+                     post_content.public, cp_user.username
+                FROM post
+                     JOIN post_content
+                       ON post_content.created = post.modified
+                          AND post_content.post_id = post.post_id
+                     JOIN cp_user
+                       ON post.member_id = cp_user.member_id
+               WHERE LOWER(cp_user.username) = %(username)s
+            ORDER BY created DESC;
+            """,
+            {'username': requester.lower()}
+            )
+
+        posts = []
+
+        for row in cursor.fetchall():
+            posts.append(dict(row))
+
+        for post in posts:
+            # Convert each post's created and modified timestamps to readable
+            # timestamp format
+            post['created'] = datetime.strptime(
+                post['created'], '%Y-%m-%dT%X.%fZ').replace(
+                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+
+            post['modified'] = datetime.strptime(
+                post['modified'], '%Y-%m-%dT%X.%fZ').replace(
+                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+
+            # Get each post's public and private content versions
+            cursor.execute(
+                """
+                SELECT content, created, title
+                  FROM post_content
+                 WHERE post_id = %(post_id)s;
+                """,
+                {'post_id': post['post_id']}
+                )
+
+            post['history'] = []
+
+            for row in cursor.fetchall():
+                row = dict(row)
+
+                # Convert each row's created timestamp to readable timestamp
+                # format
+                row['created'] = datetime.strptime(
+                    row['created'], '%Y-%m-%dT%X.%fZ').replace(
+                    tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+
+                # Set current post content, public, and title items
+                if row['created'] == post['modified']:
+                    post['content'] = row['content']
+                    post['title'] = row['title']
+
+                # Add rest of post versions to history item
+                else:
+                    post['history'].append(row)
+
+            # Get each post's comment count
+            cursor.execute(
+                """
+                SELECT COUNT(*)
+                  FROM comment
+                 WHERE post_id = %(post_id)s;
+                """,
+                {'post_id': post['post_id']}
+                )
+
+            post['comment_count'] = cursor.fetchone()[0]
+
+        # Get user's comments
+        cursor.execute(
+            """
+              SELECT comment.comment_id, comment.created, comment.modified,
+                     comment.post_id, post_content.content AS post_content,
+                     post.member_id, post_content.title, cp_user.username
+                FROM comment
+                     JOIN post
+                       ON comment.post_id = post.post_id
+                     JOIN post_content
+                       ON post_content.post_id = post.post_id
+                          AND post_content.created = post.modified
+                     JOIN cp_user
+                       ON comment.member_id = cp_user.member_id
+               WHERE LOWER(cp_user.username) = %(username)s
+                     AND post_content.public = TRUE
+            ORDER BY comment.created DESC;
+            """,
+            {'username': requester.lower()}
+            )
+
+        comments = []
+
+        for row in cursor.fetchall():
+            comments.append(dict(row))
+
+        for comment in comments:
+            # Replace each post writer's member id with username
+            cursor.execute(
+                """
+                SELECT username
+                  FROM cp_user
+                 WHERE member_id = %(member_id)s;
+                """,
+                {'member_id': comment['member_id']}
+                )
+
+            comment.pop('member_id')
+            comment['post_writer'] = cursor.fetchone()[0]
+
+            # Convert each comment's created and modified timestamps to
+            # readable timestamp format
+            comment['created'] = datetime.strptime(
+                comment['created'], '%Y-%m-%dT%X.%fZ').replace(
+                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+
+            comment['modified'] = datetime.strptime(
+                comment['modified'], '%Y-%m-%dT%X.%fZ').replace(
+                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+
+            # Get each comment's content versions
+            cursor.execute(
+                """
+                SELECT content, created
+                  FROM comment_content
+                 WHERE comment_id = %(comment_id)s;
+                """,
+                {'comment_id': comment['comment_id']}
+                )
+
+            comment['history'] = []
+
+            for row in cursor.fetchall():
+                row = dict(row)
+
+                # Convert each row's created timestamp to readable timestamp
+                # format
+                row['created'] = datetime.strptime(
+                    row['created'], '%Y-%m-%dT%X.%fZ').replace(
+                    tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+
+                # Set current comment content items
+                if row['created'] == comment['modified']:
+                    comment['content'] = row['content']
+
+                # Add rest of comment versions to history item
+                else:
+                    comment['history'].append(row)
+
         cursor.close()
         conn.close()
 
-        return make_response('Not found', 404)
-
-    # Otherwise, convert user data to dictionary
-    user_data = dict(user_data)
-
-    # Return error if user account is deleted
-    if user_data['status'] == 'deleted':
-        cursor.close()
-        conn.close()
-
-        return make_response('Not found', 404)
-
-    # Get user's Shapes in Rain score count
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-          FROM shapes_score
-         WHERE member_id = %(member_id)s;
-        """,
-        {'member_id': user_data['member_id']}
+        # Set up jinja environment to render HTML template
+        env = Environment(
+            loader=PackageLoader('user', 'templates'),
+            autoescape=select_autoescape(['html'])
         )
 
-    user_data['shapes_score_count'] = cursor.fetchone()[0]
+        # Create HTML file displaying user's data
+        template = env.get_template('data.html')
 
-    # Get user's Shapes in Rain high score
-    cursor.execute(
-        """
-          SELECT score, created
-            FROM shapes_score
-           WHERE member_id = %(member_id)s
-        ORDER BY score DESC;
-        """,
-        {'member_id': user_data['member_id']}
-        )
+        user_data_html = open(data_dir + '/' + requester + '.html', 'w+')
 
-    shapes_high_score = cursor.fetchone()
+        user_data_html.write(template.render(
+            username=requester,
+            background_color=user_data['background_color'],
+            font_color=font_color,
+            icon_background_color=icon_background_color,
+            icon_color=user_data['icon_color'],
+            first_name=user_data['first_name'],
+            last_name=user_data['last_name'],
+            name_public=user_data['name_public'],
+            email=user_data['email'],
+            email_public=user_data['email_public'],
+            created=user_data['created'],
+            about=user_data['about'],
+            shapes_scores=shapes_scores,
+            rhythm_scores=rhythm_scores,
+            drawings=drawings,
+            liked_drawings=liked_drawings,
+            posts=posts,
+            comments=comments
+            ))
 
-    if not shapes_high_score:
-        user_data['shapes_high_score'] = 0
-    else:
-        user_data['shapes_high_score'] = shapes_high_score[0]
+        user_data_html.close()
 
-    # Get user's Rhythm of Life score count
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-          FROM rhythm_score
-         WHERE member_id = %(member_id)s;
-        """,
-        {'member_id': user_data['member_id']}
-        )
+        # Create HTML file for each of user's drawings and liked drawings
+        drawing_template = env.get_template('drawing.html')
 
-    user_data['rhythm_score_count'] = cursor.fetchone()[0]
+        for drawing in drawings + liked_drawings:
+            drawing_html = open(
+                data_dir + '/drawings/' + drawing['drawing_id'] + '.html',
+                'w+')
 
-    # Get user's Rhythm of Life high score
-    cursor.execute(
-        """
-          SELECT score, created
-            FROM rhythm_score
-           WHERE member_id = %(member_id)s
-        ORDER BY score DESC;
-        """,
-        {'member_id': user_data['member_id']}
-        )
+            drawing_html.write(drawing_template.render(
+                username=requester,
+                background_color=user_data['background_color'],
+                font_color=font_color,
+                drawing=drawing
+                ))
 
-    rhythm_high_score = cursor.fetchone()
+            drawing_html.close()
 
-    if not rhythm_high_score:
-        user_data['rhythm_high_score'] = 0
-    else:
-        user_data['rhythm_high_score'] = rhythm_high_score[0]
+        # Create HTML file for each of user's posts
+        post_template = env.get_template('post.html')
 
-    # Get user's drawing count
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-          FROM drawing
-         WHERE member_id = %(member_id)s;
-        """,
-        {'member_id': user_data['member_id']}
-        )
+        for post in posts:
+            post_html = open(
+                data_dir + '/posts/' + str(post['post_id']) + '.html', 'w+')
 
-    user_data['drawing_count'] = cursor.fetchone()[0]
+            post_html.write(post_template.render(
+                username=requester,
+                background_color=user_data['background_color'],
+                font_color=font_color,
+                post=post
+                ))
 
-    # Get user's drawing like count
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-          FROM drawing_like
-         WHERE member_id = %(member_id)s;
-        """,
-        {'member_id': user_data['member_id']}
-        )
+            post_html.close()
 
-    user_data['drawing_like_count'] = cursor.fetchone()[0]
+        # Create HTML file for each of user's comments
+        comment_template = env.get_template('comment.html')
 
-    # Get user's post count
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-          FROM post
-         WHERE member_id = %(member_id)s;
-        """,
-        {'member_id': user_data['member_id']}
-        )
+        for comment in comments:
+            comment_html = open(
+                data_dir + '/comments/' + str(comment['comment_id']) + '.html',
+                'w+')
 
-    user_data['post_count'] = cursor.fetchone()[0]
+            comment_html.write(comment_template.render(
+                username=requester,
+                background_color=user_data['background_color'],
+                font_color=font_color,
+                comment=comment
+                ))
 
-    # Get user's comment count
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-          FROM comment
-         WHERE member_id = %(member_id)s;
-        """,
-        {'member_id': user_data['member_id']}
-        )
+            comment_html.close()
 
-    user_data['comment_count'] = cursor.fetchone()[0]
+        # Save directory and its files as a zip file in a temporary directory
+        # that deletes when context is closed
+        with tempfile.TemporaryDirectory() as zip_dir:
+            filepath = os.path.join(zip_dir, requester)
+            zipped_file = shutil.make_archive(filepath, 'zip', data_dir)
 
-    cursor.close()
-    conn.close()
-
-    # Remove user's email address if not public
-    if not user_data['email_public']:
-        user_data.pop('email')
-
-    # Remove user's first and last name if not public
-    if not user_data['name_public']:
-        user_data.pop('first_name')
-        user_data.pop('last_name')
-
-    # Remove private information from user_data
-    user_data.pop('email_public')
-    user_data.pop('is_owner')
-    user_data.pop('member_id')
-    user_data.pop('modified')
-    user_data.pop('name_public')
-    user_data.pop('password')
-
-    return jsonify(user_data)
+            # Send zip file to client
+            return send_file(
+                zipped_file,
+                mimetype='application/zip',
+                attachment_filename=requester + '.zip',
+                as_attachment=True
+            )
 
 
-def delete_user_hard(username):
-    # Verify that requester is logged in and return error status code if not
-    verification = verify_token()
-    if verification.status_code != 200:
-        return verification
-
-    # Get username from payload if requester is logged in
-    payload = json.loads(verification.data.decode())
-    requester = payload['username']
-
+def delete_user_hard(requester, username):
     # Set up database connection wtih environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
 
