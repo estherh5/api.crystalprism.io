@@ -464,6 +464,44 @@ class TestPost(CrystalPrismTestCase):
         self.assertEqual(patch_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
+    def test_post_patch_no_changes_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        post_data = {
+            'content': 'Test',
+            'public': False,
+            'title': 'Test'
+            }
+        patch_data = {
+            'content': 'Test',
+            'public': False,
+            'title': 'Test'
+        }
+
+        # Create post
+        post_response = self.client.post(
+            '/api/thought-writer/post',
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        post_id = post_response.get_data(as_text=True)
+
+        # Act
+        patch_response = self.client.patch(
+            '/api/thought-writer/post/' + post_id,
+            headers=header,
+            data=json.dumps(patch_data),
+            content_type='application/json'
+            )
+        error = patch_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(patch_response.status_code, 409)
+        self.assertEqual(error, 'No changes made')
+
     def test_post_delete_unauthorized_error(self):
         # Arrange
         post_id = '1'
@@ -689,8 +727,8 @@ class TestPosts(CrystalPrismTestCase):
             }
 
         public_patch_data = {
-            'title': 'Test',
-            'content': 'Test',
+            'title': 'Test2',
+            'content': 'Test2',
             'created': '2050-01-01T00:00:00.000Z',
             'public': True
             }
@@ -1245,6 +1283,41 @@ class TestComment(CrystalPrismTestCase):
         # Assert
         self.assertEqual(patch_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
+
+    def test_post_patch_no_changes_error(self):
+        # Arrange
+        self.create_user()
+        self.login()
+        header = {'Authorization': 'Bearer ' + self.token}
+        post_data = {
+            'content': 'Test',
+            'post_id': 1
+            }
+        patch_data = {
+            'content': 'Test',
+        }
+
+        # Create post
+        post_response = self.client.post(
+            '/api/thought-writer/comment',
+            headers=header,
+            data=json.dumps(post_data),
+            content_type='application/json'
+            )
+        comment_id = post_response.get_data(as_text=True)
+
+        # Act
+        patch_response = self.client.patch(
+            '/api/thought-writer/comment/' + comment_id,
+            headers=header,
+            data=json.dumps(patch_data),
+            content_type='application/json'
+            )
+        error = patch_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(patch_response.status_code, 409)
+        self.assertEqual(error, 'No changes made')
 
     def test_comment_delete_unauthorized_error(self):
         # Arrange
