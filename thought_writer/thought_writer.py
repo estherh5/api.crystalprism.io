@@ -152,8 +152,7 @@ def read_post(post_id):
     # If requester's user token is verified and requester is the writer, return
     # post and its entire history
     if (verification.status_code == 200 and json.loads(verification.data
-        .decode())['username']
-        .lower() == post['username'].lower()):
+        .decode())['username'].lower() == post['username'].lower()):
 
             return jsonify(post)
 
@@ -201,11 +200,14 @@ def update_post(requester, post_id):
     # Get current post from database
     cursor.execute(
         """
-        SELECT post.*, cp_user.username
+        SELECT post.*, post_content.*, cp_user.username
           FROM post
+               JOIN post_content
+                 ON post.modified = post_content.created
+                    AND post.post_id = post_content.post_id
                JOIN cp_user
-               ON post.member_id = cp_user.member_id
-         WHERE post_id = %(post_id)s;
+                 ON post.member_id = cp_user.member_id
+         WHERE post.post_id = %(post_id)s;
         """,
         {'post_id': post_id}
         )
@@ -229,7 +231,12 @@ def update_post(requester, post_id):
 
         return make_response('Unauthorized', 401)
 
-    # Add post content version to database
+    # Return error if there are no changes to post
+    if (data['content'] == post['content'] and
+        data['public'] == post['public'] and data['title'] == post['title']):
+            return make_response('No changes made', 409)
+
+    # Otherwise, add post content version to database
     cursor.execute(
         """
         INSERT INTO post_content
@@ -721,11 +728,14 @@ def update_comment(requester, comment_id):
     # Get current comment from database
     cursor.execute(
         """
-        SELECT comment.*, cp_user.username
+        SELECT comment.*, comment_content.*, cp_user.username
           FROM comment
+               JOIN comment_content
+                 ON comment.modified = comment_content.created
+                    AND comment.comment_id = comment_content.comment_id
                JOIN cp_user
                  ON comment.member_id = cp_user.member_id
-         WHERE comment_id = %(comment_id)s;
+         WHERE comment.comment_id = %(comment_id)s;
         """,
         {'comment_id': comment_id}
         )
@@ -749,7 +759,11 @@ def update_comment(requester, comment_id):
 
         return make_response('Unauthorized', 401)
 
-    # Add comment content version to database
+    # Return error if there are no changes to comment
+    if data['content'] == comment['content']:
+        return make_response('No changes made', 409)
+
+    # Otherwise, add comment content version to database
     cursor.execute(
         """
         INSERT INTO comment_content
