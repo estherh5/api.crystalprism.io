@@ -68,6 +68,7 @@ I started programming in January 2017 and am learning Python for back-end server
 7. Set up weekly backups for the database by running `python management.py sched_backup`.
 8. Start the server by running `flask run` (if you are making changes while the server is running, enter `flask run --reload` instead for instant updates).
 
+
 ## API Status
 To check if the API is online, a client can send a request to the following endpoint.
 
@@ -78,10 +79,11 @@ To check if the API is online, a client can send a request to the following endp
 Success
 ```
 
+
 ## CanvaShare API
 #### March 2017 - Present
 [CanvaShare](https://crystalprism.io/canvashare/index.html) is a community drawing gallery that lets users create drawings and post them to a public gallery. Each user's drawings get saved to an Amazon S3 bucket, and drawing attributes (title, URL, view count, drawing likes) get saved in the Crystal Prism database "drawing" and "drawing_like" tables:
-![CanvaShare Database Tables](images/canvashare-tables.png)
+<p align="center"><img title="CanvaShare Database Tables" src ="images/canvashare-tables.png" /></p>
 
 Note that the following environment variables must be set:
   - ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the access key for your AWS account
@@ -90,6 +92,7 @@ Note that the following environment variables must be set:
   - "S3_CANVASHARE_DIR" must be set to the name of your S3 bucket's folder for CanvaShare drawings (e.g., 'canvashare/')
   - "S3_URL" must be set as the URL for your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism/')
 
+\
 **POST** /api/canvashare/drawing
 * Post a drawing by sending the jsonified drawing data URI in base64 format and drawing title in the request body. Note that there must be a verified bearer token in the request Authorization header.
 * Example request body:
@@ -100,6 +103,7 @@ Note that the following environment variables must be set:
 }
 ```
 
+\
 **GET** /api/canvashare/drawing/[drawing_id]
 * Retrieve an artist's drawing attributes by specifying the drawing id in the request URL. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -125,12 +129,15 @@ Note that the following environment variables must be set:
 }
 ```
 
+\
 **PATCH** /api/canvashare/drawing/[drawing_id]
 * Update a drawing's view count by specifying the drawing id in the request URL. No bearer token is needed in the request Authorization header.
 
+\
 **DELETE** /api/canvashare/drawing/[drawing_id]
 * Delete a drawing by specifying the drawing id in the request URL. Note that there must be a verified bearer token for the artist in the request Authorization header.
 
+\
 **GET** /api/canvashare/drawings?start=[request_start]&end=[request_end]
 * Retrieve all users' drawing attributes in order of newest to oldest. Optionally specify the number of drawings via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -196,9 +203,9 @@ Note that the following environment variables must be set:
         "views": 10
     }
 ]
-
 ```
 
+\
 **GET** /api/canvashare/drawings/[artist_name]?start=[request_start]&end=[request_end]
 * Retrieve all of a single user's drawing attributes in order of newest to oldest by specifying the artist's username in the request URL. Optionally specify the number of drawings via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -247,6 +254,7 @@ Note that the following environment variables must be set:
 ]
 ```
 
+\
 **POST** /api/canvashare/drawing-like
 * Post a drawing like by sending the jsonified drawing id in the request body. Note that there must be a verified bearer token in the request Authorization header.
 * Example request body:
@@ -256,6 +264,7 @@ Note that the following environment variables must be set:
 }
 ```
 
+\
 **GET** /api/canvashare/drawing-like/[drawing_like_id]
 * Retrieve a drawing like by specifying the drawing like in the request URL. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -268,9 +277,11 @@ Note that the following environment variables must be set:
 }
 ```
 
+\
 **DELETE** /api/canvashare/drawing-like/[drawing_like_id]
 * Delete a drawing like by specifying the drawing like id in the request URL. Note that there must be a verified bearer token for the liker in the request Authorization header.
 
+\
 **GET** /api/canvashare/drawing-likes/drawing/[drawing_id]?start=[request_start]&end=[request_end]
 * Retrieve all users' likes for a drawing in order of newest to oldest by specifying the drawing id in the request URL. Optionally specify the number of likes via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example request body:
@@ -297,6 +308,7 @@ Note that the following environment variables must be set:
 ]
 ```
 
+\
 **GET** /api/canvashare/drawing-likes/user/[liker_name]?start=[request_start]&end=[request_end]
 * Retrieve all of a single user's likes in order of newest to oldest by specifying the liker's username in the request URL. Optionally specify the number of liked drawings via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -360,11 +372,13 @@ Note that the following environment variables must be set:
 ]
 ```
 
+
 ## Rhythm of Life API
 #### July 2017 - Present
 [Rhythm of Life](https://crystalprism.io/rhythm-of-life/index.html) is an educational take on the classic game Snake, involving moving a heart to avoid stressors and seek relievers to maintain a healthy blood pressure. Rhythm of Life information is stored in the "rhythm_score" database table:
-![Rhythm of Life Database Table](images/rhythm-table.png)
+<p align="center"><img title="Rhythm of Life Database Table" src ="images/rhythm-table.png" /></p>
 
+\
 **POST** /api/rhythm-of-life/score
 * Post a score by sending the jsonified score in the request body. Note that there must be a verified bearer token in the request Authorization header.
 * Example request body:
@@ -374,6 +388,7 @@ Note that the following environment variables must be set:
 }
 ```
 
+\
 **GET** /api/rhythm-of-life/score/[score_id]
 * Retrieve a score by sending the score id in the request URL. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -386,9 +401,11 @@ Note that the following environment variables must be set:
 },
 ```
 
+\
 **DELETE** /api/rhythm-of-life/score/[score_id]
 * Delete a score by sending the score id in the request URL. Note that there must be a verified bearer token for the player in the request Authorization header.
 
+\
 **GET** /api/rhythm-of-life/scores?start=[request_start]&end=[request_end]
 * Retrieve all users' game scores, in order of highest to lowest score. Optionally specify the number of scores via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -427,6 +444,7 @@ Note that the following environment variables must be set:
 ]
 ```
 
+\
 **GET** /api/rhythm-of-life/scores/[player_name]?start=[request_start]&end=[request_end]
 * Retrieve all of a single user's game scores, in order of highest to lowest score. Optionally specify the number of scores via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -465,11 +483,13 @@ Note that the following environment variables must be set:
 ]
 ```
 
+
 ## Thought Writer API
 #### August 2017 - Present
 [Thought Writer](https://crystalprism.io/thought-writer/index.html) is a community post board for users to post ideas for others to read and comment on. Thought Writer information is stored in the "post" and "comment" database tables:
-![Thought Writer Database Tables](images/thought-writer-tables.png)
+<p align="center"><img title="Thought Writer Database Tables" src ="images/thought-writer-tables.png" /></p>
 
+\
 **POST** /api/thought-writer/post
 * Post a thought post by sending the jsonified post content, title, and public status (*true* or *false*) in the request body. Note that there must be a verified bearer token in the request Authorization header.
 * Example request body:
@@ -481,6 +501,7 @@ Note that the following environment variables must be set:
 }
 ```
 
+\
 **GET** /api/thought-writer/post/[post_id]
 * Retrieve a user's thought post by specifying the post id in the request URL. Note that there must be a verified bearer token for the writer in the request Authorization header for a private post to be retrieved.
 * Example response body:
@@ -498,6 +519,7 @@ Note that the following environment variables must be set:
 }
 ```
 
+\
 **PATCH** /api/thought-writer/post/[post_id]
 * Update a thought post by sending the post id in the request URL and the jsonified post content, title, and public status (*true* or *false*) in the request body. Note that there must be a verified bearer token for the writer in the request Authorization header.
 * Example request body:
@@ -509,9 +531,11 @@ Note that the following environment variables must be set:
 }
 ```
 
+\
 **DELETE** /api/thought-writer/post/[post_id]
 * Delete a thought post by sending the post id in the request URL. Note that there must be a verified bearer token for the writer in the request Authorization header.
 
+\
 **GET** /api/thought-writer/posts?start=[request_start]&end=[request_end]
 * Retrieve all users' public thought posts in order of newest to oldest, excluding the webpage owner's posts (the /api/homepage/ideas endpoint should be used for retrieving the owner's public posts). Optionally specify the number of thought posts via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -542,6 +566,7 @@ Note that the following environment variables must be set:
 ]
 ```
 
+\
 **GET** /api/thought-writer/posts/[writer_name]?start=[request_start]&end=[request_end]
 * Retrieve all of a single user's thought posts in order of newest to oldest by specifying the writer's username in the request URL. Optionally specify the number of thought posts via the request URL's start and end query parameters. If there is a verified bearer token for the writer in the request Authorization header, the server will send the user's private and public posts; otherwise, only the public posts will be sent.
 * Example response body:
@@ -579,6 +604,7 @@ Note that the following environment variables must be set:
 ]
 ```
 
+\
 **POST** /api/thought-writer/comment
 * Post a comment to a thought post by specifying the jsonified comment content and the post id in the request body. Note that there must be a verified bearer token in the request Authorization header.
 * Example request body:
@@ -589,6 +615,7 @@ Note that the following environment variables must be set:
 }
 ```
 
+\
 **GET** /api/thought-writer/comment/[comment_id]
 * Read a comment to a thought post by specifying the comment id in the request URL. No bearer token is needed in the request Authorization header.
 * Example request body:
@@ -604,6 +631,7 @@ Note that the following environment variables must be set:
 }
 ```
 
+\
 **PATCH** /api/thought-writer/comment/[comment_id]
 * Update a comment to a thought post by specifying the comment id in the request URL and the jsonified comment content in the request body. Note that there must be a verified bearer token for the commenter in the request Authorization header.
 * Example request body:
@@ -613,9 +641,11 @@ Note that the following environment variables must be set:
 }
 ```
 
+\
 **DELETE** /api/thought-writer/comment/[comment_id]
 * Delete a comment to a thought post by specifying the comment id in the request URL. Note that there must be a verified bearer token for the commenter in the request Authorization header.
 
+\
 **GET** /api/thought-writer/comments/post/[post_id]?start=[request_start]&end=[request_end]
 * Retrieve all comments to a thought post in order of newest to oldest by specifying the post id in the request URL. Optionally specify the number of thought posts via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -642,6 +672,7 @@ Note that the following environment variables must be set:
 ]
 ```
 
+\
 **GET** /api/thought-writer/comments/user/[commenter_name]?start=[request_start]&end=[request_end]
 * Retrieve all of a single user's comments in order of newest to oldest by specifying the commenter's username in the request URL. Optionally specify the number of comments via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -691,11 +722,13 @@ Note that the following environment variables must be set:
 }
 ```
 
+
 ## Shapes in Rain API
 #### September 2017 - Present
 [Shapes in Rain](https://crystalprism.io/shapes-in-rain/index.html) is a game in which random shapes appear periodically on the page for a user to clear with a click. Shapes in Rain information is stored in the "shapes_score" database table:
-![Shapes in Rain Database Table](images/shapes-table.png)
+<p align="center"><img title="Shapes in Rain Database Table" src ="images/shapes-table.png" /></p>
 
+\
 **POST** /api/shapes-in-rain/score
 * Post a score by sending the jsonified score in the request body. Note that there must be a verified bearer token in the request Authorization header.
 * Example request body:
@@ -705,6 +738,7 @@ Note that the following environment variables must be set:
 }
 ```
 
+\
 **GET** /api/shapes-in-rain/score/[score_id]
 * Retrieve a score by sending the score id in the request URL. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -717,9 +751,11 @@ Note that the following environment variables must be set:
 },
 ```
 
+\
 **DELETE** /api/shapes-in-rain/score/[score_id]
 * Delete a score by sending the score id in the request URL. Note that there must be a verified bearer token for the player in the request Authorization header.
 
+\
 **GET** /api/shapes-in-rain/scores?start=[request_start]&end=[request_end]
 * Retrieve all users' game scores, in order of highest to lowest score. Optionally specify the number of scores via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -758,6 +794,7 @@ Note that the following environment variables must be set:
 ]
 ```
 
+\
 **GET** /api/shapes-in-rain/scores/[player_name]?start=[request_start]&end=[request_end]
 * Retrieve all of a single user's game scores, in order of highest to lowest score. Optionally specify the number of scores via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -784,11 +821,13 @@ Note that the following environment variables must be set:
 ]
 ```
 
+
 ## User Account API
 #### September 2017 - Present
 Users who want to join the Crystal Prism community can create an account to store their Shapes in Rain and Rhythm of Life scores, their CanvaShare drawings, and their Thought Writer posts. User information is stored in the "cp_user" database table:
-![User Database Table](images/user-table.png)
+<p align="center"><img title="User Database Table" src ="images/user-table.png" /></p>
 
+\
 **POST** /api/user
 * Create a user account by sending the jsonified username and password in the request body.
 * Example request body:
@@ -799,6 +838,7 @@ Users who want to join the Crystal Prism community can create an account to stor
 }
 ```
 
+\
 **GET** /api/user
 * Retrieve a user's complete account information. Note that there must be a verified bearer token for the user in the request Authorization header.
 * Example response body:
@@ -827,6 +867,7 @@ Users who want to join the Crystal Prism community can create an account to stor
 }
 ```
 
+\
 **PATCH** /api/user
 * Update a user's account information by specifying the jsonified account updates in the request body. Note that there must be a verified bearer token for the user in the request Authorization header.
 * Example request body:
@@ -845,9 +886,11 @@ Users who want to join the Crystal Prism community can create an account to stor
 }
 ```
 
+\
 **DELETE** /api/user
 * Soft-delete a user's account as the user (i.e., change the account's status to "deleted" while leaving drawings, posts, scores, personal information, etc. intact, in case the user wants to reactivate the account). Note that there must be a verified bearer token for the user in the request Authorization header.
 
+\
 **GET** /api/user/[username]
 * Retrieve a user's public account information. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -872,9 +915,11 @@ Users who want to join the Crystal Prism community can create an account to stor
 }
 ```
 
+\
 **DELETE** /api/user/[username]
 * Hard-delete a user's account as the user or as an admin user (i.e., delete all of the user's drawings, posts, scores, personal information, etc. in addition to changing the account status to "deleted"). Note that there must be a verified bearer token for the user or for an admin user in the request Authorization header.
 
+\
 **GET** /api/user/verify
 * Check if a bearer token in a request Authorization header is valid and receive the expiration time (in seconds since epoch) if so.
 * Example response body:
@@ -885,6 +930,7 @@ Users who want to join the Crystal Prism community can create an account to stor
 }
 ```
 
+\
 **GET** /api/users?start=[request_start]&end=[request_end]
 * Retrieve all users' usernames. Optionally specify the number of users via the request URL's start and end query parameters. Note that there must be a verified bearer token in the request Authorization header.
 * Example response body:
@@ -895,6 +941,7 @@ Users who want to join the Crystal Prism community can create an account to stor
 ]
 ```
 
+\
 **GET** /api/login
 * Check if a username and password in a request Authorization header match the username and password stored for a user account and receive a [JSON Web Token](https://jwt.io/) if so. The JWT is set to expire after 1 hour.
 * Example response body:
@@ -903,6 +950,7 @@ Users who want to join the Crystal Prism community can create an account to stor
     "token": "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVC..."
 }
 ```
+
 
 ## Homepage API
 #### February 2018 - Present
@@ -913,6 +961,7 @@ The Crystal Prism homepage has an Ideas page that displays Thought Writer posts 
   - "S3_PHOTO_DIR" must be set to the name of your S3 bucket's folder for photos (the default is 'photos/')
   - "S3_URL" must be set as the URL for your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism/')
 
+\
 **GET** /api/homepage/ideas?start=[request_start]&end=[request_end]
 * Retrieve public thought posts written by the webpage owner in order of newest to oldest. Optionally specify the number of thought posts via the request URL's start and end query parameters. No bearer token is needed in the request Authorization header.
 * Example response body:
@@ -929,6 +978,7 @@ The Crystal Prism homepage has an Ideas page that displays Thought Writer posts 
 ]
 ```
 
+\
 **GET** /api/homepage/photos?start=[request_start]&end=[request_end]
 * Retrieve URLs for photos stored in an S3 bucket. Optionally specify the number of photos via the request URL's start and end query parameters.
 * Example response body:
@@ -947,10 +997,12 @@ The Crystal Prism homepage has an Ideas page that displays Thought Writer posts 
 ]
 ```
 
+
 ## Crystal Prism Database
 #### February 2018 - Present
 The Crystal Prism database is a PostgreSQL database that contains Crystal Prism user accounts and user data (game scores, drawings, posts, identifying information, etc.). The database is structured as follows:
-![Crystal Prism Database](images/cp-database.png)
+<p align="center"><img title="Crystal Prism Database" src ="images/cp-database.png" /></p>
+
 Note that all fields in the database tables are required except for those denoted with an asterisk.
 The database is set up to back up data every week and save the backup file to an Amazon S3 bucket. Note that the following environment variables must be set:
  - ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the access key for your AWS account
