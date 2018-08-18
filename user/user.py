@@ -876,80 +876,71 @@ def read_user_data(requester):
         # Create HTML file displaying user's data
         template = env.get_template('data.html')
 
-        user_data_html = open(data_dir + '/' + requester + '.html', 'w+')
+        with open(data_dir + '/' + requester + '.html',
+            'w+') as user_data_html:
 
-        user_data_html.write(template.render(
-            username=requester,
-            background_color=user_data['background_color'],
-            font_color=font_color,
-            icon_background_color=icon_background_color,
-            icon_color=user_data['icon_color'],
-            first_name=user_data['first_name'],
-            last_name=user_data['last_name'],
-            name_public=user_data['name_public'],
-            email=user_data['email'],
-            email_public=user_data['email_public'],
-            created=user_data['created'],
-            about=user_data['about'],
-            shapes_scores=shapes_scores,
-            rhythm_scores=rhythm_scores,
-            drawings=drawings,
-            liked_drawings=liked_drawings,
-            posts=posts,
-            comments=comments
-            ))
-
-        user_data_html.close()
+                user_data_html.write(template.render(
+                    username=requester,
+                    background_color=user_data['background_color'],
+                    font_color=font_color,
+                    icon_background_color=icon_background_color,
+                    icon_color=user_data['icon_color'],
+                    first_name=user_data['first_name'],
+                    last_name=user_data['last_name'],
+                    name_public=user_data['name_public'],
+                    email=user_data['email'],
+                    email_public=user_data['email_public'],
+                    created=user_data['created'],
+                    about=user_data['about'],
+                    shapes_scores=shapes_scores,
+                    rhythm_scores=rhythm_scores,
+                    drawings=drawings,
+                    liked_drawings=liked_drawings,
+                    posts=posts,
+                    comments=comments
+                    ))
 
         # Create HTML file for each of user's drawings and liked drawings
         drawing_template = env.get_template('drawing.html')
 
         for drawing in drawings + liked_drawings:
-            drawing_html = open(
-                data_dir + '/drawings/' + drawing['drawing_id'] + '.html',
-                'w+')
+            with open(data_dir + '/drawings/' + drawing['drawing_id'] +
+                '.html', 'w+') as drawing_html:
 
-            drawing_html.write(drawing_template.render(
-                username=requester,
-                background_color=user_data['background_color'],
-                font_color=font_color,
-                drawing=drawing
-                ))
-
-            drawing_html.close()
+                    drawing_html.write(drawing_template.render(
+                        username=requester,
+                        background_color=user_data['background_color'],
+                        font_color=font_color,
+                        drawing=drawing
+                        ))
 
         # Create HTML file for each of user's posts
         post_template = env.get_template('post.html')
 
         for post in posts:
-            post_html = open(
-                data_dir + '/posts/' + str(post['post_id']) + '.html', 'w+')
+            with open(data_dir + '/posts/' + str(post['post_id']) + '.html',
+                'w+') as post_html:
 
-            post_html.write(post_template.render(
-                username=requester,
-                background_color=user_data['background_color'],
-                font_color=font_color,
-                post=post
-                ))
-
-            post_html.close()
+                    post_html.write(post_template.render(
+                        username=requester,
+                        background_color=user_data['background_color'],
+                        font_color=font_color,
+                        post=post
+                        ))
 
         # Create HTML file for each of user's comments
         comment_template = env.get_template('comment.html')
 
         for comment in comments:
-            comment_html = open(
-                data_dir + '/comments/' + str(comment['comment_id']) + '.html',
-                'w+')
+            with open(data_dir + '/comments/' + str(comment['comment_id']) +
+                '.html', 'w+') as comment_html:
 
-            comment_html.write(comment_template.render(
-                username=requester,
-                background_color=user_data['background_color'],
-                font_color=font_color,
-                comment=comment
-                ))
-
-            comment_html.close()
+                    comment_html.write(comment_template.render(
+                        username=requester,
+                        background_color=user_data['background_color'],
+                        font_color=font_color,
+                        comment=comment
+                        ))
 
         # Save directory and its files as a zip file in a temporary directory
         # that deletes when context is closed
