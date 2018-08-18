@@ -575,10 +575,9 @@ def read_user_data(requester):
             """
               SELECT shapes_score.created, shapes_score.score,
                      shapes_score.score_id, cp_user.username
-                FROM shapes_score
-                     JOIN cp_user
-                       ON shapes_score.member_id = cp_user.member_id
+                FROM shapes_score, cp_user
                WHERE LOWER(cp_user.username) = %(username)s
+                     AND shapes_score.member_id = cp_user.member_id
             ORDER BY score DESC;
             """,
             {'username': requester.lower()}
@@ -601,10 +600,9 @@ def read_user_data(requester):
             """
               SELECT rhythm_score.created, rhythm_score.score,
                      rhythm_score.score_id, cp_user.username
-                FROM rhythm_score
-                     JOIN cp_user
-                       ON rhythm_score.member_id = cp_user.member_id
+                FROM rhythm_score, cp_user
                WHERE LOWER(cp_user.username) = %(username)s
+                     AND rhythm_score.member_id = cp_user.member_id
             ORDER BY score DESC;
             """,
             {'username': requester.lower()}
@@ -626,10 +624,9 @@ def read_user_data(requester):
             """
               SELECT drawing.created, drawing.drawing_id, drawing.title,
                      drawing.url, drawing.views, cp_user.username
-                FROM drawing
-                     JOIN cp_user
-                       ON drawing.member_id = cp_user.member_id
+                FROM drawing, cp_user
                WHERE LOWER(cp_user.username) = %(username)s
+                     AND drawing.member_id = cp_user.member_id
             ORDER BY created DESC;
             """,
             {'username': requester.lower()}
@@ -674,12 +671,10 @@ def read_user_data(requester):
               SELECT drawing_like.created, drawing_like.drawing_like_id,
                      drawing.drawing_id, drawing.url, drawing.title,
                      drawing.member_id, cp_user.username
-                FROM drawing_like
-                     JOIN drawing
-                       ON drawing_like.drawing_id = drawing.drawing_id
-                     JOIN cp_user
-                       ON drawing_like.member_id = cp_user.member_id
+                FROM drawing_like, drawing, cp_user
                WHERE LOWER(cp_user.username) = %(username)s
+                     AND drawing_like.drawing_id = drawing.drawing_id
+                     AND drawing_like.member_id = cp_user.member_id
             ORDER BY drawing_like.created DESC;
             """,
             {'username': requester.lower()}
@@ -715,13 +710,11 @@ def read_user_data(requester):
             """
               SELECT post.created, post.modified, post.post_id,
                      post_content.public, cp_user.username
-                FROM post
-                     JOIN post_content
-                       ON post_content.created = post.modified
-                          AND post_content.post_id = post.post_id
-                     JOIN cp_user
-                       ON post.member_id = cp_user.member_id
+                FROM post, post_content, cp_user
                WHERE LOWER(cp_user.username) = %(username)s
+                     AND post_content.created = post.modified
+                     AND post_content.post_id = post.post_id
+                     AND post.member_id = cp_user.member_id
             ORDER BY created DESC;
             """,
             {'username': requester.lower()}
@@ -791,16 +784,13 @@ def read_user_data(requester):
               SELECT comment.comment_id, comment.created, comment.modified,
                      comment.post_id, post_content.content AS post_content,
                      post.member_id, post_content.title, cp_user.username
-                FROM comment
-                     JOIN post
-                       ON comment.post_id = post.post_id
-                     JOIN post_content
-                       ON post_content.post_id = post.post_id
-                          AND post_content.created = post.modified
-                     JOIN cp_user
-                       ON comment.member_id = cp_user.member_id
+                FROM comment, post, post_content, cp_user
                WHERE LOWER(cp_user.username) = %(username)s
                      AND post_content.public = TRUE
+                     AND comment.post_id = post.post_id
+                     AND post_content.post_id = post.post_id
+                     AND post_content.created = post.modified
+                     AND comment.member_id = cp_user.member_id
             ORDER BY comment.created DESC;
             """,
             {'username': requester.lower()}
