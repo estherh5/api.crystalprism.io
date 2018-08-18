@@ -19,7 +19,7 @@
           <a href="https://crystalprism.io/canvashare/easel/?drawing={{ drawing['drawing_id'] }}">{{ drawing['title'] }}</a>
         </div>
           {% if drawing['artist_name'] is defined %}
-            <img id="drawing-background" class="background" src={{ drawing['url'] }}>
+            <img id="drawing-background" class="background" src="{{ drawing['url'] }}">
           {% else %}
             <img id="drawing-background" class="background" src="{{ drawing['drawing_id'] }}.png">
           {% endif %}
