@@ -508,6 +508,24 @@ def delete_user_soft(requester):
 
 
 def read_user_data(requester):
+    # Set up jinja environment to render HTML templates
+    env = Environment(
+        loader=PackageLoader('user', 'templates'),
+        autoescape=select_autoescape(['html'])
+    )
+
+    # Set jinja HTML template displaying user's data
+    template = env.get_template('data.html')
+
+    # Set jinja HTML template for each of user's drawings and liked drawings
+    drawing_template = env.get_template('drawing.html')
+
+    # Set jinja HTML template for each of user's posts
+    post_template = env.get_template('post.html')
+
+    # Set jinja HTML template for user's comments
+    comment_template = env.get_template('comment.html')
+
     # Create temporary directory for user files that deletes after context is
     # closed
     with tempfile.TemporaryDirectory() as data_dir:
@@ -585,14 +603,16 @@ def read_user_data(requester):
 
         shapes_scores = []
 
-        for row in cursor.fetchall():
-            shapes_scores.append(dict(row))
-
         # Convert each score's created timestamp to readable timestamp format
-        for score in shapes_scores:
+        # and add score to scores list
+        for score in cursor.fetchall():
+            score = dict(score)
+
             score['created'] = datetime.strptime(
                 score['created'], '%Y-%m-%dT%X.%fZ').replace(
                 tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+
+            shapes_scores.append(score)
 
         # Get user's Rhythm of Life game scores, sorted by highest to lowest
         # score
@@ -610,20 +630,26 @@ def read_user_data(requester):
 
         rhythm_scores = []
 
-        for row in cursor.fetchall():
-            rhythm_scores.append(dict(row))
-
         # Convert each score's created timestamp to readable timestamp format
-        for score in rhythm_scores:
+        # and add score to scores list
+        for score in cursor.fetchall():
+            score = dict(score)
+
             score['created'] = datetime.strptime(
                 score['created'], '%Y-%m-%dT%X.%fZ').replace(
                 tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+
+            rhythm_scores.append(score)
 
         # Get user's drawings
         cursor.execute(
             """
               SELECT drawing.created, drawing.drawing_id, drawing.title,
-                     drawing.url, drawing.views, cp_user.username
+                     drawing.url, drawing.views, cp_user.username,
+                     (SELECT COUNT(*)
+                        FROM drawing_like
+                       WHERE drawing_like.drawing_id = drawing.drawing_id)
+                          AS like_count
                 FROM drawing, cp_user
                WHERE LOWER(cp_user.username) = %(username)s
                      AND drawing.member_id = cp_user.member_id
@@ -634,23 +660,11 @@ def read_user_data(requester):
 
         drawings = []
 
-        for row in cursor.fetchall():
-            drawings.append(dict(row))
+        # Save drawing as file in user's drawings folder and add drawing to
+        # drawings list
+        for drawing in cursor.fetchall():
+            drawing = dict(drawing)
 
-        # Get each drawing's like count
-        for drawing in drawings:
-            cursor.execute(
-                """
-                SELECT COUNT(*)
-                  FROM drawing_like
-                 WHERE drawing_id = %(drawing_id)s;
-                """,
-                {'drawing_id': drawing['drawing_id']}
-                )
-
-            drawing['like_count'] = cursor.fetchone()[0]
-
-            # Save drawing as file in user's drawings folder
             drawing_data = requests.get(drawing['url']).content
 
             with open(data_dir + '/drawings/' + drawing['drawing_id'] + '.png',
@@ -665,12 +679,29 @@ def read_user_data(requester):
                 drawing['created'], '%Y-%m-%dT%X.%fZ').replace(
                 tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
 
+            # Create HTML file for drawing
+            with open(data_dir + '/drawings/' + drawing['drawing_id'] +
+                '.html', 'w+') as drawing_html:
+
+                    drawing_html.write(drawing_template.render(
+                        username=requester,
+                        background_color=user_data['background_color'],
+                        font_color=font_color,
+                        drawing=drawing
+                        ))
+
+            drawings.append(drawing)
+
         # Get user's liked drawings
         cursor.execute(
             """
               SELECT drawing_like.created, drawing_like.drawing_like_id,
                      drawing.drawing_id, drawing.url, drawing.title,
-                     drawing.member_id, cp_user.username
+                     cp_user.username,
+                     (SELECT username
+                        FROM cp_user
+                       WHERE drawing.member_id = cp_user.member_id)
+                          AS artist_name
                 FROM drawing_like, drawing, cp_user
                WHERE LOWER(cp_user.username) = %(username)s
                      AND drawing_like.drawing_id = drawing.drawing_id
@@ -682,22 +713,10 @@ def read_user_data(requester):
 
         liked_drawings = []
 
-        for row in cursor.fetchall():
-            liked_drawings.append(dict(row))
-
-        # Replace each drawing artist's member id with username
-        for drawing_like in liked_drawings:
-            cursor.execute(
-                """
-                SELECT username
-                  FROM cp_user
-                 WHERE member_id = %(member_id)s;
-                """,
-                {'member_id': drawing_like['member_id']}
-                )
-
-            drawing_like.pop('member_id')
-            drawing_like['artist_name'] = cursor.fetchone()[0]
+        # Convert each drawing like's created timestamp to readable timestamp
+        # format and add drawing like to liked drawings list
+        for drawing_like in cursor.fetchall():
+            drawing_like = dict(drawing_like)
 
             # Convert each drawing like's created timestamp to readable
             # timestamp format
@@ -705,11 +724,28 @@ def read_user_data(requester):
                 drawing_like['created'], '%Y-%m-%dT%X.%fZ').replace(
                 tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
 
+            # Create HTML file for drawing
+            with open(data_dir + '/drawings/' + drawing['drawing_id'] +
+                '.html', 'w+') as drawing_html:
+
+                    drawing_html.write(drawing_template.render(
+                        username=requester,
+                        background_color=user_data['background_color'],
+                        font_color=font_color,
+                        drawing=drawing
+                        ))
+
+            liked_drawings.append(drawing_like)
+
         # Get user's posts
         cursor.execute(
             """
               SELECT post.created, post.modified, post.post_id,
-                     post_content.public, cp_user.username
+                     post_content.public, cp_user.username,
+                     (SELECT COUNT(*)
+                        FROM comment
+                       WHERE comment.post_id = post.post_id)
+                          AS comment_count
                 FROM post, post_content, cp_user
                WHERE LOWER(cp_user.username) = %(username)s
                      AND post_content.created = post.modified
@@ -722,10 +758,9 @@ def read_user_data(requester):
 
         posts = []
 
-        for row in cursor.fetchall():
-            posts.append(dict(row))
+        for post in cursor.fetchall():
+            post = dict(post)
 
-        for post in posts:
             # Convert each post's created and modified timestamps to readable
             # timestamp format
             post['created'] = datetime.strptime(
@@ -766,24 +801,29 @@ def read_user_data(requester):
                 else:
                     post['history'].append(row)
 
-            # Get each post's comment count
-            cursor.execute(
-                """
-                SELECT COUNT(*)
-                  FROM comment
-                 WHERE post_id = %(post_id)s;
-                """,
-                {'post_id': post['post_id']}
-                )
+            # Create HTML file for post
+            with open(data_dir + '/posts/' + str(post['post_id']) + '.html',
+                'w+') as post_html:
 
-            post['comment_count'] = cursor.fetchone()[0]
+                    post_html.write(post_template.render(
+                        username=requester,
+                        background_color=user_data['background_color'],
+                        font_color=font_color,
+                        post=post
+                        ))
+
+            posts.append(post)
 
         # Get user's comments
         cursor.execute(
             """
               SELECT comment.comment_id, comment.created, comment.modified,
                      comment.post_id, post_content.content AS post_content,
-                     post.member_id, post_content.title, cp_user.username
+                     post_content.title, cp_user.username,
+                     (SELECT username
+                        FROM cp_user
+                       WHERE post.member_id = cp_user.member_id)
+                          AS post_writer
                 FROM comment, post, post_content, cp_user
                WHERE LOWER(cp_user.username) = %(username)s
                      AND post_content.public = TRUE
@@ -798,22 +838,8 @@ def read_user_data(requester):
 
         comments = []
 
-        for row in cursor.fetchall():
-            comments.append(dict(row))
-
-        for comment in comments:
-            # Replace each post writer's member id with username
-            cursor.execute(
-                """
-                SELECT username
-                  FROM cp_user
-                 WHERE member_id = %(member_id)s;
-                """,
-                {'member_id': comment['member_id']}
-                )
-
-            comment.pop('member_id')
-            comment['post_writer'] = cursor.fetchone()[0]
+        for comment in cursor.fetchall():
+            comment = dict(comment)
 
             # Convert each comment's created and modified timestamps to
             # readable timestamp format
@@ -854,18 +880,23 @@ def read_user_data(requester):
                 else:
                     comment['history'].append(row)
 
+            # Create HTML file for comment
+            with open(data_dir + '/comments/' + str(comment['comment_id']) +
+                '.html', 'w+') as comment_html:
+
+                    comment_html.write(comment_template.render(
+                        username=requester,
+                        background_color=user_data['background_color'],
+                        font_color=font_color,
+                        comment=comment
+                        ))
+
+            comments.append(comment)
+
         cursor.close()
         conn.close()
 
-        # Set up jinja environment to render HTML template
-        env = Environment(
-            loader=PackageLoader('user', 'templates'),
-            autoescape=select_autoescape(['html'])
-        )
-
-        # Create HTML file displaying user's data
-        template = env.get_template('data.html')
-
+        # Create main HTML file for user data
         with open(data_dir + '/' + requester + '.html',
             'w+') as user_data_html:
 
@@ -889,48 +920,6 @@ def read_user_data(requester):
                     posts=posts,
                     comments=comments
                     ))
-
-        # Create HTML file for each of user's drawings and liked drawings
-        drawing_template = env.get_template('drawing.html')
-
-        for drawing in drawings + liked_drawings:
-            with open(data_dir + '/drawings/' + drawing['drawing_id'] +
-                '.html', 'w+') as drawing_html:
-
-                    drawing_html.write(drawing_template.render(
-                        username=requester,
-                        background_color=user_data['background_color'],
-                        font_color=font_color,
-                        drawing=drawing
-                        ))
-
-        # Create HTML file for each of user's posts
-        post_template = env.get_template('post.html')
-
-        for post in posts:
-            with open(data_dir + '/posts/' + str(post['post_id']) + '.html',
-                'w+') as post_html:
-
-                    post_html.write(post_template.render(
-                        username=requester,
-                        background_color=user_data['background_color'],
-                        font_color=font_color,
-                        post=post
-                        ))
-
-        # Create HTML file for each of user's comments
-        comment_template = env.get_template('comment.html')
-
-        for comment in comments:
-            with open(data_dir + '/comments/' + str(comment['comment_id']) +
-                '.html', 'w+') as comment_html:
-
-                    comment_html.write(comment_template.render(
-                        username=requester,
-                        background_color=user_data['background_color'],
-                        font_color=font_color,
-                        comment=comment
-                        ))
 
         # Save directory and its files as a zip file in a temporary directory
         # that deletes when context is closed
