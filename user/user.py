@@ -508,6 +508,12 @@ def delete_user_soft(requester):
 
 
 def read_user_data(requester):
+    # Define ISO string format for timestamp conversion
+    iso_string = '%Y-%m-%dT%X.%fZ'
+
+    # Define readable format for timestamp conversion
+    readable_string = '%m/%d/%Y, %I:%M %p %Z'
+
     # Set up jinja environment to render HTML templates
     env = Environment(
         loader=PackageLoader('user', 'templates'),
@@ -584,8 +590,8 @@ def read_user_data(requester):
 
         # Convert user account created timestamp to readable timestamp format
         user_data['created'] = datetime.strptime(
-            user_data['created'], '%Y-%m-%dT%X.%fZ').replace(
-            tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+            user_data['created'], iso_string).replace(
+            tzinfo=timezone.utc).strftime(readable_string)
 
         # Get user's Shapes in Rain game scores, sorted by highest to lowest
         # score
@@ -609,8 +615,8 @@ def read_user_data(requester):
             score = dict(score)
 
             score['created'] = datetime.strptime(
-                score['created'], '%Y-%m-%dT%X.%fZ').replace(
-                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+                score['created'], iso_string).replace(
+                tzinfo=timezone.utc).strftime(readable_string)
 
             shapes_scores.append(score)
 
@@ -636,8 +642,8 @@ def read_user_data(requester):
             score = dict(score)
 
             score['created'] = datetime.strptime(
-                score['created'], '%Y-%m-%dT%X.%fZ').replace(
-                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+                score['created'], iso_string).replace(
+                tzinfo=timezone.utc).strftime(readable_string)
 
             rhythm_scores.append(score)
 
@@ -676,8 +682,8 @@ def read_user_data(requester):
             # Convert each drawing's created timestamp to readable timestamp
             # format
             drawing['created'] = datetime.strptime(
-                drawing['created'], '%Y-%m-%dT%X.%fZ').replace(
-                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+                drawing['created'], iso_string).replace(
+                tzinfo=timezone.utc).strftime(readable_string)
 
             # Create HTML file for drawing
             with open(data_dir + '/drawings/' + drawing['drawing_id'] +
@@ -721,8 +727,8 @@ def read_user_data(requester):
             # Convert each drawing like's created timestamp to readable
             # timestamp format
             drawing_like['created'] = datetime.strptime(
-                drawing_like['created'], '%Y-%m-%dT%X.%fZ').replace(
-                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+                drawing_like['created'], iso_string).replace(
+                tzinfo=timezone.utc).strftime(readable_string)
 
             # Create HTML file for drawing
             with open(data_dir + '/drawings/' + drawing['drawing_id'] +
@@ -764,12 +770,12 @@ def read_user_data(requester):
             # Convert each post's created and modified timestamps to readable
             # timestamp format
             post['created'] = datetime.strptime(
-                post['created'], '%Y-%m-%dT%X.%fZ').replace(
-                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+                post['created'], iso_string).replace(
+                tzinfo=timezone.utc).strftime(readable_string)
 
             post['modified'] = datetime.strptime(
-                post['modified'], '%Y-%m-%dT%X.%fZ').replace(
-                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+                post['modified'], iso_string).replace(
+                tzinfo=timezone.utc).strftime(readable_string)
 
             # Get each post's public and private content versions
             cursor.execute(
@@ -789,8 +795,8 @@ def read_user_data(requester):
                 # Convert each row's created timestamp to readable timestamp
                 # format
                 row['created'] = datetime.strptime(
-                    row['created'], '%Y-%m-%dT%X.%fZ').replace(
-                    tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+                    row['created'], iso_string).replace(
+                    tzinfo=timezone.utc).strftime(readable_string)
 
                 # Set current post content, public, and title items
                 if row['created'] == post['modified']:
@@ -844,12 +850,12 @@ def read_user_data(requester):
             # Convert each comment's created and modified timestamps to
             # readable timestamp format
             comment['created'] = datetime.strptime(
-                comment['created'], '%Y-%m-%dT%X.%fZ').replace(
-                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+                comment['created'], iso_string).replace(
+                tzinfo=timezone.utc).strftime(readable_string)
 
             comment['modified'] = datetime.strptime(
-                comment['modified'], '%Y-%m-%dT%X.%fZ').replace(
-                tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+                comment['modified'], iso_string).replace(
+                tzinfo=timezone.utc).strftime(readable_string)
 
             # Get each comment's content versions
             cursor.execute(
@@ -869,8 +875,8 @@ def read_user_data(requester):
                 # Convert each row's created timestamp to readable timestamp
                 # format
                 row['created'] = datetime.strptime(
-                    row['created'], '%Y-%m-%dT%X.%fZ').replace(
-                    tzinfo=timezone.utc).strftime('%m/%d/%Y, %I:%M %p %Z')
+                    row['created'], iso_string).replace(
+                    tzinfo=timezone.utc).strftime(readable_string)
 
                 # Set current comment content items
                 if row['created'] == comment['modified']:
