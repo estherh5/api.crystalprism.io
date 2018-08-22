@@ -59,10 +59,9 @@ def read_score(score_id):
         """
         SELECT shapes_score.created, shapes_score.score, shapes_score.score_id,
                cp_user.username
-          FROM shapes_score
-               JOIN cp_user
-                 ON shapes_score.member_id = cp_user.member_id
-         WHERE score_id = %(score_id)s;
+          FROM shapes_score, cp_user
+         WHERE score_id = %(score_id)s
+               AND shapes_score.member_id = cp_user.member_id;
         """,
         {'score_id': score_id}
         )
@@ -92,10 +91,9 @@ def delete_score(requester, score_id):
     cursor.execute(
         """
         SELECT shapes_score.*, cp_user.username
-          FROM shapes_score
-               JOIN cp_user
-                 ON shapes_score.member_id = cp_user.member_id
-         WHERE score_id = %(score_id)s;
+          FROM shapes_score, cp_user
+         WHERE score_id = %(score_id)s
+               AND shapes_score.member_id = cp_user.member_id;
         """,
         {'score_id': score_id}
         )
@@ -156,9 +154,8 @@ def read_scores():
         """
           SELECT shapes_score.created, shapes_score.score,
                  shapes_score.score_id, cp_user.username
-            FROM shapes_score
-                 JOIN cp_user
-                   ON shapes_score.member_id = cp_user.member_id
+            FROM shapes_score, cp_user
+           WHERE shapes_score.member_id = cp_user.member_id
         ORDER BY score DESC;
         """
         )
@@ -194,10 +191,9 @@ def read_scores_for_one_user(player_name):
         """
           SELECT shapes_score.created, shapes_score.score,
                  shapes_score.score_id, cp_user.username
-            FROM shapes_score
-                 JOIN cp_user
-                   ON shapes_score.member_id = cp_user.member_id
+            FROM shapes_score, cp_user
            WHERE LOWER(cp_user.username) = %(username)s
+                 AND shapes_score.member_id = cp_user.member_id
         ORDER BY score DESC;
         """,
         {'username': player_name.lower()}

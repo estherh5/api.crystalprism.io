@@ -26,14 +26,12 @@ def read_ideas():
         """
           SELECT post.created, post.modified, post.post_id,
                  post_content.public, cp_user.username
-            FROM post
-                 JOIN post_content
-                   ON post_content.created = post.modified
-                      AND post_content.post_id = post.post_id
-                 JOIN cp_user
-                   ON post.member_id = cp_user.member_id
+            FROM post, post_content, cp_user
            WHERE cp_user.is_owner = TRUE
                  AND public = TRUE
+                 AND post_content.created = post.modified
+                 AND post_content.post_id = post.post_id
+                 AND post.member_id = cp_user.member_id
         ORDER BY created DESC;
         """
         )
