@@ -829,8 +829,7 @@ def read_user_data(requester):
         cursor.execute(
             """
               SELECT comment.comment_id, comment.created, comment.modified,
-                     comment.post_id, post_content.content AS post_content,
-                     post_content.title, cp_user.username,
+                     comment.post_id, post_content.title, cp_user.username,
                      (SELECT username
                         FROM cp_user
                        WHERE post.member_id = cp_user.member_id)
