@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import bcrypt
 import boto3
 import hmac
@@ -674,7 +676,7 @@ def read_user_data(requester):
             drawing_data = requests.get(drawing['url']).content
 
             with open(data_dir + '/drawings/' + drawing['drawing_id'] + '.png',
-                'wb') as drawing_file:
+                'wb+') as drawing_file:
                     drawing_file.write(drawing_data)
 
             drawing['url'] = 'drawings/' + drawing['drawing_id'] + '.png'
@@ -685,16 +687,17 @@ def read_user_data(requester):
                 drawing['created'], iso_string).replace(
                 tzinfo=timezone.utc).strftime(readable_string)
 
-            # Create HTML file for drawing
+            # Create HTML file for drawing, encoding in utf-8 to prevent
+            # rendering errors for non-ASCII characters
             with open(data_dir + '/drawings/' + drawing['drawing_id'] +
-                '.html', 'w+') as drawing_html:
+                '.html', 'wb+') as drawing_html:
 
                     drawing_html.write(drawing_template.render(
                         username=requester,
                         background_color=user_data['background_color'],
                         font_color=font_color,
                         drawing=drawing
-                        ))
+                        ).encode('utf-8'))
 
             drawings.append(drawing)
 
@@ -730,16 +733,17 @@ def read_user_data(requester):
                 drawing_like['created'], iso_string).replace(
                 tzinfo=timezone.utc).strftime(readable_string)
 
-            # Create HTML file for drawing
+            # Create HTML file for drawing, encoding in utf-8 to prevent
+            # rendering errors for non-ASCII characters
             with open(data_dir + '/drawings/' + drawing['drawing_id'] +
-                '.html', 'w+') as drawing_html:
+                '.html', 'wb+') as drawing_html:
 
                     drawing_html.write(drawing_template.render(
                         username=requester,
                         background_color=user_data['background_color'],
                         font_color=font_color,
                         drawing=drawing
-                        ))
+                        ).encode('utf-8'))
 
             liked_drawings.append(drawing_like)
 
@@ -807,16 +811,17 @@ def read_user_data(requester):
                 else:
                     post['history'].append(row)
 
-            # Create HTML file for post
+            # Create HTML file for post, encoding in utf-8 to prevent
+            # rendering errors for non-ASCII characters
             with open(data_dir + '/posts/' + str(post['post_id']) + '.html',
-                'w+') as post_html:
+                'wb+') as post_html:
 
                     post_html.write(post_template.render(
                         username=requester,
                         background_color=user_data['background_color'],
                         font_color=font_color,
                         post=post
-                        ))
+                        ).encode('utf-8'))
 
             posts.append(post)
 
@@ -886,26 +891,27 @@ def read_user_data(requester):
                 else:
                     comment['history'].append(row)
 
-            # Create HTML file for comment
+            # Create HTML file for comment, encoding in utf-8 to prevent
+            # rendering errors for non-ASCII characters
             with open(data_dir + '/comments/' + str(comment['comment_id']) +
-                '.html', 'w+') as comment_html:
+                '.html', 'wb+') as comment_html:
 
                     comment_html.write(comment_template.render(
                         username=requester,
                         background_color=user_data['background_color'],
                         font_color=font_color,
                         comment=comment
-                        ))
+                        ).encode('utf-8'))
 
             comments.append(comment)
 
         cursor.close()
         conn.close()
 
-        # Create main HTML file for user data
+        # Create main HTML file for user data, encoding in utf-8 to prevent
+        # rendering errors for non-ASCII characters
         with open(data_dir + '/' + requester + '.html',
-            'w+') as user_data_html:
-
+            'wb+') as user_data_html:
                 user_data_html.write(template.render(
                     username=requester,
                     background_color=user_data['background_color'],
@@ -925,7 +931,7 @@ def read_user_data(requester):
                     liked_drawings=liked_drawings,
                     posts=posts,
                     comments=comments
-                    ))
+                    ).encode('utf-8'))
 
         # Save directory and its files as a zip file in a temporary directory
         # that deletes when context is closed
