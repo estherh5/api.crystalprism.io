@@ -742,7 +742,7 @@ def read_user_data(requester):
                         username=requester,
                         background_color=user_data['background_color'],
                         font_color=font_color,
-                        drawing=drawing
+                        drawing=drawing_like
                         ).encode('utf-8'))
 
             liked_drawings.append(drawing_like)
