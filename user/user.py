@@ -582,11 +582,11 @@ def read_user_data(requester):
             user_data['background_color'].lstrip('#')[i:(i + 2)], 16)
             for i in (0, 2, 4)])
 
-        if rgb_background > 670:
-            font_color = '#000000'
+        if rgb_background < 382:
+            font_color = '#ffffff'
 
         else:
-            font_color = '#ffffff'
+            font_color = '#000000'
 
         # Convert user account created timestamp to readable timestamp format
         user_data['created'] = datetime.strptime(
