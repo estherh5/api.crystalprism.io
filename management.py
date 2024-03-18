@@ -2,15 +2,16 @@
 import argparse
 import bcrypt
 import boto3
-import datetime
 import getpass
 import json
 import os
+import pathlib
 import psycopg2 as pg
 import subprocess
 
 from base64 import decodebytes
 from crontab import CronTab
+from datetime import datetime, timezone
 from io import BytesIO
 from PIL import Image
 
@@ -746,33 +747,35 @@ def load_initial_data():
 
 
 def backup_database():
-    # Define database name and user
-    db_name = os.environ['DB_NAME']
-    db_user = os.environ['DB_USER']
-
     # Define backup file path
-    now = str(datetime.datetime.now().isoformat())
-    file_path = os.environ['BACKUP_DIR'] + '/' + now
+    now = str(datetime.now().isoformat())
+    file_path = pathlib.Path(f'{os.environ["BACKUP_DIR"]}/{now}')
+    file_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Define command to run to back up database
-    command = 'pg_dump ' + db_name + ' -U ' + db_user + ' -Fc -f ' + file_path
+    command = f'pg_dump {os.environ["DB_CONNECTION"]} -Fc -f {file_path}'
 
     # Dump database backup to file path
-    ps = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE,
-        cwd=os.path.dirname(os.path.realpath(__file__)))
-    print('Backup saved to ' + file_path)
+    ps = subprocess.check_output(
+        command, shell=True,
+        cwd=os.path.dirname(os.path.realpath(__file__))
+    )
+    print(f'Backup saved to {str(file_path)}')
 
     # Upload file to s3 backup bucket
-    s3 = boto3.resource('s3')
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
+        aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY']
+    )
     bucket_name = os.environ['S3_BUCKET']
-    bucket = s3.Bucket(bucket_name)
     bucket_folder = os.environ['S3_BACKUP_DIR']
 
     data = open(file_path, 'rb')
 
-    bucket.put_object(Key=bucket_folder + now, Body=data)
+    s3.put_object(Bucket=bucket_name, Key=bucket_folder + now, Body=data)
 
-    print('Backup saved to S3 ' + bucket_name + ' bucket')
+    print(f'Backup saved to S3 {bucket_name}/{bucket_folder} bucket')
 
     return
 
@@ -813,6 +816,8 @@ if args.action == 'init_db':
 if args.action == 'load_data':
     load_initial_data()
 if args.action == 'backup_db':
-    backup_database()
+    # Only backup database on Sunday
+    if datetime.now(timezone.utc).weekday() == 6:
+        backup_database()
 if args.action == 'sched_backup':
     schedule_weekly_backup()
