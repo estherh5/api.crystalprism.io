@@ -558,8 +558,75 @@ def create_ideas(ideas_filename):
     return
 
 
-def create_drawings(drawings_filename):
+def create_all_drawings_from_s3():
+    username = input('Enter username for drawing artist: ')
+
     # Set up database connection with environment variable
+    conn = pg.connect(os.environ['DB_CONNECTION'])
+    cursor = conn.cursor()
+
+    # Check if username exists in database
+    cursor.execute(
+        """
+        SELECT EXISTS (
+                       SELECT 1
+                         FROM cp_user
+                        WHERE LOWER(username) = %(username)s
+                        LIMIT 1
+        );
+        """,
+        {'username': username.lower()}
+        )
+
+    # Rerun function to prompt for a new post writer if the username does not
+    # exist
+    if not cursor.fetchone()[0]:
+        cursor.close()
+        conn.close()
+
+        print('Username does not exist')
+
+        create_all_drawings_from_s3()
+
+        return
+
+    # Get existing drawings from S3 bucket
+    s3 = boto3.client('s3')
+    bucket_name = os.environ['S3_BUCKET']
+    bucket_folder = os.environ['S3_CANVASHARE_DIR']
+    existing_drawings = s3.list_objects_v2(Bucket=bucket_name, Prefix=bucket_folder)["Contents"]
+
+    for drawing in existing_drawings:
+        drawing_id = drawing["Key"].split(bucket_folder)[1].replace(".png", "")
+
+        # Add drawing to database
+        cursor.execute(
+            """
+            INSERT INTO drawing
+                        (drawing_id, member_id, title, url)
+                 VALUES (%(drawing_id)s,
+                        (SELECT member_id
+                           FROM cp_user
+                          WHERE LOWER(username) = %(username)s),
+                        %(title)s, %(url)s);
+            """,
+            {'drawing_id': drawing_id,
+            'username': username.lower(),
+            'title': drawing_id,
+            'created': drawing["LastModified"],
+            'url': os.environ['S3_URL'] + bucket_folder + drawing_id + ".png"}
+            )
+
+        print('Drawing "' + drawing_id + '" added to database.')
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return
+
+
+def create_drawings(drawings_filename):
     conn = pg.connect(os.environ['DB_CONNECTION'])
 
     cursor = conn.cursor()
@@ -809,6 +876,8 @@ if args.action == 'init_db':
     initialize_database()
 if args.action == 'load_data':
     load_initial_data()
+if args.action == 'load_s3_drawings':
+    create_all_drawings_from_s3()
 if args.action == 'backup_db':
     # Only backup database on Sunday
     if datetime.now(timezone.utc).weekday() == 6:
