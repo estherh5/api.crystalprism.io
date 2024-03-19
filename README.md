@@ -48,22 +48,22 @@ I started programming in January 2017 and am learning Python for back-end server
     * Full-size photos should be named as numbers (e.g., "1.png"), and thumbnails must be named the same plus the suffix "-thumb" (e.g., "1-thumb.png").
     * For best display on the front-end, full-size photos should be 6 x 8 inches in size, and thumbnails should be 240 x 300 px.
 5. Set the following environment variables for the API:
-    * "FLASK_APP" for the Flask application name for your server ("server.py")
-    * "SECRET_KEY" for the salt used to generate the signature portion of the JWT for user authentication (set this as a secret key that only you know; it is imperative to keep this private for user account protection)
-    * "ENV_TYPE" for the environment status (set this to "Dev" for testing or "Prod" for live)
-    * "VIRTUAL_ENV_NAME" for the name of your virtual environment (e.g., 'crystalprism'); this is used to schedule automatic database backups with crontab
-    * "PATH" for the path to the executable files that will run when automatic database backups are performed via crontab; you should append the path to your PostgreSQL directory here (e.g., "$PATH:/Applications/Postgres.app/Contents/Versions/latest/bin")
-    * ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the access key for your AWS account stored on Amazon S3 buckets
-    * ["AWS_SECRET_ACCESS_KEY"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the secret key for your AWS account stored on Amazon S3 buckets
-    * "S3_BUCKET" for the name of your S3 bucket, which should not contain any periods (e.g., 'crystalprism')
-    * "S3_URL" for the domain-style URL for your S3 bucket (e.g., 'https://crystalprism.s3.us-east-2.amazonaws.com/')
-    * "S3_PHOTO_DIR" for the name of the S3 bucket's folder for photos (the default is 'photos/')
-    * "S3_CANVASHARE_DIR" for the name of the S3 bucket's folder for CanvaShare drawings (the default is 'canvashare/')
-    * "S3_BACKUP_DIR" for the name of the S3 bucket's folder for database backups (the default is 'db-backups/')
-    * "BACKUP_DIR" for the directory where your database backups are stored locally
-    * "DB_CONNECTION" for the [dsn parameter string](http://initd.org/psycopg/docs/module.html) to connect to your database via psycopg2 (e.g., 'dbname=<database_name> user=<database_user> password=<database_user_password> host=<database_host>')
-    * "DB_NAME" for the name of your database
-    * "DB_USER" for the user who has all privileges on your database
+    * `FLASK_APP` for the Flask application name for your server (`server.py`)
+    * `SECRET_KEY` for the salt used to generate the signature portion of the JWT for user authentication (set this as a secret key that only you know; it is imperative to keep this private for user account protection)
+    * `ENV_TYPE` for the environment status (set this to `Dev` for testing or `Prod` for live)
+    * `VIRTUAL_ENV_NAME` for the name of your virtual environment (e.g., `crystalprism`); this is used to schedule automatic database backups with crontab
+    * `PATH` for the path to the executable files that will run when automatic database backups are performed via crontab; you should append the path to your PostgreSQL directory here (e.g., `$PATH:/Applications/Postgres.app/Contents/Versions/latest/bin`)
+    * [`AWS_ACCESS_KEY_ID`](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the access key for your AWS account stored on Amazon S3 buckets
+    * [`AWS_SECRET_ACCESS_KEY`](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the secret key for your AWS account stored on Amazon S3 buckets
+    * `S3_BUCKET` for the name of your S3 bucket, which should not contain any periods (e.g., `crystalprism`)
+    * `S3_URL` for the domain-style URL for your S3 bucket (e.g., `https://crystalprism.s3.us-east-2.amazonaws.com/`)
+    * `S3_PHOTO_DIR` for the name of the S3 bucket's folder for photos (the default is `photos/`)
+    * `S3_CANVASHARE_DIR` for the name of the S3 bucket's folder for CanvaShare drawings (the default is `canvashare/`)
+    * `S3_BACKUP_DIR` for the name of the S3 bucket's folder for database backups (the default is `db-backups/`)
+    * `BACKUP_DIR` for the directory where your database backups are stored locally
+    * `DB_CONNECTION` for the [dsn parameter string](http://initd.org/psycopg/docs/module.html) to connect to your database via psycopg2 (e.g., `dbname=<database_name> user=<database_user> password=<database_user_password> host=<database_host>`)
+    * `DB_NAME` for the name of your database
+    * `DB_USER` for the user who has all privileges on your database
 6. Initialize the database by running `python management.py init_db`, and load initial data (webpage owner user whose posts appear on the homepage Ideas page, admin user, initial homepage Ideas page post written by webpage owner, how-to Thought Writer posts written by admin, sample drawing created by admin) by running `python management.py load_data`.
 7. Set up weekly backups for the database by running `python management.py sched_backup`.
 8. Start the server by running `flask run` (if you are making changes while the server is running, enter `flask run --reload` instead for instant updates).
