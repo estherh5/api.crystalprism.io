@@ -7,7 +7,7 @@ gunicorn==19.9.0
 itsdangerous==0.24
 Jinja2==2.10.1
 MarkupSafe==1.1.1
-Pillow==8.0.0
+Pillow==10.3.0
 psycopg2-binary==2.9.9
 python-crontab==2.2.8
 requests==2.31.0
