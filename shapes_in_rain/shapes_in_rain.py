@@ -8,7 +8,7 @@ from flask import jsonify, make_response, request
 def create_score(requester):
     # Request should contain:
     # score <int>
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
     # Return error if request is missing data
     if not data or 'score' not in data:
