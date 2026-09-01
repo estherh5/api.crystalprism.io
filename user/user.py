@@ -93,7 +93,7 @@ def create_user():
     # Request should contain:
     # password <str>
     # username <str>
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
     # Return error if request is missing data
     if not data or 'username' not in data or 'password' not in data:
@@ -353,7 +353,7 @@ def update_user(requester):
     # name_public <boolean>
     # password <str>
     # username <str>
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
     # Return error if request is missing data
     if (not data or 'about' not in data or 'background_color' not in data or
@@ -942,7 +942,7 @@ def read_user_data(requester):
             return send_file(
                 zipped_file,
                 mimetype='application/zip',
-                attachment_filename=requester + '.zip',
+                download_name=requester + '.zip',
                 as_attachment=True
             )
 
