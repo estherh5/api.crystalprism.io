@@ -677,7 +677,7 @@ def create_drawings(drawings_filename):
         # Reduce drawing size to generate average hash for assessing drawing
         # uniqueness
         drawing_small = Image.open(BytesIO(drawing_url)).resize(
-            (8, 8), Image.ANTIALIAS)
+            (8, 8), Image.Resampling.LANCZOS)
 
         # Convert small drawing to grayscale
         drawing_small = drawing_small.convert('L')
@@ -878,19 +878,20 @@ def schedule_weekly_backup():
     return
 
 
-# Add arguments for initializing database in CLI
-parser = argparse.ArgumentParser(description='Management commands')
-parser.add_argument('action', type=str, help="an action for the database")
-args = parser.parse_args()
-if args.action == 'init_db':
-    initialize_database()
-if args.action == 'load_data':
-    load_initial_data()
-if args.action == 'load_s3_drawings':
-    create_all_drawings_from_s3()
-if args.action == 'backup_db':
-    # Only backup database on Sunday
-    if datetime.now(timezone.utc).weekday() == 6:
-        backup_database()
-if args.action == 'sched_backup':
-    schedule_weekly_backup()
+if __name__ == '__main__':
+    # Add arguments for initializing database in CLI
+    parser = argparse.ArgumentParser(description='Management commands')
+    parser.add_argument('action', type=str, help="an action for the database")
+    args = parser.parse_args()
+    if args.action == 'init_db':
+        initialize_database()
+    if args.action == 'load_data':
+        load_initial_data()
+    if args.action == 'load_s3_drawings':
+        create_all_drawings_from_s3()
+    if args.action == 'backup_db':
+        # Only backup database on Sunday
+        if datetime.now(timezone.utc).weekday() == 6:
+            backup_database()
+    if args.action == 'sched_backup':
+        schedule_weekly_backup()
