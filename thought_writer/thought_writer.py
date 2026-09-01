@@ -13,7 +13,7 @@ def create_post(requester):
     # content <str>
     # public <boolean>
     # title <str>
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
     # Return error if request is missing data
     if (not data or 'content' not in data or 'public' not in data or
@@ -172,7 +172,7 @@ def update_post(requester, post_id):
     # content <str>
     # public <boolean>
     # title <str>
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
     # Return error if request is missing data
     if (not data or 'content' not in data or 'public' not in data or
@@ -526,7 +526,7 @@ def create_comment(requester):
     # Request should contain:
     # content <str>
     # post_id <int>
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
     # Return error if request is missing data
     if not data or 'content' not in data or 'post_id' not in data:
@@ -701,7 +701,7 @@ def read_comment(comment_id):
 def update_comment(requester, comment_id):
     # Request should contain:
     # content <str>
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
     # Return error if request is missing data
     if not data or 'content' not in data:
