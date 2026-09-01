@@ -15,7 +15,7 @@ def create_drawing(requester):
     # Request should contain:
     # drawing <data:image/png;base64...>
     # title <str>
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
     # Return error if request is missing data
     if not data or 'drawing' not in data or 'title' not in data:
@@ -35,7 +35,7 @@ def create_drawing(requester):
     # Reduce drawing size to generate average hash for assessing drawing
     # uniqueness
     drawing_small = Image.open(BytesIO(drawing)).resize(
-        (8, 8), Image.ANTIALIAS)
+        (8, 8), Image.Resampling.LANCZOS)
 
     # Convert small drawing to grayscale
     drawing_small = drawing_small.convert('L')
@@ -389,7 +389,7 @@ def read_drawings_for_one_user(artist_name):
 def create_drawing_like(requester):
     # Request should contain:
     # drawing_id <str>
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
     # Return error if request is missing data
     if not data or 'drawing_id' not in data:
