@@ -7,6 +7,11 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Shipped
 
+- **2026-09** **Heroku decommissioned.** The `crystalprism` app and its add-ons were destroyed on
+  2026-09-04 after three days of parallel running with zero real traffic. A final pre-destroy dump
+  was taken and row-matched against Neon on every table before deletion. One Heroku scheduler job died with the app: `management.py backup_db`, superseded by
+  `~/blob-backups` step 2b, which dumps the Neon database nightly and is restore-verified.
+
 - **2026-09** **Off Heroku onto Vercel, with the Postgres database on Neon.** `api.crystalprism.io`
   now resolves to a Vercel deployment instead of CNAME'ing to a legacy `herokuapp` hostname that
   had no certificate covering it. The database moved to the Neon project `old-sun-58330819`
