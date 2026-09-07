@@ -7,6 +7,14 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Shipped
 
+- **2026-09** **`user.login` answers 401, not 500, for a malformed password hash.** The `cp_user`
+  row `ASTP001` (created 2017-11-06, `status = active`) holds a 128-character hex string where
+  every other row holds a `$2b$` bcrypt hash, so `bcrypt.checkpw` raised `ValueError: Invalid
+  salt` and the request became an uncaught 500. `login` in `user/user.py` now catches
+  `ValueError` and treats the credential as non-matching, which is what a hash no password can
+  match means. Pre-existing, not caused by the Heroku→Vercel migration — it reproduced
+  identically on live Heroku. Pinned by `TestLogin.test_login_get_malformed_hash_error`.
+
 - **2026-09** **Heroku decommissioned.** The `crystalprism` app and its add-ons were destroyed on
   2026-09-04 after three days of parallel running with zero real traffic. A final pre-destroy dump
   was taken and row-matched against Neon on every table before deletion. One Heroku scheduler job died with the app: `management.py backup_db`, superseded by
@@ -21,16 +29,6 @@ Committed doc, not scratch. Kept current by hand as work ships.
   (`backup.sh` step 2b → `pg/crystalprism.sql`), restore-verified end to end.
 
 ## Next
-
-- **`user.user` returns a 500, not a 401, for one account whose password hash is malformed.**
-  The `cp_user` row `ASTP001` (created 2017-11-06, `status = active`) holds a 128-character hex
-  string where the other four rows hold a `$2b$` bcrypt hash. `user.user` calls
-  `bcrypt.checkpw` with no `try`/`except`, so bcrypt raises `ValueError: invalid salt` and the
-  request becomes an uncaught 500. That account cannot authenticate on any stack.
-  **Pre-existing, not caused by the migration** — verified as an identical 500 on live Heroku,
-  with `admin` plus a junk password returning 401 on both as the control. The fix is to catch
-  `ValueError` around the `checkpw` call and answer 401, which is what a credential that cannot
-  possibly match means; separately decide whether that row should be reset or retired.
 
 - **`user.update_user` does not re-apply the username regex that `create_user` enforces.**
   `create_user` validates usernames against `^[a-zA-Z0-9_-]+$`; `update_user` does not, so a
@@ -48,5 +46,7 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Open questions
 
-- Should `ASTP001` be reset, retired, or left as-is once `user.user` stops 500ing? It has been
-  unauthenticatable since at least the Heroku era and nothing depends on it logging in.
+- Should `ASTP001` be reset, retired, or left as-is? Its login now answers a clean 401 rather
+  than 500ing, but the row still holds an unusable hash: it has been unauthenticatable since at
+  least the Heroku era and nothing depends on it logging in. Settled by deciding whether the
+  account is still wanted — reset the password if so, set `status` to deleted if not.

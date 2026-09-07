@@ -2,6 +2,7 @@ import boto3
 import hmac
 import json
 import os
+import psycopg2 as pg
 import re
 
 from base64 import b64encode, urlsafe_b64encode
@@ -94,6 +95,46 @@ class TestLogin(CrystalPrismTestCase):
         # Assert
         self.assertEqual(get_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
+
+    def test_login_get_malformed_hash_error(self):
+        # Arrange
+        self.create_user()
+
+        # Overwrite the stored bcrypt hash with a value bcrypt cannot parse,
+        # as one legacy account holds a 128-character hex string
+        conn = pg.connect(os.environ['DB_CONNECTION'])
+
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            UPDATE cp_user
+               SET password = %(password)s
+             WHERE username = %(username)s;
+            """,
+            {'password': 'a' * 128, 'username': self.username}
+            )
+
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+        b64_user_pass = str(b64encode((self.username + ':password').encode())
+            .decode())
+        header = {'Authorization': 'Basic ' + b64_user_pass}
+
+        # Act
+        get_response = self.client.get(
+            '/api/login',
+            headers=header
+        )
+        error = get_response.get_data(as_text=True)
+
+        # Assert
+        self.assertEqual(get_response.status_code, 401)
+        self.assertEqual(error, 'Unauthorized')
+
 
     def test_login_get_password_error(self):
         # Arrange

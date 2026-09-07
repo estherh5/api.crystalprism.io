@@ -68,8 +68,17 @@ def login():
     if user_data['status'] == 'deleted':
         return make_response('Unauthorized', 401)
 
-    # Check requested password against stored hashed and salted password
-    if bcrypt.checkpw(password.encode(), user_data['password'].encode()):
+    # Check requested password against stored hashed and salted password;
+    # bcrypt raises ValueError if the stored hash is malformed, which means no
+    # password can match it
+    try:
+        password_matches = bcrypt.checkpw(
+            password.encode(), user_data['password'].encode())
+
+    except ValueError:
+        password_matches = False
+
+    if password_matches:
 
         # Generate JWT token if password is correct
         header = urlsafe_b64encode(b'{"alg": "HS256", "typ": "JWT"}')
