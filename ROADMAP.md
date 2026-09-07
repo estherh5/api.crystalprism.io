@@ -7,6 +7,14 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Shipped
 
+- **2026-09** **`ASTP001`'s password reset, the last legacy hash retired.** The row held a
+  128-character hex string — a SHA-512 digest from before the app moved to bcrypt, never migrated,
+  which is why it could not authenticate on any stack. Replaced with a bcrypt hash of a freshly
+  generated password; the account belongs to a third party, so the password was handed to Esther
+  rather than mailed anywhere. Verified against production: `/api/login` returns a JWT for the new
+  password and 401 for both a junk password and the old hex value. The other four `cp_user` rows
+  were already bcrypt (60 characters), so no legacy hashes remain.
+
 - **2026-09** **One username rule, applied on every path that sets a username.** `create_user`
   validated usernames against `^[a-zA-Z0-9_-]+$` and `update_user` did not, so a PATCH could set
   a name the create path would have rejected. The pattern is now the `USERNAME_PATTERN` constant
@@ -70,7 +78,4 @@ _Nothing outstanding._
 
 ## Open questions
 
-- Should `ASTP001` be reset, retired, or left as-is? Its login now answers a clean 401 rather
-  than 500ing, but the row still holds an unusable hash: it has been unauthenticatable since at
-  least the Heroku era and nothing depends on it logging in. Settled by deciding whether the
-  account is still wanted — reset the password if so, set `status` to deleted if not.
+_Nothing outstanding._
