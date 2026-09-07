@@ -23,6 +23,12 @@ from time import time
 from canvashare import canvashare
 
 
+# Usernames appear in URLs and S3 object keys, so they are restricted to
+# characters that are safe in both. Enforced on every path that sets a
+# username, not just account creation.
+USERNAME_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
+
+
 def login():
     # Request should contain Authorization header:
     # 'Basic <username:password>' <base64>
@@ -116,9 +122,7 @@ def create_user():
         return make_response('Username cannot be blank', 400)
 
     # Return error if username contains unacceptable characters
-    pattern = re.compile(r'^[a-zA-Z0-9_-]+$')
-
-    if not pattern.match(username):
+    if not USERNAME_PATTERN.match(username):
         return make_response('Username contains unacceptable characters', 400)
 
     # Set up database connection wtih environment variable
@@ -374,6 +378,14 @@ def update_user(requester):
 
     username = data['username'].strip()
     password = data['password']
+
+    # Return error if username is blank
+    if not username:
+        return make_response('Username cannot be blank', 400)
+
+    # Return error if username contains unacceptable characters
+    if not USERNAME_PATTERN.match(username):
+        return make_response('Username contains unacceptable characters', 400)
 
     # Set up database connection wtih environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])

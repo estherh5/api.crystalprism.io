@@ -12,8 +12,8 @@ import subprocess
 from base64 import decodebytes
 from crontab import CronTab
 from datetime import datetime, timezone
-from io import BytesIO
-from PIL import Image
+
+from canvashare.hashing import average_hash
 
 
 def initialize_database():
@@ -674,26 +674,9 @@ def create_drawings(drawings_filename):
         # Remove 'data:image/png;base64' from image data URL
         drawing_url = decodebytes(drawing['url'].split(',')[1].encode('utf-8'))
 
-        # Reduce drawing size to generate average hash for assessing drawing
-        # uniqueness
-        drawing_small = Image.open(BytesIO(drawing_url)).resize(
-            (8, 8), Image.Resampling.LANCZOS)
-
-        # Convert small drawing to grayscale
-        drawing_small = drawing_small.convert('L')
-
-        # Get average pixel value of small drawing
-        pixels = list(drawing_small.getdata())
-        average_pixels = sum(pixels) / len(pixels)
-
-        # Generate bit string by comparing each pixel in the small drawing to
-        # the average pixel value
-        bit_string = "".join(map(
-            lambda pixel: '1' if pixel < average_pixels else '0', pixels))
-
-        # Generate unique id for drawing by converting bit string to
-        # hexadecimal
-        drawing_id = int(bit_string, 2).__format__('016x')
+        # Generate unique id for drawing from its average hash, using the
+        # same function the API uses so the two paths cannot drift apart
+        drawing_id = average_hash(drawing_url)
 
         # Check if drawing already exists in database
         cursor.execute(

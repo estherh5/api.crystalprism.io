@@ -7,6 +7,23 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Shipped
 
+- **2026-09** **One username rule, applied on every path that sets a username.** `create_user`
+  validated usernames against `^[a-zA-Z0-9_-]+$` and `update_user` did not, so a PATCH could set
+  a name the create path would have rejected. The pattern is now the `USERNAME_PATTERN` constant
+  in `user/user.py`, applied on both paths, and `update_user` also rejects a blank username with
+  the same message `create_user` uses. Pre-existing. All five live `cp_user` rows were checked
+  against the pattern first — every one passes, so no account lost the ability to update itself.
+
+- **2026-09** **The `drawing_id` average hash no longer depends on the PNG's encoding mode.**
+  `average_hash` now lives in `canvashare/hashing.py` and both `canvashare.create_drawing` and
+  `management.create_drawings` call it, so the two paths cannot drift. It normalises the image to
+  RGBA before resizing: Pillow silently ignores the resampling filter for palette (mode P) images
+  and then converts them to grayscale through the palette, which drifts between Pillow releases
+  and flips a hash bit. RGBA input — all the canvas `toDataURL` emits — hashes byte-identically
+  before and after, verified across the fixture drawing and six synthetic canvases, so every
+  existing drawing id stays valid. Pinned by `TestAverageHash`, including a flat literal for the
+  fixture drawing's id.
+
 - **2026-09** **`user.login` answers 401, not 500, for a malformed password hash.** The `cp_user`
   row `ASTP001` (created 2017-11-06, `status = active`) holds a 128-character hex string where
   every other row holds a `$2b$` bcrypt hash, so `bcrypt.checkpw` raised `ValueError: Invalid
@@ -30,19 +47,7 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Next
 
-- **`user.update_user` does not re-apply the username regex that `create_user` enforces.**
-  `create_user` validates usernames against `^[a-zA-Z0-9_-]+$`; `update_user` does not, so a
-  PATCH can set a non-ASCII username that the create path would have rejected. Pre-existing.
-  Extract the pattern to one constant and apply it on both paths.
-
-- **The `drawing_id` perceptual hash is sensitive to the Pillow version, via `convert('L')`.**
-  In `canvashare.create_drawing` and `management.create_drawings`, the version-sensitive step is
-  `convert('L')` — not `resize()`, which is where this was first assumed to be. It shifts mode-P
-  (palette) PNGs by ±1 per pixel and flips a hash bit, so the same drawing can mint a different
-  key across Pillow versions. Unreachable from the real client, because the canvas
-  `toDataURL` always emits RGBA; but `create_drawing` validates only that
-  `'data:image/png;base64'` appears in the payload, so a hand-crafted palette PNG reaches it.
-  Either normalise the mode before converting, or tighten the payload check.
+_Nothing outstanding._
 
 ## Open questions
 

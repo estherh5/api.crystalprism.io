@@ -2,9 +2,64 @@ import boto3
 import json
 import os
 import re
+import unittest
 
+from base64 import decodebytes
+from io import BytesIO
+from PIL import Image
 from unittest.mock import patch
 from utils.tests import CrystalPrismTestCase
+
+import management
+
+from canvashare import canvashare
+from canvashare.hashing import average_hash
+
+
+# Test the average hash that mints a drawing's id
+class TestAverageHash(unittest.TestCase):
+    def read_test_drawing(self):
+        test_drawing = (
+            os.path.dirname(__file__) + '/../fixtures/test-drawing.txt'
+            )
+        with open(test_drawing, 'r') as drawing:
+            return decodebytes(drawing.read().split(',')[1].encode('utf-8'))
+
+    def encode_png(self, image):
+        buffer = BytesIO()
+        image.save(buffer, format='PNG')
+
+        return buffer.getvalue()
+
+    def test_average_hash_is_unchanged_for_canvas_drawings(self):
+        # A drawing id is a permanent key, so the hash of an RGBA image -- all
+        # the canvas toDataURL emits -- must not move
+        self.assertEqual(
+            average_hash(self.read_test_drawing()), '00000cfcf8600000'
+            )
+
+    def test_average_hash_ignores_the_png_encoding_mode(self):
+        # Arrange: the same pixels encoded as a palette PNG and as RGBA. Pillow
+        # silently ignores the resampling filter for palette images and
+        # converts them to grayscale through the palette, which drifts between
+        # Pillow releases, so the hash must not depend on which encoding
+        # arrives
+        drawing = Image.open(BytesIO(self.read_test_drawing()))
+        palette = drawing.convert('RGB').convert(
+            'P', palette=Image.Palette.ADAPTIVE, colors=64)
+
+        # Act
+        palette_hash = average_hash(self.encode_png(palette))
+        rgba_hash = average_hash(self.encode_png(palette.convert('RGBA')))
+
+        # Assert
+        self.assertEqual(palette_hash, rgba_hash)
+
+    def test_both_drawing_paths_share_one_hash_function(self):
+        # The API and the management script must mint identical ids for
+        # identical drawings, which they can only do by calling one function
+        self.assertIs(canvashare.average_hash, average_hash)
+        self.assertIs(management.average_hash, average_hash)
 
 
 # Test /api/canvashare/drawing endpoint [POST, GET, PATCH, DELETE]

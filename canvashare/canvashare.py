@@ -5,9 +5,8 @@ import psycopg2.extras
 
 from base64 import decodebytes
 from flask import jsonify, make_response, request
-from io import BytesIO
-from PIL import Image
 
+from canvashare.hashing import average_hash
 from user import user
 
 
@@ -32,25 +31,9 @@ def create_drawing(requester):
     # Remove 'data:image/png;base64' from image data URL
     drawing = decodebytes(data['drawing'].split(',')[1].encode('utf-8'))
 
-    # Reduce drawing size to generate average hash for assessing drawing
-    # uniqueness
-    drawing_small = Image.open(BytesIO(drawing)).resize(
-        (8, 8), Image.Resampling.LANCZOS)
-
-    # Convert small drawing to grayscale
-    drawing_small = drawing_small.convert('L')
-
-    # Get average pixel value of small drawing
-    pixels = list(drawing_small.getdata())
-    average_pixels = sum(pixels) / len(pixels)
-
-    # Generate bit string by comparing each pixel in the small drawing to the
-    # average pixel value
-    bit_string = "".join(map(
-        lambda pixel: '1' if pixel < average_pixels else '0', pixels))
-
-    # Generate unique id for drawing by converting bit string to hexadecimal
-    drawing_id = int(bit_string, 2).__format__('016x')
+    # Generate unique id for drawing from its average hash, which also
+    # identifies duplicate submissions
+    drawing_id = average_hash(drawing)
 
     # Set up database connection with environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
