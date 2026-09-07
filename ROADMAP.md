@@ -47,7 +47,19 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Next
 
-_Nothing outstanding._
+- **18 of 50 live `drawing_id`s no longer reproduce from their own stored PNG.** Measured
+  2026-09-06 by refetching every drawing `/api/canvashare/drawings` returns and re-running
+  `canvashare.hashing.average_hash` over the S3 bytes: 32 reproduce, 18 do not. All 18 are RGBA,
+  so this is **not** the palette-mode path that was just fixed — 13 differ from the stored id by
+  exactly one bit, 4 by two bits, and 1 by 45 bits (probably a genuinely different image). The
+  consequence is narrow but real: `create_drawing` treats `drawing_id` as the duplicate-detection
+  key, so re-submitting one of those 18 drawings today mints a new row instead of returning the
+  409 it should. Two candidate causes, and the same one-bit signature fits both — Pillow's LANCZOS
+  resize or its RGBA→L conversion drifted between the 2018-era Pillow that minted the ids and
+  11.3, or the object stored in S3 is not byte-identical to the payload that was hashed. What
+  would settle it: recompute one drifting id under a Pillow contemporary with its `created`
+  timestamp. If it is Pillow drift, an average hash over a resampled image is the wrong shape for
+  a durable key and the fix is a resize whose output does not depend on the library version.
 
 ## Open questions
 
