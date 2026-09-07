@@ -47,21 +47,32 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Next
 
-- **18 of 50 live `drawing_id`s no longer reproduce from their own stored PNG.** Measured
-  2026-09-06 by refetching every drawing `/api/canvashare/drawings` returns and re-running
-  `canvashare.hashing.average_hash` over the S3 bytes: 32 reproduce, 18 do not. All 18 are RGBA,
-  so this is **not** the palette-mode path that was just fixed — 13 differ from the stored id by
-  exactly one bit, 4 by two bits, and 1 by 45 bits (probably a genuinely different image). The
-  consequence is narrow but real: `create_drawing` treats `drawing_id` as the duplicate-detection
-  key, so re-submitting one of those 18 drawings today mints a new row instead of returning the
-  409 it should. Two candidate causes, and the same one-bit signature fits both — Pillow's LANCZOS
-  resize or its RGBA→L conversion drifted between the 2018-era Pillow that minted the ids and
-  11.3, or the object stored in S3 is not byte-identical to the payload that was hashed. What
-  would settle it: recompute one drifting id under a Pillow contemporary with its `created`
-  timestamp. If it is Pillow drift, an average hash over a resampled image is the wrong shape for
-  a durable key and the fix is a resize whose output does not depend on the library version.
+_Nothing outstanding._
 
 ## Open questions
+
+- **18 of 50 live `drawing_id`s do not reproduce from their own stored PNG, and it is not a bug
+  in the code.** Settled 2026-09-06. Ruled out, with evidence: **Pillow drift** — Pillow 8.0.0 and
+  11.3.0 produce byte-identical hashes for all 50 drawings, 0 differences; **an algorithm change**
+  — the hash block is unchanged since `5392bc5` apart from `Image.ANTIALIAS` → 
+  `Image.Resampling.LANCZOS`, which is the same filter (both value 1); **mean arithmetic** —
+  Python 2 floor division reproduces fewer ids, 24/50, not more; **transparent-pixel RGB** — no
+  drawing has a fully transparent pixel carrying non-zero RGB. What it is instead: every drift is
+  a knife-edge tie. The flipped pixel sits within 0.5 grey levels of the mean (median 0.26)
+  against a median 1.12 for the ids that do reproduce, so a difference far below one grey level
+  in the source flips the `pixel < average` comparison. The decisive observation is that **nine
+  drawings from the same 2017-18 era are just as fragile — closest pixel 0.22 to 0.45 from the
+  mean — and still reproduce**; a library or algorithm change would have flipped those too. The
+  perturbation is therefore per file: the object now in S3 is not byte-identical to the payload
+  that was hashed when the id was minted, most likely a re-encode somewhere in the pre-S3 history
+  (all 18 predate 2022; all four drawings created 2024-2026 reproduce).
+  **The decision left is whether to care.** `drawing_id` is a primary key that also backs
+  `create_drawing`'s duplicate detection, so re-submitting one of those 18 drawings mints a new
+  row instead of returning 409. Accepting it costs nothing and changes nothing; re-keying means a
+  migration across the `drawing` primary key, its `drawing_like` foreign key and the S3 object
+  names, to fix duplicate detection for 18 drawings from 2018. Recommend accepting it, and
+  treating the average hash as what it is — a similarity score that happens to be unique enough,
+  not an identifier.
 
 - Should `ASTP001` be reset, retired, or left as-is? Its login now answers a clean 401 rather
   than 500ing, but the row still holds an unusable hash: it has been unauthenticatable since at
