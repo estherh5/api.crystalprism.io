@@ -49,30 +49,26 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 _Nothing outstanding._
 
-## Open questions
+## Declined
 
-- **18 of 50 live `drawing_id`s do not reproduce from their own stored PNG, and it is not a bug
-  in the code.** Settled 2026-09-06. Ruled out, with evidence: **Pillow drift** — Pillow 8.0.0 and
-  11.3.0 produce byte-identical hashes for all 50 drawings, 0 differences; **an algorithm change**
-  — the hash block is unchanged since `5392bc5` apart from `Image.ANTIALIAS` → 
-  `Image.Resampling.LANCZOS`, which is the same filter (both value 1); **mean arithmetic** —
-  Python 2 floor division reproduces fewer ids, 24/50, not more; **transparent-pixel RGB** — no
-  drawing has a fully transparent pixel carrying non-zero RGB. What it is instead: every drift is
-  a knife-edge tie. The flipped pixel sits within 0.5 grey levels of the mean (median 0.26)
-  against a median 1.12 for the ids that do reproduce, so a difference far below one grey level
-  in the source flips the `pixel < average` comparison. The decisive observation is that **nine
-  drawings from the same 2017-18 era are just as fragile — closest pixel 0.22 to 0.45 from the
-  mean — and still reproduce**; a library or algorithm change would have flipped those too. The
-  perturbation is therefore per file: the object now in S3 is not byte-identical to the payload
-  that was hashed when the id was minted, most likely a re-encode somewhere in the pre-S3 history
-  (all 18 predate 2022; all four drawings created 2024-2026 reproduce).
-  **The decision left is whether to care.** `drawing_id` is a primary key that also backs
-  `create_drawing`'s duplicate detection, so re-submitting one of those 18 drawings mints a new
-  row instead of returning 409. Accepting it costs nothing and changes nothing; re-keying means a
-  migration across the `drawing` primary key, its `drawing_like` foreign key and the S3 object
-  names, to fix duplicate detection for 18 drawings from 2018. Recommend accepting it, and
-  treating the average hash as what it is — a similarity score that happens to be unique enough,
-  not an identifier.
+- **Re-keying the 18 `drawing_id`s that no longer reproduce from their own stored PNG.** Accepted
+  as-is 2026-09-06. Settled first that this is not a bug in the code: Pillow 8.0.0 and 11.3.0
+  produce byte-identical hashes for all 50 live drawings (0 differences), the hash block is
+  unchanged since `5392bc5` apart from `Image.ANTIALIAS` → `Image.Resampling.LANCZOS` which is the
+  same filter, Python 2 floor division of the mean reproduces fewer ids (24/50) rather than more,
+  and no drawing carries a fully transparent pixel with non-zero RGB. Every drift is instead a
+  knife-edge tie — the flipped pixel sits within 0.5 grey levels of the mean (median 0.26, against
+  1.12 for ids that do reproduce) — and nine drawings of the same 2017-18 era are just as fragile
+  and still reproduce, which rules out any global cause. The object in S3 is simply not
+  byte-identical to the payload hashed when the id was minted; all 18 predate 2022 and all four
+  drawings created 2024-2026 reproduce.
+  **Why it is not worth fixing:** the only consequence is that re-submitting one of those 18
+  drawings mints a new row instead of returning 409. The fix would be a migration across the
+  `drawing` primary key, the `drawing_like` foreign key and the S3 object names, to restore
+  duplicate detection for 18 drawings from 2018. The average hash stays what it is — a similarity
+  score unique enough to serve as a key, not an identifier derived from the bytes it names.
+
+## Open questions
 
 - Should `ASTP001` be reset, retired, or left as-is? Its login now answers a clean 401 rather
   than 500ing, but the row still holds an unusable hash: it has been unauthenticatable since at
