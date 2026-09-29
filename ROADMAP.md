@@ -95,15 +95,16 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Next
 
-- [security] **CORS answers `*` to every non-allowlisted origin (Low, accepted for now).**
-  `server.py#cors` still sends uncredentialed `Access-Control-Allow-Origin: *` on `/api/*`;
-  `server.py#credentialed_cors` overrides it only for `user.ALLOWED_ORIGINS`. Safe as shipped:
-  the `cp_session` cookie is SameSite=Strict, cookie-authenticated writes are Origin-checked in
-  `user.verify_token`, and browsers refuse a credentialed response carrying `*`. Revisit if any
-  route ever authenticates by cookie without going through `verify_token`, or if a
-  `*.crystalprism.io` sibling (same-site, so it does receive the cookie) needs to read one.
-
 ## Declined
+
+- **Narrowing CORS below `*` for non-allowlisted origins (Low).** Accepted 2026-09-29 after re-checking
+  the code. `server.py#cors` sends uncredentialed `Access-Control-Allow-Origin: *` on `/api/*`;
+  `server.py#credentialed_cors` overrides it only for `user.ALLOWED_ORIGINS`. Safe because the
+  `cp_session` cookie is SameSite=Strict, `user.verify_token` is the only reader of it and
+  Origin-checks every non-safe method, and browsers refuse a credentialed response carrying `*`.
+  The one sibling reading this API from a browser, hacker_news_stats (`accountApi` → `/user/verify`),
+  sends a Bearer header without credentials, so `*` is what it needs. Reopen if any route reads the
+  cookie outside `verify_token`, or a `*.crystalprism.io` sibling needs a credentialed read.
 
 - **Re-keying the 18 `drawing_id`s that no longer reproduce from their own stored PNG.** Accepted
   as-is 2026-09-06. Settled first that this is not a bug in the code: Pillow 8.0.0 and 11.3.0
