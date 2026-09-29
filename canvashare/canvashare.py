@@ -3,12 +3,57 @@ import os
 import psycopg2 as pg
 import psycopg2.extras
 
-from base64 import decodebytes
+from base64 import b64decode
+from binascii import Error as Base64Error
+from io import BytesIO
+from PIL import Image
 from flask import jsonify, make_response, request
 
 from canvashare.hashing import average_hash
 from user import user
 from utils import sanitize
+
+
+DRAWING_PREFIX = 'data:image/png;base64,'
+
+# The easel's canvas is 400x400, so its PNGs are a few hundred KB at most;
+# the caps leave room for that while refusing anything built to be large
+MAX_DRAWING_BYTES = 1024 * 1024
+MAX_DRAWING_SIDE = 1000
+
+
+def decode_drawing(data_url):
+    # Returns the PNG bytes of a 'data:image/png;base64,...' URL, or None if it
+    # is not one, is too large, or does not decode as a PNG
+    if not isinstance(data_url, str) or not data_url.startswith(DRAWING_PREFIX):
+        return None
+
+    encoded = data_url[len(DRAWING_PREFIX):].strip()
+
+    # Base64 is 4 characters per 3 bytes; refuse before decoding anything big
+    if len(encoded) > (MAX_DRAWING_BYTES + 2) // 3 * 4:
+        return None
+
+    try:
+        drawing = b64decode(encoded, validate=True)
+    except (Base64Error, ValueError):
+        return None
+
+    if len(drawing) > MAX_DRAWING_BYTES:
+        return None
+
+    try:
+        image = Image.open(BytesIO(drawing))
+        if (image.format != 'PNG' or image.width > MAX_DRAWING_SIDE or
+            image.height > MAX_DRAWING_SIDE):
+                return None
+
+        # Opening reads only the header; verify() walks the chunks and CRCs
+        image.verify()
+    except Exception:
+        return None
+
+    return drawing
 
 
 def create_drawing(requester):
@@ -20,10 +65,6 @@ def create_drawing(requester):
     # Return error if request is missing data
     if not data or 'drawing' not in data or 'title' not in data:
         return make_response('Request must contain drawing and title', 400)
-
-    # Return error if drawing is not base64-encoded PNG image
-    if 'data:image/png;base64' not in data['drawing']:
-        return make_response('Drawing must be base64-encoded PNG image', 400)
 
     # Return error if title is not a string
     if not isinstance(data['title'], str):
@@ -37,8 +78,10 @@ def create_drawing(requester):
     if sanitize.contains_markup(data['title']):
         return make_response("Drawing title can't contain HTML.", 400)
 
-    # Remove 'data:image/png;base64' from image data URL
-    drawing = decodebytes(data['drawing'].split(',')[1].encode('utf-8'))
+    # Return error if drawing is not a base64-encoded PNG image within limits
+    drawing = decode_drawing(data['drawing'])
+    if drawing is None:
+        return make_response('Drawing must be base64-encoded PNG image', 400)
 
     # Generate unique id for drawing from its average hash, which also
     # identifies duplicate submissions
@@ -79,7 +122,8 @@ def create_drawing(requester):
 
     bucket.put_object(
         Key=bucket_folder + drawing_name,
-        Body=drawing
+        Body=drawing,
+        ContentType='image/png'
         )
 
     # Add drawing to database

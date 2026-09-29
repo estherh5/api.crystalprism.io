@@ -10,6 +10,7 @@ from hashlib import sha256
 from math import floor
 from time import time
 from unittest.mock import patch
+from user import user
 from utils.tests import CrystalPrismTestCase
 
 
@@ -690,6 +691,11 @@ class TestUserData(CrystalPrismTestCase):
             content_type='application/json'
             )
 
+        # Setting a password re-hashes it, which revokes the old token; the
+        # client carries on with the one the PATCH returns
+        header = {'Authorization': 'Bearer ' +
+            patch_response.get_data(as_text=True)}
+
         patched_get_response = self.client.get(
             '/api/user/data/' + username,
             headers=header
@@ -1073,9 +1079,20 @@ class TestVerify(CrystalPrismTestCase):
         # Create new token with payload past expiration time (1 hour)
         token_header = urlsafe_b64encode(b'{"alg": "HS256", "typ": "JWT"}')
 
+        # Carries the real password fingerprint, so expiry is the only reason
+        # this token can be refused
+        conn = pg.connect(os.environ['DB_CONNECTION'])
+        cursor = conn.cursor()
+        cursor.execute('SELECT password FROM cp_user WHERE username = %s;',
+            (self.username,))
+        password_hash = cursor.fetchone()[0]
+        cursor.close()
+        conn.close()
+
         expired_payload = urlsafe_b64encode(json.dumps({
             'username': self.username,
-            'exp': floor(time() - (61 * 60))
+            'exp': floor(time() - (61 * 60)),
+            'pwd': user.password_fingerprint(password_hash)
             }).encode())
 
         secret = os.environ['SECRET_KEY'].encode()

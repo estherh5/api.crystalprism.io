@@ -7,6 +7,24 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Shipped
 
+- **2026-09** **Security audit follow-ups: login throttle, upload validation, profile field
+  types, token hardening.** `/api/login` refuses (429 + `Retry-After`) after 10 failures per
+  username or 30 per client IP in 15 minutes, even for the right password, and `/api/user` create
+  is capped at 5 accounts per IP per hour — counted in the new `auth_attempt` Postgres table
+  (`utils/throttle.py`), since in-memory counters cannot span Vercel instances; the IP is the
+  first `X-Forwarded-For` entry, which Vercel overwrites. `canvashare.create_drawing` decodes the
+  data URL strictly and accepts only a real PNG of at most 1 MB and 1000x1000 (the easel is
+  400x400), stored with `ContentType: image/png`. `user.update_user` returns 400 for a non-str
+  text field (email may still be null), a non-bool `*_public`, or a colour that is not `#rrggbb`.
+  `user.verify_token` checks the signature before parsing anything, so a malformed payload or a
+  missing `exp` is 401 rather than 500, and every token carries a `pwd` fingerprint of the
+  password hash (`user.password_fingerprint`), so changing the password revokes every older
+  token the API minted. `pwd` is optional: auth.crystalprism.io's bridge tokens
+  (`lib/legacy-token.ts#mintLegacyToken`) cannot derive it and still verify, and so do tokens
+  from before this deploy, until they expire within the hour. An unset
+  `ENV_TYPE` no longer raises at import (`server.py`, `user.origin_allowed`). Prod migration: the
+  additive `auth_attempt` table, applied 2026-09-29 after a backup and a rehearsal on a restore.
+
 - **2026-09** **HttpOnly cookie session alongside the Bearer token.** `user.verify_token` accepts
   the token from `Authorization: Bearer` (header wins; other schemes rejected) or the `cp_session`
   cookie, which `/api/login`, `update_user`'s re-mint and the new `POST /api/session` set
@@ -77,33 +95,13 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Next
 
-- [security] **No rate limit or lockout on `/api/login` and `/api/user` create (Medium).**
-  `server.py#login_route`, `user/user.py#login`. Fix: per-username/IP throttle, or retire the
-  Flask login now that ring exists.
-
-- [security] **Unvalidated upload in `canvashare.py#create_drawing` (Medium).** Only checks for
-  the substring `data:image/png;base64` — no size cap, no PNG decode/validation — before writing
-  bytes to the public S3 bucket. Fix: decode and validate the PNG header (PIL), cap size, set
-  ContentType.
-
-- [security] **`user/user.py#update_user` skips the markup check on non-str fields (Medium).** It
-  runs `isinstance(x, str) and contains_markup(x)`, so a non-str `about`/`email`/`first_name`/
-  `last_name` skips sanitisation entirely — the same class of gap `create_post` just closed. Fix:
-  reject non-str with 400, like `thought_writer.py#create_post`.
-
-- [security] **`background_color`/`icon_color` stored unchecked (Low).** Neither field is
-  validated as a colour before storage, and both are inserted into a `style=` attribute on read
-  (`user/user.py#read_user_data`, `templates/post.html`) — escaped but not CSS-validated. Fix:
-  validate both as hex colours.
-
-- [security] **`verify_token` uses `!=` for the HMAC compare, and has no revocation on password
-  change (Low).** `user/user.py#verify_token`: `!=` isn't constant-time; `data.split(' ')[1]` and
-  a missing `exp` claim raise uncaught 500s. Fix: `hmac.compare_digest`; guard the parsing.
-
-- [security] **CORS wildcard plus a `DEBUG` KeyError risk (Low).** `server.py#cors`:
-  `CORS(origins="*")` on `/api/*` (safe today only because auth is bearer-only) and `DEBUG=True`
-  when `ENV_TYPE=Dev`, which raises `KeyError` if `ENV_TYPE` is unset. Fix: keep bearer-only auth,
-  never add cookie auth; guard the `ENV_TYPE` lookup.
+- [security] **CORS answers `*` to every non-allowlisted origin (Low, accepted for now).**
+  `server.py#cors` still sends uncredentialed `Access-Control-Allow-Origin: *` on `/api/*`;
+  `server.py#credentialed_cors` overrides it only for `user.ALLOWED_ORIGINS`. Safe as shipped:
+  the `cp_session` cookie is SameSite=Strict, cookie-authenticated writes are Origin-checked in
+  `user.verify_token`, and browsers refuse a credentialed response carrying `*`. Revisit if any
+  route ever authenticates by cookie without going through `verify_token`, or if a
+  `*.crystalprism.io` sibling (same-site, so it does receive the cookie) needs to read one.
 
 ## Declined
 

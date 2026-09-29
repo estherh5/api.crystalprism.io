@@ -21,7 +21,7 @@ from math import floor
 from time import time
 
 from canvashare import canvashare
-from utils import sanitize
+from utils import sanitize, throttle
 
 
 # Usernames appear in URLs and S3 object keys, so they are restricted to
@@ -42,6 +42,12 @@ DEV_ORIGIN_PATTERN = re.compile(r'^http://(localhost|127\.0\.0\.1)(:\d+)?$')
 # them needs no Origin check
 SAFE_METHODS = ('GET', 'HEAD', 'OPTIONS')
 
+# Profile colours are stored in CHAR(7) columns and rendered into style=
+# attributes, so only '#rrggbb' is accepted
+COLOR_PATTERN = re.compile(r'^#[0-9a-fA-F]{6}$')
+
+TOKEN_LIFETIME = 60 * 60  # in seconds
+
 
 def origin_allowed(origin):
     if not origin:
@@ -50,8 +56,32 @@ def origin_allowed(origin):
     if origin in ALLOWED_ORIGINS:
         return True
 
-    return (os.environ['ENV_TYPE'] == 'Dev' and
+    return (os.environ.get('ENV_TYPE') == 'Dev' and
         bool(DEV_ORIGIN_PATTERN.match(origin)))
+
+
+def password_fingerprint(password_hash):
+    # Carried in every token and checked against the stored hash, so changing
+    # the password invalidates every token minted before the change
+    secret = os.environ['SECRET_KEY'].encode()
+
+    return hmac.new(secret, b'pwd:' + password_hash.encode(),
+        digestmod=sha256).hexdigest()[:32]
+
+
+def mint_token(username, password_hash, lifetime=TOKEN_LIFETIME):
+    header = urlsafe_b64encode(b'{"alg": "HS256", "typ": "JWT"}')
+    payload = urlsafe_b64encode(json.dumps({
+        'username': username,
+        'exp': floor(time() + lifetime),  # in seconds
+        'pwd': password_fingerprint(password_hash)
+        }).encode())
+    secret = os.environ['SECRET_KEY'].encode()
+    message = header + b'.' + payload
+    signature = hmac.new(secret, message, digestmod=sha256).digest()
+    signature = urlsafe_b64encode(signature)
+
+    return (message + b'.' + signature).decode()
 
 
 def set_session_cookie(response, token):
@@ -106,6 +136,15 @@ def login():
     username = data.username.strip()
     password = data.password
 
+    # Failures count against both the account and the address they came from;
+    # past either limit, even a correct password is turned away until it lapses
+    attempts = [(throttle.LOGIN_FAILURE_USER, username.lower()),
+                (throttle.LOGIN_FAILURE_IP, throttle.client_ip())]
+
+    wait = throttle.wait_seconds(attempts)
+    if wait:
+        return throttle.too_many(wait)
+
     # Set up database connection wtih environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
 
@@ -129,6 +168,7 @@ def login():
 
     # Return error if user account is not found
     if not user_data:
+        throttle.record(attempts)
         return make_response('Unauthorized', 401)
 
     # Otherwise, convert user data to dictionary
@@ -136,6 +176,7 @@ def login():
 
     # Return error if user account is deleted
     if user_data['status'] == 'deleted':
+        throttle.record(attempts)
         return make_response('Unauthorized', 401)
 
     # Check requested password against stored hashed and salted password;
@@ -149,23 +190,15 @@ def login():
         password_matches = False
 
     if password_matches:
+        throttle.clear(throttle.LOGIN_FAILURE_USER, username.lower())
 
         # Generate JWT token if password is correct
-        header = urlsafe_b64encode(b'{"alg": "HS256", "typ": "JWT"}')
-        payload = urlsafe_b64encode(json.dumps({
-            'username': user_data['username'],
-            'exp': floor(time() + (60 * 60))  # in seconds
-            }).encode())
-        secret = os.environ['SECRET_KEY'].encode()
-        message = header + b'.' + payload
-        signature = hmac.new(secret, message, digestmod=sha256).digest()
-        signature = urlsafe_b64encode(signature)
-        token = message + b'.' + signature
+        token = mint_token(user_data['username'], user_data['password'])
 
-        return set_session_cookie(make_response(token.decode(), 200),
-            token.decode())
+        return set_session_cookie(make_response(token, 200), token)
 
     # Return error otherwise
+    throttle.record(attempts)
     return make_response('Unauthorized', 401)
 
 
@@ -179,6 +212,11 @@ def create_user():
     if not data or 'username' not in data or 'password' not in data:
         return make_response('Request must contain username and password', 400)
 
+    # Return error if username or password is not a string
+    if (not isinstance(data['username'], str) or
+        not isinstance(data['password'], str)):
+            return make_response('Username and password must be strings', 400)
+
     username = data['username'].strip()
     password = data['password']
 
@@ -189,6 +227,13 @@ def create_user():
     # Return error if username contains unacceptable characters
     if not USERNAME_PATTERN.match(username):
         return make_response('Username contains unacceptable characters', 400)
+
+    # Cap how many accounts one address can create
+    signup = [(throttle.SIGNUP_IP, throttle.client_ip())]
+
+    wait = throttle.wait_seconds(signup)
+    if wait:
+        return throttle.too_many(wait)
 
     # Set up database connection wtih environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
@@ -236,6 +281,8 @@ def create_user():
 
     cursor.close()
     conn.close()
+
+    throttle.record(signup)
 
     return make_response('Success', 201)
 
@@ -441,6 +488,26 @@ def update_user(requester):
         'password' not in data or 'username' not in data):
             return make_response('Request is missing required data', 400)
 
+    # Return error if a field has the wrong type; text fields are checked for
+    # markup below, and a non-str would slip past that check unexamined
+    for field in ('about', 'first_name', 'last_name', 'password', 'username'):
+        if not isinstance(data[field], str):
+            return make_response(field + ' must be a string', 400)
+
+    if data['email'] is not None and not isinstance(data['email'], str):
+        return make_response('email must be a string or null', 400)
+
+    for field in ('email_public', 'name_public'):
+        if not isinstance(data[field], bool):
+            return make_response(field + ' must be true or false', 400)
+
+    # Return error if a colour is not '#rrggbb'
+    for field in ('background_color', 'icon_color'):
+        if (not isinstance(data[field], str) or
+            not COLOR_PATTERN.match(data[field])):
+                return make_response(field + " must be a '#rrggbb' colour",
+                    400)
+
     username = data['username'].strip()
     password = data['password']
 
@@ -456,9 +523,8 @@ def update_user(requester):
     for field, label in (('about', 'About'), ('email', 'Email'),
                          ('first_name', 'First name'),
                          ('last_name', 'Last name')):
-        if isinstance(data[field], str) and sanitize.contains_markup(
-            data[field]):
-                return make_response(label + " can't contain HTML.", 400)
+        if data[field] is not None and sanitize.contains_markup(data[field]):
+            return make_response(label + " can't contain HTML.", 400)
 
     # Set up database connection wtih environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])
@@ -562,22 +628,11 @@ def update_user(requester):
     cursor.close()
     conn.close()
 
-    # Update bearer token and return to requester
-    header = urlsafe_b64encode(b'{"alg": "HS256", "typ": "JWT"}')
-    payload = urlsafe_b64encode(
-        json.dumps({
-            'username': username,
-            'exp': floor(time() + (60 * 60))  # in seconds
-            }).encode()
-        )
-    secret = os.environ['SECRET_KEY'].encode()
-    message = header + b'.' + payload
-    signature = hmac.new(secret, message, digestmod=sha256).digest()
-    signature = urlsafe_b64encode(signature)
-    token = message + b'.' + signature
+    # Update bearer token and return to requester; a changed password changes
+    # the fingerprint, so every other token for this account stops verifying
+    token = mint_token(username, user_data['password'])
 
-    return set_session_cookie(make_response(token.decode(), 200),
-        token.decode())
+    return set_session_cookie(make_response(token, 200), token)
 
 
 def delete_user_soft(requester):
@@ -1156,8 +1211,29 @@ def verify_token():
     if not pattern.match(token):
         return make_response('Unauthorized', 401)
 
-    header = token.split('.')[0].encode()
-    payload = json.loads(urlsafe_b64decode(token.split('.')[1]).decode())
+    header, payload_segment, signature_segment = token.split('.')
+
+    # Check the signature before trusting anything the token claims
+    secret = os.environ['SECRET_KEY'].encode()
+    message = (header + '.' + payload_segment).encode()
+    signature_check = urlsafe_b64encode(
+        hmac.new(secret, message, digestmod=sha256).digest())
+    if not hmac.compare_digest(signature_segment.encode(), signature_check):
+        return make_response('Unauthorized', 401)
+
+    try:
+        payload = json.loads(urlsafe_b64decode(payload_segment).decode())
+    except ValueError:
+        return make_response('Unauthorized', 401)
+
+    # 'pwd' is optional: auth.crystalprism.io's bridge tokens
+    # (lib/legacy-token.ts#mintLegacyToken) have no password hash to derive it
+    # from, and neither do tokens minted before it existed
+    if (not isinstance(payload, dict) or
+        not isinstance(payload.get('username'), str) or
+        not isinstance(payload.get('exp'), (int, float)) or
+        not isinstance(payload.get('pwd', ''), str)):
+            return make_response('Unauthorized', 401)
 
     # Check if token is past expiration time
     if payload['exp'] < time():
@@ -1168,10 +1244,10 @@ def verify_token():
 
     cursor = conn.cursor()
 
-    # Verify that user account is active
+    # Verify that user account is active and its password is unchanged
     cursor.execute(
         """
-        SELECT status
+        SELECT status, password
           FROM cp_user
          WHERE LOWER(username) = %(username)s;
         """,
@@ -1191,15 +1267,10 @@ def verify_token():
     if user_status[0] == 'deleted':
         return make_response('Unauthorized', 401)
 
-    signature = urlsafe_b64decode(token.split('.')[2])
-
-    # Generate signature using secret to check against signature from Auth
-    # header
-    secret = os.environ['SECRET_KEY'].encode()
-    message = header + b'.' + urlsafe_b64encode(json.dumps(payload).encode())
-    signature_check = hmac.new(secret, message, digestmod=sha256).digest()
-    if not hmac.compare_digest(signature, signature_check):
-        return make_response('Unauthorized', 401)
+    # Return error if the password changed after the token was minted
+    if 'pwd' in payload and not hmac.compare_digest(payload['pwd'],
+        password_fingerprint(user_status[1])):
+            return make_response('Unauthorized', 401)
 
     return make_response(json.dumps(payload).encode(), 200)
 

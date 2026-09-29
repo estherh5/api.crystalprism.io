@@ -33,7 +33,7 @@ def credentialed_cors(response):
 
 
 cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
-if os.environ['ENV_TYPE'] == 'Dev':
+if os.environ.get('ENV_TYPE') == 'Dev':
     app.config['DEBUG'] = True
 
 

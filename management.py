@@ -161,6 +161,15 @@ def initialize_database():
                             (now() at time zone 'UTC',
                             'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS auth_attempt (
+            kind         TEXT        NOT NULL,
+            subject      TEXT        NOT NULL,
+            attempted_at TIMESTAMPTZ DEFAULT now() NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS auth_attempt_lookup
+            ON auth_attempt (kind, subject, attempted_at);
         """
         )
 
