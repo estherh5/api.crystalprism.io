@@ -403,6 +403,10 @@ class CrystalPrismTestCase(unittest.TestCase):
         )
         self.token = response.get_data(as_text=True)
 
+        # Login also sets the session cookie; drop it so tests act as a bearer
+        # client and a request without the header is truly anonymous
+        self.client.delete_cookie('cp_session', path='/api')
+
     # Delete test user as admin
     def delete_user(self, username_to_delete='test' + now,
         admin_username='admin' + now, admin_password='password'):

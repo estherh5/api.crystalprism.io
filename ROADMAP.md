@@ -7,6 +7,13 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Shipped
 
+- **2026-09** **HttpOnly cookie session alongside the Bearer token.** `user.verify_token` accepts
+  the token from `Authorization: Bearer` (header wins; other schemes rejected) or the `cp_session`
+  cookie, which `/api/login`, `update_user`'s re-mint and the new `POST /api/session` set
+  (HttpOnly, Secure, SameSite=Strict, Path=/api) and `POST /api/logout` clears. A cookie-authenticated
+  write must come from `user.ALLOWED_ORIGINS` or gets 403; `server.credentialed_cors` gives those
+  origins credentialed CORS. Bearer clients and the token format are unchanged.
+
 - **2026-09** **`ASTP001`'s password reset, the last legacy hash retired.** The row held a
   128-character hex string — a SHA-512 digest from before the app moved to bcrypt, never migrated,
   which is why it could not authenticate on any stack. Replaced with a bcrypt hash of a freshly

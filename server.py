@@ -12,6 +12,26 @@ from thought_writer import thought_writer
 from user import user
 
 app = Flask(__name__)
+
+
+# Allowlisted origins get their exact origin back plus credentials so the
+# browser will send and accept the session cookie; every other origin keeps
+# flask-cors's uncredentialed answer. Registered BEFORE CORS(app) because
+# after_request hooks run in reverse order: this has to run after flask-cors
+# has answered a preflight (flask-cors skips any response that already carries
+# Access-Control-Allow-Origin)
+@app.after_request
+def credentialed_cors(response):
+    response.vary.add('Origin')
+
+    origin = request.headers.get('Origin')
+    if request.path.startswith('/api/') and user.origin_allowed(origin):
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+
+    return response
+
+
 cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
 if os.environ['ENV_TYPE'] == 'Dev':
     app.config['DEBUG'] = True
@@ -164,6 +184,13 @@ def login_route():
     # username and password stored for a user account and return JWT if so
     if request.method == 'GET':
         return user.login()
+
+
+@app.route('/api/logout', methods=['POST'])
+def logout_route():
+    # Clear the session cookie
+    if request.method == 'POST':
+        return user.delete_session()
 
 
 @app.route('/api/ping', methods=['GET'])
@@ -439,6 +466,14 @@ def user_comments(commenter_name):
     # needed; query params specify number of comments
     if request.method == 'GET':
         return thought_writer.read_comments_for_one_user(commenter_name)
+
+
+@app.route('/api/session', methods=['POST'])
+def session_route():
+    # Exchange a verified bearer token in the request Authorization header for
+    # an HttpOnly session cookie holding the same token
+    if request.method == 'POST':
+        return user.create_session()
 
 
 @app.route('/api/user', methods=['POST'])

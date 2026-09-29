@@ -29,6 +29,69 @@ from utils import sanitize
 # username, not just account creation.
 USERNAME_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
 
+# The browser session: the same JWT a Bearer client gets, held in an HttpOnly
+# cookie so the site never has to store it in script-readable storage
+SESSION_COOKIE = 'cp_session'
+
+# Origins allowed to send the session cookie on a state-changing request and
+# to receive credentialed CORS responses; any localhost port in Dev only
+ALLOWED_ORIGINS = ('https://crystalprism.io', 'https://www.crystalprism.io')
+DEV_ORIGIN_PATTERN = re.compile(r'^http://(localhost|127\.0\.0\.1)(:\d+)?$')
+
+# Methods that do not change state, so a cookie-authenticated request with
+# them needs no Origin check
+SAFE_METHODS = ('GET', 'HEAD', 'OPTIONS')
+
+
+def origin_allowed(origin):
+    if not origin:
+        return False
+
+    if origin in ALLOWED_ORIGINS:
+        return True
+
+    return (os.environ['ENV_TYPE'] == 'Dev' and
+        bool(DEV_ORIGIN_PATTERN.match(origin)))
+
+
+def set_session_cookie(response, token):
+    # Cookie lives exactly as long as the token it holds
+    payload = json.loads(urlsafe_b64decode(token.split('.')[1]).decode())
+    response.set_cookie(SESSION_COOKIE, token,
+        max_age=max(0, payload['exp'] - floor(time())), path='/api',
+        secure=True, httponly=True, samesite='Strict')
+
+    return response
+
+
+def create_session():
+    # Request should contain Authorization header:
+    # 'Bearer <token>' <str>; the verified token becomes the session cookie
+    if not origin_allowed(request.headers.get('Origin')):
+        return make_response('Forbidden', 403)
+
+    authorization = request.headers.get('Authorization', '')
+    if not authorization.startswith('Bearer '):
+        return make_response('Unauthorized', 401)
+
+    verification = verify_token()
+    if verification.status_code != 200:
+        return verification
+
+    return set_session_cookie(make_response('', 204),
+        authorization[len('Bearer '):])
+
+
+def delete_session():
+    if not origin_allowed(request.headers.get('Origin')):
+        return make_response('Forbidden', 403)
+
+    response = make_response('', 204)
+    response.delete_cookie(SESSION_COOKIE, path='/api', secure=True,
+        httponly=True, samesite='Strict')
+
+    return response
+
 
 def login():
     # Request should contain Authorization header:
@@ -99,7 +162,8 @@ def login():
         signature = urlsafe_b64encode(signature)
         token = message + b'.' + signature
 
-        return make_response(token.decode(), 200)
+        return set_session_cookie(make_response(token.decode(), 200),
+            token.decode())
 
     # Return error otherwise
     return make_response('Unauthorized', 401)
@@ -510,7 +574,8 @@ def update_user(requester):
     signature = urlsafe_b64encode(signature)
     token = message + b'.' + signature
 
-    return make_response(token.decode(), 200)
+    return set_session_cookie(make_response(token.decode(), 200),
+        token.decode())
 
 
 def delete_user_soft(requester):
@@ -1061,14 +1126,26 @@ def delete_user_hard(requester, username):
 
 def verify_token():
     # Request should contain Authorization header:
-    # 'Bearer <token>' <str>
+    # 'Bearer <token>' <str>, or the session cookie; the header wins if both
     data = request.headers.get('Authorization')
+    token = request.cookies.get(SESSION_COOKIE)
 
-    if not data:
+    if not data and not token:
         return make_response('Unauthorized', 401,
             {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
-    token = data.split(' ')[1]
+    if data:
+        # Basic credentials are for /api/login only
+        if not data.startswith('Bearer '):
+            return make_response('Unauthorized', 401)
+
+        token = data[len('Bearer '):]
+
+    # A cookie is sent by the browser on its own, so a state-changing request
+    # authenticated by it must come from an allowed origin (CSRF)
+    elif (request.method not in SAFE_METHODS and
+        not origin_allowed(request.headers.get('Origin'))):
+        return make_response('Forbidden', 403)
 
     # Check if token in Authorization header is properly formatted
     pattern = re.compile(
@@ -1119,7 +1196,7 @@ def verify_token():
     secret = os.environ['SECRET_KEY'].encode()
     message = header + b'.' + urlsafe_b64encode(json.dumps(payload).encode())
     signature_check = hmac.new(secret, message, digestmod=sha256).digest()
-    if signature != signature_check:
+    if not hmac.compare_digest(signature, signature_check):
         return make_response('Unauthorized', 401)
 
     return make_response(json.dumps(payload).encode(), 200)
