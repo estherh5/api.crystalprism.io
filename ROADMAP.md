@@ -53,9 +53,56 @@ Committed doc, not scratch. Kept current by hand as work ships.
   HTTPS. Nightly logical dumps now run via `~/blob-backups`
   (`backup.sh` step 2b → `pg/crystalprism.sql`), restore-verified end to end.
 
+- **2026-09** **Rich text sanitised on write; markup rejected in plain-text fields; non-str
+  content/title → 400.** `thought_writer.py` and `canvashare.py` now run post/comment content and
+  titles through a shared sanitise-on-write allowlist (`utils/sanitize.py`) before storage,
+  matching the client-side fix in crystalprism.io; `create_post`/`update_post`/`create_comment`/
+  `update_comment` and `canvashare.create_drawing` reject a non-str `content`/`title` with 400
+  instead of sanitising `None` or a list. Image `src` inside rich text is restricted to raster
+  `data:image/(png|jpeg|gif|webp)` and `https?:` (`utils/sanitize.py#_SRC`) —
+  `data:image/svg+xml` was accepted in review round 1 and tightened, since SVG can carry a
+  `<script>`. `test_sanitize`: 11 pass; full suite 171/174 (same 3 pre-existing `canvashare`
+  failures on an untouched baseline); 30 real production posts parity-verified byte-identical.
+  Commits 0dd2ce0, d549228.
+  **NOTE: pushed but NOT yet deployed.** `vercel --prod --yes` on 2026-09-28 was refused by
+  Vercel's `api-deployments-free-per-day` Hobby cap; this project is not git-connected, so nothing
+  else deploys it. Production is still serving the build from 21 days earlier. See the dated item
+  under `## Next`.
+
 ## Next
 
-_Nothing outstanding._
+- [from 2026-09-29] **Deploy the XSS fixes (0dd2ce0, d549228).** `vercel --prod --yes` was
+  refused on 2026-09-28 by the Hobby `api-deployments-free-per-day` cap; this project does not
+  auto-deploy from git. Run `vercel --prod --yes` once the cap resets, then verify: POST a non-str
+  `content` to `/api/post` (or `/api/comment`) and confirm a live 400, not a 500 or a stored value.
+
+- [security] **No rate limit or lockout on `/api/login` and `/api/user` create (Medium).**
+  `server.py#login_route`, `user/user.py#login`. Fix: per-username/IP throttle, or retire the
+  Flask login now that ring exists.
+
+- [security] **Unvalidated upload in `canvashare.py#create_drawing` (Medium).** Only checks for
+  the substring `data:image/png;base64` — no size cap, no PNG decode/validation — before writing
+  bytes to the public S3 bucket. Fix: decode and validate the PNG header (PIL), cap size, set
+  ContentType.
+
+- [security] **`user/user.py#update_user` skips the markup check on non-str fields (Medium).** It
+  runs `isinstance(x, str) and contains_markup(x)`, so a non-str `about`/`email`/`first_name`/
+  `last_name` skips sanitisation entirely — the same class of gap `create_post` just closed. Fix:
+  reject non-str with 400, like `thought_writer.py#create_post`.
+
+- [security] **`background_color`/`icon_color` stored unchecked (Low).** Neither field is
+  validated as a colour before storage, and both are inserted into a `style=` attribute on read
+  (`user/user.py#read_user_data`, `templates/post.html`) — escaped but not CSS-validated. Fix:
+  validate both as hex colours.
+
+- [security] **`verify_token` uses `!=` for the HMAC compare, and has no revocation on password
+  change (Low).** `user/user.py#verify_token`: `!=` isn't constant-time; `data.split(' ')[1]` and
+  a missing `exp` claim raise uncaught 500s. Fix: `hmac.compare_digest`; guard the parsing.
+
+- [security] **CORS wildcard plus a `DEBUG` KeyError risk (Low).** `server.py#cors`:
+  `CORS(origins="*")` on `/api/*` (safe today only because auth is bearer-only) and `DEBUG=True`
+  when `ENV_TYPE=Dev`, which raises `KeyError` if `ENV_TYPE` is unset. Fix: keep bearer-only auth,
+  never add cookie auth; guard the `ENV_TYPE` lookup.
 
 ## Declined
 
