@@ -62,9 +62,11 @@ class TestRichTextSanitiser(unittest.TestCase):
 
     def test_contains_markup(self):
         contains = self.sanitize.contains_markup
-        for text in (IMG_ONERROR, SCRIPT, '</b>', '<!-- x -->', TITLE_XSS):
+        for text in (IMG_ONERROR, SCRIPT, '</b>', '<!-- x -->', TITLE_XSS,
+                     '<b>', 'a<img src=x>', '&lt;', '&#60;', '&#x3c;'):
             self.assertTrue(contains(text), text)
-        for text in ('I <3 cats', 'a < b > c', '< img>', 'Tom & Jerry', 'naïve 🎨',
+        for text in ('I <3 cats', 'a < b > c', '< img>', 'Tom & Jerry', 'naïve 🎨', 'a<b', 'x < y', '3<4 & 5>2',
+                     'AT&T', 'a & b; c',
                      'test@crystalprism.io'):
             self.assertFalse(contains(text), text)
 
@@ -119,7 +121,7 @@ class TestSanitiseOnWrite(CrystalPrismTestCase):
                 'content': 'Test', 'public': True, 'title': TITLE_XSS})
             self.assertEqual(response.status_code, 400, method)
             self.assertEqual(response.get_data(as_text=True),
-                             'Post title cannot contain HTML')
+                             "Post title can't contain HTML.")
 
     def test_comment_content_stored_sanitised(self):
         header = self.auth()
@@ -161,12 +163,14 @@ class TestSanitiseOnWrite(CrystalPrismTestCase):
 
     def test_user_plain_text_fields_reject_markup(self):
         header = self.auth()
-        for field in ('about', 'email', 'first_name', 'last_name'):
+        for field, label in (('about', 'About'), ('email', 'Email'),
+                             ('first_name', 'First name'),
+                             ('last_name', 'Last name')):
             response = self.send('patch', '/api/user/' + self.username,
                 header, self.user_data(**{field: 'x' + IMG_ONERROR}))
             self.assertEqual(response.status_code, 400, field)
             self.assertEqual(response.get_data(as_text=True),
-                             'Profile fields cannot contain HTML', field)
+                             label + " can't contain HTML.", field)
 
         # Plain text with '<' and '&' that is not markup is still accepted
         response = self.send('patch', '/api/user/' + self.username, header,
@@ -225,4 +229,4 @@ class TestSanitiseOnWrite(CrystalPrismTestCase):
                              {'drawing': drawing, 'title': TITLE_XSS})
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_data(as_text=True),
-                         'Drawing title cannot contain HTML')
+                         "Drawing title can't contain HTML.")

@@ -42,7 +42,7 @@ def create_post(requester):
 
     # Return error if title contains HTML (titles are plain text)
     if sanitize.contains_markup(data['title']):
-        return make_response('Post title cannot contain HTML', 400)
+        return make_response("Post title can't contain HTML.", 400)
 
     # Return error if public status is not boolean
     if not isinstance(data['public'], bool):
@@ -216,7 +216,7 @@ def update_post(requester, post_id):
 
     # Return error if title contains HTML (titles are plain text)
     if sanitize.contains_markup(data['title']):
-        return make_response('Post title cannot contain HTML', 400)
+        return make_response("Post title can't contain HTML.", 400)
 
     # Return error if public status is not boolean
     if not isinstance(data['public'], bool):

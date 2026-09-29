@@ -35,7 +35,7 @@ def create_drawing(requester):
 
     # Return error if title contains HTML (titles are plain text)
     if sanitize.contains_markup(data['title']):
-        return make_response('Drawing title cannot contain HTML', 400)
+        return make_response("Drawing title can't contain HTML.", 400)
 
     # Remove 'data:image/png;base64' from image data URL
     drawing = decodebytes(data['drawing'].split(',')[1].encode('utf-8'))

@@ -453,10 +453,12 @@ def update_user(requester):
         return make_response('Username contains unacceptable characters', 400)
 
     # Return error if a profile field contains HTML (they are plain text)
-    for field in ('about', 'email', 'first_name', 'last_name'):
+    for field, label in (('about', 'About'), ('email', 'Email'),
+                         ('first_name', 'First name'),
+                         ('last_name', 'Last name')):
         if isinstance(data[field], str) and sanitize.contains_markup(
             data[field]):
-                return make_response('Profile fields cannot contain HTML', 400)
+                return make_response(label + " can't contain HTML.", 400)
 
     # Set up database connection wtih environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])

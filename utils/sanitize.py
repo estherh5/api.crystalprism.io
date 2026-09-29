@@ -47,9 +47,11 @@ _SRC = re.compile(r'^(?:https?:|data:image/(?:png|jpe?g|gif|webp)[;,])',
 _VALUE_CHECKS = {'style': _STYLE, 'align': _ALIGN, 'color': _COLOR,
                  'href': _HREF, 'src': _SRC}
 
-# What an HTML parser opens a tag, end tag, comment or doctype on: '<' then
-# a letter, '/', '!' or '?'. '<3', 'a < b' and '< img>' stay text
-_MARKUP = re.compile(r'<[a-zA-Z/!?]')
+# A complete tag (open, close, doctype, processing instruction), a comment
+# opener, or an HTML entity. A bare '<' -- 'a<b', 'x < y', '3<4 & 5>2', '<3' --
+# is ordinary text and stays allowed
+_MARKUP = re.compile(r'<[/!?]?[a-zA-Z][^<>]*>|<!--'
+                     r'|&(?:#\d+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);')
 
 
 def _keep_valid_value(tag, attribute, value):
