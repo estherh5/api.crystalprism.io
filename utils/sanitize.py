@@ -39,8 +39,10 @@ _STYLE = re.compile(
 _ALIGN = re.compile(r'^(?:left|right|center|justify)$', re.IGNORECASE)
 _COLOR = re.compile(r'^(?:#[0-9a-f]{3,8}|[a-z]+)$', re.IGNORECASE)
 _HREF = re.compile(r'^(?:https?|mailto):', re.IGNORECASE)
-# Pasted images arrive as data: URIs; an <img> cannot run script from one
-_SRC = re.compile(r'^(?:https?:|data:image/)', re.IGNORECASE)
+# Pasted images arrive as data: URIs; restricted to raster mime types so a
+# data:image/svg+xml (which can carry its own <script> or onload) is stripped
+_SRC = re.compile(r'^(?:https?:|data:image/(?:png|jpe?g|gif|webp)[;,])',
+                  re.IGNORECASE)
 
 _VALUE_CHECKS = {'style': _STYLE, 'align': _ALIGN, 'color': _COLOR,
                  'href': _HREF, 'src': _SRC}

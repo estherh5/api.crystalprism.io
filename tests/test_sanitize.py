@@ -51,6 +51,15 @@ class TestRichTextSanitiser(unittest.TestCase):
     def test_editor_formatting_survives_unchanged(self):
         self.assertEqual(self.sanitize.clean_rich_text(FORMATTED), FORMATTED)
 
+    def test_svg_data_uri_stripped_png_survives(self):
+        clean = self.sanitize.clean_rich_text
+        self.assertEqual(
+            clean('<img src="data:image/svg+xml;base64,'
+                  'PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+">'),
+            '<img>')
+        png = '<img src="data:image/png;base64,iVBORw0KGgo=">'
+        self.assertEqual(clean(png), png)
+
     def test_contains_markup(self):
         contains = self.sanitize.contains_markup
         for text in (IMG_ONERROR, SCRIPT, '</b>', '<!-- x -->', TITLE_XSS):
@@ -166,6 +175,45 @@ class TestSanitiseOnWrite(CrystalPrismTestCase):
         user_data = json.loads(self.client.get(
             '/api/user/' + self.username).get_data(as_text=True))
         self.assertEqual(user_data['about'], 'I <3 drawing & games')
+
+    def test_non_string_content_and_title_rejected(self):
+        header = self.auth()
+
+        response = self.send('post', '/api/thought-writer/post', header, {
+            'content': ['x'], 'public': True, 'title': 'Test'})
+        self.assertEqual(response.status_code, 400, 'create_post content')
+        self.assertEqual(response.get_data(as_text=True),
+                         'Post content must be a string')
+
+        response = self.send('post', '/api/thought-writer/post', header, {
+            'content': 'Test', 'public': True, 'title': ['x']})
+        self.assertEqual(response.status_code, 400, 'create_post title')
+        self.assertEqual(response.get_data(as_text=True),
+                         'Post title must be a string')
+
+        response = self.send('patch', '/api/thought-writer/post/1', header, {
+            'content': ['x'], 'public': True, 'title': 'Test'})
+        self.assertEqual(response.status_code, 400, 'update_post content')
+        self.assertEqual(response.get_data(as_text=True),
+                         'Post content must be a string')
+
+        response = self.send('post', '/api/thought-writer/comment', header, {
+            'content': ['x'], 'post_id': 1})
+        self.assertEqual(response.status_code, 400, 'create_comment')
+        self.assertEqual(response.get_data(as_text=True),
+                         'Comment content must be a string')
+
+        response = self.send('patch', '/api/thought-writer/comment/1',
+            header, {'content': ['x']})
+        self.assertEqual(response.status_code, 400, 'update_comment')
+        self.assertEqual(response.get_data(as_text=True),
+                         'Comment content must be a string')
+
+        response = self.send('post', '/api/canvashare/drawing', header,
+            {'drawing': 'data:image/png;base64,x', 'title': ['x']})
+        self.assertEqual(response.status_code, 400, 'create_drawing title')
+        self.assertEqual(response.get_data(as_text=True),
+                         'Drawing title must be a string')
 
     @patch('canvashare.canvashare.boto3')
     def test_drawing_title_markup_rejected(self, boto3):
