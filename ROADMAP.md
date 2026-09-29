@@ -64,17 +64,11 @@ Committed doc, not scratch. Kept current by hand as work ships.
   `<script>`. `test_sanitize`: 11 pass; full suite 171/174 (same 3 pre-existing `canvashare`
   failures on an untouched baseline); 30 real production posts parity-verified byte-identical.
   Commits 0dd2ce0, d549228.
-  **NOTE: pushed but NOT yet deployed.** `vercel --prod --yes` on 2026-09-28 was refused by
-  Vercel's `api-deployments-free-per-day` Hobby cap; this project is not git-connected, so nothing
-  else deploys it. Production is still serving the build from 21 days earlier. See the dated item
-  under `## Next`.
+  Deployed 2026-09-29, by the first git-triggered build after the project was git-connected
+  (production branch `main`). Before that, only `vercel --prod --yes` deployed it, and a push
+  produced no build.
 
 ## Next
-
-- [from 2026-09-29] **Deploy the XSS fixes (0dd2ce0, d549228).** `vercel --prod --yes` was
-  refused on 2026-09-28 by the Hobby `api-deployments-free-per-day` cap; this project does not
-  auto-deploy from git. Run `vercel --prod --yes` once the cap resets, then verify: POST a non-str
-  `content` to `/api/post` (or `/api/comment`) and confirm a live 400, not a 500 or a stored value.
 
 - [security] **No rate limit or lockout on `/api/login` and `/api/user` create (Medium).**
   `server.py#login_route`, `user/user.py#login`. Fix: per-username/IP throttle, or retire the
