@@ -6,6 +6,7 @@ import psycopg2.extras
 from flask import jsonify, make_response, request
 
 from user import user
+from utils import sanitize
 
 
 def create_post(requester):
@@ -20,6 +21,10 @@ def create_post(requester):
         'title' not in data):
             return make_response('Request is missing required data', 400)
 
+    # Keep only the markup the post editor produces
+    if isinstance(data['content'], str):
+        data['content'] = sanitize.clean_rich_text(data['content'])
+
     # Return error if post is blank
     if not data['content']:
         return make_response('Post cannot be blank', 400)
@@ -27,6 +32,11 @@ def create_post(requester):
     # Return error if title is blank
     if not data['title']:
         return make_response('Post title cannot be blank', 400)
+
+    # Return error if title contains HTML (titles are plain text)
+    if isinstance(data['title'], str) and sanitize.contains_markup(
+        data['title']):
+            return make_response('Post title cannot contain HTML', 400)
 
     # Return error if public status is not boolean
     if not isinstance(data['public'], bool):
@@ -179,6 +189,10 @@ def update_post(requester, post_id):
         'title' not in data):
             return make_response('Request is missing required data', 400)
 
+    # Keep only the markup the post editor produces
+    if isinstance(data['content'], str):
+        data['content'] = sanitize.clean_rich_text(data['content'])
+
     # Return error if post is blank
     if not data['content']:
         return make_response('Post cannot be blank', 400)
@@ -186,6 +200,11 @@ def update_post(requester, post_id):
     # Return error if title is blank
     if not data['title']:
         return make_response('Post title cannot be blank', 400)
+
+    # Return error if title contains HTML (titles are plain text)
+    if isinstance(data['title'], str) and sanitize.contains_markup(
+        data['title']):
+            return make_response('Post title cannot contain HTML', 400)
 
     # Return error if public status is not boolean
     if not isinstance(data['public'], bool):
@@ -538,6 +557,10 @@ def create_comment(requester):
     if not isinstance(data['post_id'], int):
         return make_response('Post id must be an integer', 400)
 
+    # Keep only the markup the comment box produces
+    if isinstance(data['content'], str):
+        data['content'] = sanitize.clean_rich_text(data['content'])
+
     # Return error if comment is blank
     if not data['content']:
         return make_response('Comment cannot be blank', 400)
@@ -706,6 +729,10 @@ def update_comment(requester, comment_id):
     # Return error if request is missing data
     if not data or 'content' not in data:
         return make_response('Request must contain comment content', 400)
+
+    # Keep only the markup the comment box produces
+    if isinstance(data['content'], str):
+        data['content'] = sanitize.clean_rich_text(data['content'])
 
     # Return error if comment is blank
     if not data['content']:

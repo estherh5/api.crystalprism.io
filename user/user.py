@@ -21,6 +21,7 @@ from math import floor
 from time import time
 
 from canvashare import canvashare
+from utils import sanitize
 
 
 # Usernames appear in URLs and S3 object keys, so they are restricted to
@@ -386,6 +387,12 @@ def update_user(requester):
     # Return error if username contains unacceptable characters
     if not USERNAME_PATTERN.match(username):
         return make_response('Username contains unacceptable characters', 400)
+
+    # Return error if a profile field contains HTML (they are plain text)
+    for field in ('about', 'email', 'first_name', 'last_name'):
+        if isinstance(data[field], str) and sanitize.contains_markup(
+            data[field]):
+                return make_response('Profile fields cannot contain HTML', 400)
 
     # Set up database connection wtih environment variable
     conn = pg.connect(os.environ['DB_CONNECTION'])

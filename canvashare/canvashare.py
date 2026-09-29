@@ -8,6 +8,7 @@ from flask import jsonify, make_response, request
 
 from canvashare.hashing import average_hash
 from user import user
+from utils import sanitize
 
 
 def create_drawing(requester):
@@ -27,6 +28,11 @@ def create_drawing(requester):
     # Return error if title is blank
     if not data['title']:
         return make_response('Drawing title cannot be blank', 400)
+
+    # Return error if title contains HTML (titles are plain text)
+    if isinstance(data['title'], str) and sanitize.contains_markup(
+        data['title']):
+            return make_response('Drawing title cannot contain HTML', 400)
 
     # Remove 'data:image/png;base64' from image data URL
     drawing = decodebytes(data['drawing'].split(',')[1].encode('utf-8'))
