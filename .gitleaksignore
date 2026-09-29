@@ -1,0 +1,7 @@
+# security audit 2026-09-28: sample users.json record (demo account salted hash + salt)
+f8b85f1427222ccf21d1991c92f05315bef47468:user/users.json:generic-api-key:1
+f32458813b6254fa4c06f854ab286a70b9127fa1:user/users.json:generic-api-key:1
+8848add3dcadc63306ee94cd39815186afcd4587:user/users.json:generic-api-key:1
+b459f047d8e9c2ff5f9eff0b0dddb83e29b1ab70:user/users.json:generic-api-key:1
+# security audit 2026-09-28: README schema example, truncated password-hash placeholder
+8d8f3c6ee1386551510834a3aa59f37a30554917:README.md:generic-api-key:329
