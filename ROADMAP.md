@@ -95,6 +95,8 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Next
 
+- **`tests/test_security.py` `TestDrawingUpload.test_valid_png_stored_as_image_png` fails locally with the `.travis.yml` env** — 500 from `KeyError: 'S3_BUCKET'` in the upload path even with `S3_BUCKET` set, so something reads or clears the env before the request. Pre-existing on `30fc3f1`'s parent; unrelated to auth.
+
 ## Declined
 
 - **Narrowing CORS below `*` for non-allowlisted origins (Low).** Accepted 2026-09-29 after re-checking
