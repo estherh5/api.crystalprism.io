@@ -1194,9 +1194,11 @@ def verify_token():
     data = request.headers.get('Authorization')
     token = request.cookies.get(SESSION_COOKIE)
 
+    # No Basic challenge: pages call this with credentials on every load, and
+    # a challenge makes the browser raise a sign-in prompt for a signed-out
+    # visitor (the fetch waits on it, so the page looks hung)
     if not data and not token:
-        return make_response('Unauthorized', 401,
-            {'WWW-Authenticate': 'Basic realm="Login required!"'})
+        return make_response('Unauthorized', 401)
 
     if data:
         # Basic credentials are for /api/login only

@@ -1054,6 +1054,9 @@ class TestVerify(CrystalPrismTestCase):
         # Assert
         self.assertEqual(get_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
+        # Every page asks on load with credentials; a Basic challenge would
+        # make the browser raise a sign-in prompt for a signed-out visitor
+        self.assertNotIn('WWW-Authenticate', get_response.headers)
 
     def test_verify_get_format_error(self):
         # Arrange
