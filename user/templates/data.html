@@ -21,7 +21,7 @@
       <!-- User's username -->
       <div class="w-100 align-items-center">
         <div class="d-flex flex-column justify-content-center align-items-center">
-          <h1 id="profile-title"><a href="https://crystalprism.io/user/?username={{ username }}">{{ username }}</a></h1>
+          <h1 id="profile-title"><a href="https://account.crystalprism.io/?username={{ username }}">{{ username }}</a></h1>
         </div>
       </div>
 
@@ -79,7 +79,7 @@
 
       <!-- User's Shapes in Rain scores -->
       <div class="content-row w-100 d-flex flex-column align-items-center justify-content-center">
-        <div class="row-title"><a href="https://crystalprism.io/shapes-in-rain">Shapes in Rain</a> Scores ({{ shapes_scores|length }})</div>
+        <div class="row-title"><a href="https://shapes-in-rain.crystalprism.io">Shapes in Rain</a> Scores ({{ shapes_scores|length }})</div>
         <div class="w-100 d-flex flex-column align-items-center justify-content-center">
           {% if shapes_scores|length > 0 %}
             <table>
@@ -101,7 +101,7 @@
 
       <!-- User's Rhythm of Life scores -->
       <div class="content-row w-100 d-flex flex-column align-items-center justify-content-center">
-        <div class="row-title"><a href="https://crystalprism.io/rhythm-of-life">Rhythm of Life</a> Scores ({{ rhythm_scores|length }})</div>
+        <div class="row-title"><a href="https://rhythm-of-life.crystalprism.io">Rhythm of Life</a> Scores ({{ rhythm_scores|length }})</div>
         <div class="w-100 d-flex flex-column align-items-center justify-content-center">
           {% if rhythm_scores|length > 0 %}
             <table>
@@ -123,12 +123,12 @@
 
       <!-- User's CanvaShare drawings -->
       <div class="content-row w-100 d-flex flex-column align-items-center justify-content-center">
-        <div class="row-title"><a href="https://crystalprism.io/canvashare">CanvaShare</a> Drawings ({{ drawings|length }})</div>
+        <div class="row-title"><a href="https://canvashare.crystalprism.io">CanvaShare</a> Drawings ({{ drawings|length }})</div>
         <div class="w-100 d-flex flex-row flex-wrap align-items-center justify-content-center">
           {% for drawing in drawings %}
             <div class="content-container d-flex flex-column align-items-center justify-content-center">
               <div class="container-title">
-                <a href="https://crystalprism.io/canvashare/easel/?drawing={{ drawing['drawing_id'] }}">{{ drawing['title'] }}</a>
+                <a href="https://canvashare.crystalprism.io/easel/?drawing={{ drawing['drawing_id'] }}">{{ drawing['title'] }}</a>
               </div>
               <a href="drawings/{{ drawing['drawing_id'] }}.html">
                 <img class="drawing" src="{{ drawing['url'] }}">
@@ -145,19 +145,19 @@
 
       <!-- User's liked CanvaShare drawings -->
       <div class="content-row row no-gutters w-100 d-flex flex-column align-items-center justify-content-center">
-        <div class="row-title"><a href="https://crystalprism.io/canvashare">CanvaShare</a> Liked Drawings ({{ liked_drawings|length }})</div>
+        <div class="row-title"><a href="https://canvashare.crystalprism.io">CanvaShare</a> Liked Drawings ({{ liked_drawings|length }})</div>
         <div class="w-100 d-flex flex-row flex-wrap align-items-center justify-content-center">
           {% for drawing in liked_drawings %}
             <div class="content-container d-flex flex-column align-items-center justify-content-center">
               <div class="container-title">
-                <a href="https://crystalprism.io/canvashare/easel/?drawing={{ drawing['drawing_id'] }}">{{ drawing['title'] }}</a>
+                <a href="https://canvashare.crystalprism.io/easel/?drawing={{ drawing['drawing_id'] }}">{{ drawing['title'] }}</a>
               </div>
               <a href="drawings/{{ drawing['drawing_id'] }}.html">
                 <img class="drawing" src="{{ drawing['url'] }}">
               </a>
               <div class="info">
                 <div>
-                  <a href="https://crystalprism.io/user/?username={{ drawing['artist_name'] }}">Artist: {{ drawing['artist_name'] }}</a>
+                  <a href="https://account.crystalprism.io/?username={{ drawing['artist_name'] }}">Artist: {{ drawing['artist_name'] }}</a>
                 </div>
                 <div class="mt-2">Liked: {{ drawing['created'] }}</div>
               </div>
@@ -168,13 +168,13 @@
 
       <!-- User's Thought Writer posts -->
       <div class="content-row w-100 d-flex flex-column align-items-center justify-content-center hidden">
-        <div class="row-title"><a href="https://crystalprism.io/thought-writer">Thought Writer</a> Posts ({{ posts|length }})</div>
+        <div class="row-title"><a href="https://thought-writer.crystalprism.io">Thought Writer</a> Posts ({{ posts|length }})</div>
         <div class="w-100 d-flex flex-row flex-wrap align-items-center justify-content-center">
           {% for post in posts %}
             <div class="content-container d-flex flex-column align-items-center justify-content-center">
               <div class="container-title">
                 {% if post['public'] %}
-                  <a href="https://crystalprism.io/thought-writer/post/?post={{ post['post_id'] }}">{{ post['title'] }}</a>
+                  <a href="https://thought-writer.crystalprism.io/post/?post={{ post['post_id'] }}">{{ post['title'] }}</a>
                 {% else %}
                   {{ post['title'] }}
                 {% endif %}
@@ -187,7 +187,7 @@
                 <div class="mt-2">Last Modified: {{ post['modified'] }}</div>
                 {% if post['public'] %}
                   <div class="mt-2">
-                    <a href="https://crystalprism.io/thought-writer/post/?post={{ post['post_id'] }}#comments">Comments: {{ post['comment_count'] }}</a>
+                    <a href="https://thought-writer.crystalprism.io/post/?post={{ post['post_id'] }}#comments">Comments: {{ post['comment_count'] }}</a>
                   </div>
                 {% else %}
                   <div class="mt-2">Private post</div>
@@ -203,7 +203,7 @@
 
       <!-- User's Thought Writer comments -->
       <div class="content-row w-100 d-flex flex-column align-items-center justify-content-center hidden">
-        <div class="row-title"><a href="https://crystalprism.io/thought-writer">Thought Writer</a> Comments ({{ comments|length }})</div>
+        <div class="row-title"><a href="https://thought-writer.crystalprism.io">Thought Writer</a> Comments ({{ comments|length }})</div>
         <div class="w-100 d-flex flex-row flex-wrap align-items-center justify-content-center">
           {% for comment in comments %}
             <div class="content-container d-flex flex-column align-items-center justify-content-center">
@@ -214,10 +214,10 @@
                 <div>Created: {{ comment['created'] }}</div>
                 <div class="mt-2">Last Modified: {{ comment['modified'] }}</div>
                 <div class="mt-2">
-                  <a href="https://crystalprism.io/thought-writer/post/?post={{ comment['post_id'] }}#comment{{ comment['comment_id'] }}">Post: {{ comment['title'] }}</a>
+                  <a href="https://thought-writer.crystalprism.io/post/?post={{ comment['post_id'] }}#comment{{ comment['comment_id'] }}">Post: {{ comment['title'] }}</a>
                 </div>
                 <div class="mt-2">
-                  <a href="https://crystalprism.io/user/?username={{ comment['post_writer'] }}">Post Writer: {{ comment['post_writer'] }}</a>
+                  <a href="https://account.crystalprism.io/?username={{ comment['post_writer'] }}">Post Writer: {{ comment['post_writer'] }}</a>
                 </div>
                 <div class="mt-2">
                   <a href="comments/{{ comment['comment_id'] }}.html">View comment edit history</a>

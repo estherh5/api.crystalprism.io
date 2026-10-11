@@ -316,3 +316,30 @@ class TestEnvType(CrystalPrismTestCase):
 
             self.assertFalse(user.origin_allowed('http://localhost:3000'))
             self.assertTrue(user.origin_allowed('https://crystalprism.io'))
+
+
+# Test that every legacy app subdomain is an allowed origin, and lookalikes
+# are not
+class TestSubdomainOrigins(CrystalPrismTestCase):
+    def test_subdomain_origins_allowed(self):
+        for origin in (
+            'https://account.crystalprism.io',
+            'https://timespace.crystalprism.io',
+            'https://vicarious.crystalprism.io',
+            'https://canvashare.crystalprism.io',
+            'https://thought-writer.crystalprism.io',
+            'https://shapes-in-rain.crystalprism.io',
+            'https://rhythm-of-life.crystalprism.io',
+        ):
+            with self.subTest(origin=origin):
+                self.assertIs(user.origin_allowed(origin), True)
+
+    def test_lookalike_origins_rejected(self):
+        for origin in (
+            'https://evil.crystalprism.io.attacker.com',
+            'http://canvashare.crystalprism.io',
+            'https://crystalprism.io.evil.com',
+            'https://evil.crystalprism.io',
+        ):
+            with self.subTest(origin=origin):
+                self.assertFalse(user.origin_allowed(origin))

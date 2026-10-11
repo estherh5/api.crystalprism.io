@@ -17,7 +17,7 @@
       <div>
         <div id="title" class="d-flex align-items-center justify-content-center">
           {% if post['public'] %}
-            <a href="https://crystalprism.io/thought-writer/post/?post={{ post['post_id'] }}">{{ post['title'] }}</a>
+            <a href="https://thought-writer.crystalprism.io/post/?post={{ post['post_id'] }}">{{ post['title'] }}</a>
           {% else %}
             {{ post['title'] }}
           {% endif %}
@@ -29,7 +29,7 @@
           <div>Created: {{ post['created'] }}</div>
           {% if post['public'] %}
             <div class="mt-5">
-              <a href="https://crystalprism.io/thought-writer/post/?post={{ post['post_id'] }}#comments">Comments: {{ post['comment_count'] }}</a>
+              <a href="https://thought-writer.crystalprism.io/post/?post={{ post['post_id'] }}#comments">Comments: {{ post['comment_count'] }}</a>
             </div>
           {% else %}
             <div class="mt-5">Private post</div>
@@ -44,7 +44,7 @@
             <div class="content-container d-flex flex-column align-items-center justify-content-center">
               <div class="container-title">
                 {% if version['public'] %}
-                  <a href="https://crystalprism.io/thought-writer/post/?post={{ post['post_id'] }}">{{ version['title'] }}</a>
+                  <a href="https://thought-writer.crystalprism.io/post/?post={{ post['post_id'] }}">{{ version['title'] }}</a>
                 {% else %}
                   {{ version['title'] }}
                 {% endif %}

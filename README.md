@@ -82,7 +82,7 @@ Success
 
 ## CanvaShare API
 #### March 2017 - Present
-[CanvaShare](https://crystalprism.io/canvashare/index.html) is a community drawing gallery that lets users create drawings and post them to a public gallery. Each user's drawings get saved to an Amazon S3 bucket, and drawing attributes (title, URL, view count, drawing likes) get saved in the Crystal Prism database "drawing" and "drawing_like" tables:
+[CanvaShare](https://canvashare.crystalprism.io/index.html) is a community drawing gallery that lets users create drawings and post them to a public gallery. Each user's drawings get saved to an Amazon S3 bucket, and drawing attributes (title, URL, view count, drawing likes) get saved in the Crystal Prism database "drawing" and "drawing_like" tables:
 <p align="center"><img title="CanvaShare Database Tables" src ="images/canvashare-tables.png" /></p>
 
 Note that the following environment variables must be set:
@@ -375,7 +375,7 @@ Note that the following environment variables must be set:
 
 ## Rhythm of Life API
 #### July 2017 - Present
-[Rhythm of Life](https://crystalprism.io/rhythm-of-life/index.html) is an educational take on the classic game Snake, involving moving a heart to avoid stressors and seek relievers to maintain a healthy blood pressure. Rhythm of Life information is stored in the "rhythm_score" database table:
+[Rhythm of Life](https://rhythm-of-life.crystalprism.io/index.html) is an educational take on the classic game Snake, involving moving a heart to avoid stressors and seek relievers to maintain a healthy blood pressure. Rhythm of Life information is stored in the "rhythm_score" database table:
 <p align="center"><img title="Rhythm of Life Database Table" src ="images/rhythm-table.png" /></p>
 
 \
@@ -486,7 +486,7 @@ Note that the following environment variables must be set:
 
 ## Thought Writer API
 #### August 2017 - Present
-[Thought Writer](https://crystalprism.io/thought-writer/index.html) is a community post board for users to post ideas for others to read and comment on. Thought Writer information is stored in the "post" and "comment" database tables:
+[Thought Writer](https://thought-writer.crystalprism.io/index.html) is a community post board for users to post ideas for others to read and comment on. Thought Writer information is stored in the "post" and "comment" database tables:
 <p align="center"><img title="Thought Writer Database Tables" src ="images/thought-writer-tables.png" /></p>
 
 \
@@ -725,7 +725,7 @@ Note that the following environment variables must be set:
 
 ## Shapes in Rain API
 #### September 2017 - Present
-[Shapes in Rain](https://crystalprism.io/shapes-in-rain/index.html) is a game in which random shapes appear periodically on the page for a user to clear with a click. Shapes in Rain information is stored in the "shapes_score" database table:
+[Shapes in Rain](https://shapes-in-rain.crystalprism.io/index.html) is a game in which random shapes appear periodically on the page for a user to clear with a click. Shapes in Rain information is stored in the "shapes_score" database table:
 <p align="center"><img title="Shapes in Rain Database Table" src ="images/shapes-table.png" /></p>
 
 \

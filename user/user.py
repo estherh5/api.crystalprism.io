@@ -35,7 +35,14 @@ SESSION_COOKIE = 'cp_session'
 
 # Origins allowed to send the session cookie on a state-changing request and
 # to receive credentialed CORS responses; any localhost port in Dev only
-ALLOWED_ORIGINS = ('https://crystalprism.io', 'https://www.crystalprism.io')
+ALLOWED_ORIGINS = (
+    'https://crystalprism.io', 'https://www.crystalprism.io',
+    'https://account.crystalprism.io', 'https://timespace.crystalprism.io',
+    'https://vicarious.crystalprism.io', 'https://canvashare.crystalprism.io',
+    'https://thought-writer.crystalprism.io',
+    'https://shapes-in-rain.crystalprism.io',
+    'https://rhythm-of-life.crystalprism.io',
+)
 DEV_ORIGIN_PATTERN = re.compile(r'^http://(localhost|127\.0\.0\.1)(:\d+)?$')
 
 # Methods that do not change state, so a cookie-authenticated request with

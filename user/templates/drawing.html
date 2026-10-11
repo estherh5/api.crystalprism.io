@@ -16,7 +16,7 @@
 
       <div>
         <div id="title" class="d-flex align-items-center justify-content-center">
-          <a href="https://crystalprism.io/canvashare/easel/?drawing={{ drawing['drawing_id'] }}">{{ drawing['title'] }}</a>
+          <a href="https://canvashare.crystalprism.io/easel/?drawing={{ drawing['drawing_id'] }}">{{ drawing['title'] }}</a>
         </div>
           {% if drawing['artist_name'] is defined %}
             <img id="drawing-background" class="background" src="{{ drawing['url'] }}">
@@ -26,7 +26,7 @@
         <div id="info">
           {% if drawing['artist_name'] is defined %}
             <div>
-              <a href="https://crystalprism.io/user/?username={{ drawing['artist_name'] }}">Artist: {{ drawing['artist_name'] }}</a>
+              <a href="https://account.crystalprism.io/?username={{ drawing['artist_name'] }}">Artist: {{ drawing['artist_name'] }}</a>
             </div>
             <div class="mt-5">Liked: {{ drawing['created'] }}</div>
           {% else %}
