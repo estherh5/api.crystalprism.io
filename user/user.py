@@ -512,7 +512,7 @@ def update_user(requester):
     for field in ('background_color', 'icon_color'):
         if (not isinstance(data[field], str) or
             not COLOR_PATTERN.match(data[field])):
-                return make_response(field + " must be a '#rrggbb' colour",
+                return make_response(field + " must be a '#rrggbb' color",
                     400)
 
     username = data['username'].strip()

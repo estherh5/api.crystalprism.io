@@ -15,7 +15,7 @@ Committed doc, not scratch. Kept current by hand as work ships.
   first `X-Forwarded-For` entry, which Vercel overwrites. `canvashare.create_drawing` decodes the
   data URL strictly and accepts only a real PNG of at most 1 MB and 1000x1000 (the easel is
   400x400), stored with `ContentType: image/png`. `user.update_user` returns 400 for a non-str
-  text field (email may still be null), a non-bool `*_public`, or a colour that is not `#rrggbb`.
+  text field (email may still be null), a non-bool `*_public`, or a color that is not `#rrggbb`.
   `user.verify_token` checks the signature before parsing anything, so a malformed payload or a
   missing `exp` is 401 rather than 500, and every token carries a `pwd` fingerprint of the
   password hash (`user.password_fingerprint`), so changing the password revokes every older
@@ -49,7 +49,7 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 - **2026-09** **The `drawing_id` average hash no longer depends on the PNG's encoding mode.**
   `average_hash` now lives in `canvashare/hashing.py` and both `canvashare.create_drawing` and
-  `management.create_drawings` call it, so the two paths cannot drift. It normalises the image to
+  `management.create_drawings` call it, so the two paths cannot drift. It normalizes the image to
   RGBA before resizing: Pillow silently ignores the resampling filter for palette (mode P) images
   and then converts them to grayscale through the palette, which drifts between Pillow releases
   and flips a hash bit. RGBA input — all the canvas `toDataURL` emits — hashes byte-identically
@@ -78,12 +78,12 @@ Committed doc, not scratch. Kept current by hand as work ships.
   HTTPS. Nightly logical dumps now run via `~/blob-backups`
   (`backup.sh` step 2b → `pg/crystalprism.sql`), restore-verified end to end.
 
-- **2026-09** **Rich text sanitised on write; markup rejected in plain-text fields; non-str
+- **2026-09** **Rich text sanitized on write; markup rejected in plain-text fields; non-str
   content/title → 400.** `thought_writer.py` and `canvashare.py` now run post/comment content and
-  titles through a shared sanitise-on-write allowlist (`utils/sanitize.py`) before storage,
+  titles through a shared sanitize-on-write allowlist (`utils/sanitize.py`) before storage,
   matching the client-side fix in crystalprism.io; `create_post`/`update_post`/`create_comment`/
   `update_comment` and `canvashare.create_drawing` reject a non-str `content`/`title` with 400
-  instead of sanitising `None` or a list. Image `src` inside rich text is restricted to raster
+  instead of sanitizing `None` or a list. Image `src` inside rich text is restricted to raster
   `data:image/(png|jpeg|gif|webp)` and `https?:` (`utils/sanitize.py#_SRC`) —
   `data:image/svg+xml` was accepted in review round 1 and tightened, since SVG can carry a
   `<script>`. `test_sanitize`: 11 pass; full suite 171/174 (same 3 pre-existing `canvashare`
@@ -112,7 +112,7 @@ Committed doc, not scratch. Kept current by hand as work ships.
   unchanged since `5392bc5` apart from `Image.ANTIALIAS` → `Image.Resampling.LANCZOS` which is the
   same filter, Python 2 floor division of the mean reproduces fewer ids (24/50) rather than more,
   and no drawing carries a fully transparent pixel with non-zero RGB. Every drift is instead a
-  knife-edge tie — the flipped pixel sits within 0.5 grey levels of the mean (median 0.26, against
+  knife-edge tie — the flipped pixel sits within 0.5 gray levels of the mean (median 0.26, against
   1.12 for ids that do reproduce) — and nine drawings of the same 2017-18 era are just as fragile
   and still reproduce, which rules out any global cause. The object in S3 is simply not
   byte-identical to the payload hashed when the id was minted; all 18 predate 2022 and all four
