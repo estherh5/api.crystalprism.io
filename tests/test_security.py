@@ -330,6 +330,8 @@ class TestSubdomainOrigins(CrystalPrismTestCase):
             'https://thought-writer.crystalprism.io',
             'https://shapes-in-rain.crystalprism.io',
             'https://rhythm-of-life.crystalprism.io',
+            # Not a legacy app, but its menu reads the same session
+            'https://hn-stats.crystalprism.io',
         ):
             with self.subTest(origin=origin):
                 self.assertIs(user.origin_allowed(origin), True)

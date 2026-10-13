@@ -7,6 +7,11 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Shipped
 
+- **2026-10** **hn-stats.crystalprism.io reads the cookie session.** Added to
+  `user.ALLOWED_ORIGINS`, so its menu's credentialed `GET /api/user/verify` and its Sign out's
+  `POST /api/logout` are answered like the legacy subdomains'. Pinned in
+  `tests/test_security.py#TestSubdomainOrigins`.
+
 - **2026-09** **Security audit follow-ups: login throttle, upload validation, profile field
   types, token hardening.** `/api/login` refuses (429 + `Retry-After`) after 10 failures per
   username or 30 per client IP in 15 minutes, even for the right password, and `/api/user` create
@@ -102,9 +107,9 @@ Committed doc, not scratch. Kept current by hand as work ships.
   `server.py#credentialed_cors` overrides it only for `user.ALLOWED_ORIGINS`. Safe because the
   `cp_session` cookie is SameSite=Strict, `user.verify_token` is the only reader of it and
   Origin-checks every non-safe method, and browsers refuse a credentialed response carrying `*`.
-  The one sibling reading this API from a browser, hacker_news_stats (`accountApi` → `/user/verify`),
-  sends a Bearer header without credentials, so `*` is what it needs. Reopen if any route reads the
-  cookie outside `verify_token`, or a `*.crystalprism.io` sibling needs a credentialed read.
+  hacker_news_stats, the one non-legacy sibling reading this API from a browser, moved to the cookie
+  session in 2026-10 and is in `user.ALLOWED_ORIGINS` like the legacy subdomains, so nothing reads
+  `*` with credentials. Reopen if any route reads the cookie outside `verify_token`.
 
 - **Re-keying the 18 `drawing_id`s that no longer reproduce from their own stored PNG.** Accepted
   as-is 2026-09-06. Settled first that this is not a bug in the code: Pillow 8.0.0 and 11.3.0

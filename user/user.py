@@ -42,6 +42,7 @@ ALLOWED_ORIGINS = (
     'https://thought-writer.crystalprism.io',
     'https://shapes-in-rain.crystalprism.io',
     'https://rhythm-of-life.crystalprism.io',
+    'https://hn-stats.crystalprism.io',
 )
 DEV_ORIGIN_PATTERN = re.compile(r'^http://(localhost|127\.0\.0\.1)(:\d+)?$')
 
