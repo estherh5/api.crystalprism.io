@@ -26,7 +26,7 @@ def average_hash(image_data):
         (8, 8), Image.Resampling.LANCZOS).convert('L')
 
     # Get average pixel value of small drawing
-    pixels = list(drawing_small.getdata())
+    pixels = drawing_small.get_flattened_data()
     average_pixels = sum(pixels) / len(pixels)
 
     # Generate bit string by comparing each pixel in the small drawing to the
