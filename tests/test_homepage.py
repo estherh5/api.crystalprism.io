@@ -99,23 +99,23 @@ class TestPhotos(CrystalPrismTestCase):
         def __init__(self, key):
             self.key = key
 
-    @patch('homepage.homepage.boto3')
+    @patch('utils.storage.boto3')
     def test_photos_get(self, boto3):
         # Arrange
-        url_start = os.environ['S3_URL'] + os.environ['S3_PHOTO_DIR']
+        url_start = os.environ['R2_PUBLIC_BASE'] + '/photos/'
         resource = boto3.resource.return_value
         bucket = resource.Bucket.return_value
         bucket.objects.filter.return_value = [
-            self.MockObjectSummary(os.environ['S3_PHOTO_DIR'] + '1.png'),
-            self.MockObjectSummary(os.environ['S3_PHOTO_DIR'] + '10.png'),
-            self.MockObjectSummary(os.environ['S3_PHOTO_DIR'] + '2.png'),
-            self.MockObjectSummary(os.environ['S3_PHOTO_DIR'] + '3.png'),
-            self.MockObjectSummary(os.environ['S3_PHOTO_DIR'] + '4.png'),
-            self.MockObjectSummary(os.environ['S3_PHOTO_DIR'] + '5.png'),
-            self.MockObjectSummary(os.environ['S3_PHOTO_DIR'] + '6.png'),
-            self.MockObjectSummary(os.environ['S3_PHOTO_DIR'] + '7.png'),
-            self.MockObjectSummary(os.environ['S3_PHOTO_DIR'] + '8.png'),
-            self.MockObjectSummary(os.environ['S3_PHOTO_DIR'] + '9.png')
+            self.MockObjectSummary('photos/' + '1.png'),
+            self.MockObjectSummary('photos/' + '10.png'),
+            self.MockObjectSummary('photos/' + '2.png'),
+            self.MockObjectSummary('photos/' + '3.png'),
+            self.MockObjectSummary('photos/' + '4.png'),
+            self.MockObjectSummary('photos/' + '5.png'),
+            self.MockObjectSummary('photos/' + '6.png'),
+            self.MockObjectSummary('photos/' + '7.png'),
+            self.MockObjectSummary('photos/' + '8.png'),
+            self.MockObjectSummary('photos/' + '9.png')
             ]
 
         # Act
@@ -124,14 +124,14 @@ class TestPhotos(CrystalPrismTestCase):
 
         # Assert
         boto3.resource.return_value.Bucket.assert_called_with(
-            os.environ['S3_BUCKET']
+            os.environ['R2_BUCKET']
             )
 
         self.assertEqual(len(response_data), 10)
         self.assertEqual(all(url_start in url for url in response_data),
             True)
 
-    @patch('homepage.homepage.boto3')
+    @patch('utils.storage.boto3')
     def test_photos_get_error(self, boto3):
         # Arrange
         data = {'start': 5, 'end': 0}

@@ -219,7 +219,7 @@ class TestSanitiseOnWrite(CrystalPrismTestCase):
         self.assertEqual(response.get_data(as_text=True),
                          'Drawing title must be a string')
 
-    @patch('canvashare.canvashare.boto3')
+    @patch('utils.storage.boto3')
     def test_drawing_title_markup_rejected(self, boto3):
         header = self.auth()
         with open(os.path.dirname(__file__) +

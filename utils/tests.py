@@ -11,6 +11,7 @@ from server import app
 from testing.common.database import DatabaseFactory
 
 import management
+from utils import storage
 
 
 now = str(round(time.time()))  # Current time in ms
@@ -193,7 +194,8 @@ def initialize_test_database(postgresql):
             {'drawing_id': str(i),
             'username': 'user1',
             'title': drawing['title'],
-            'url': drawing['url']}
+            'url': storage.public_url(
+                storage.DRAWING_DIR + str(i) + '.png')}
             )
 
         # Add 1 like for each drawing to database

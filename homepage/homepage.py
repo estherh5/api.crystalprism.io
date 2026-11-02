@@ -1,9 +1,10 @@
-import boto3
 import os
 import psycopg2 as pg
 import psycopg2.extras
 
 from flask import jsonify, make_response, request
+
+from utils import storage
 
 
 def read_ideas():
@@ -85,13 +86,10 @@ def read_photos():
 
     urls = []
 
-    s3 = boto3.resource('s3')
-    bucket_name = os.environ['S3_BUCKET']
-    bucket = s3.Bucket(bucket_name)
-    bucket_folder = os.environ['S3_PHOTO_DIR']
+    bucket_folder = storage.PHOTO_DIR
 
-    # Get photo filenames from S3 bucket
-    photos = [item.key for item in bucket.objects.filter(
+    # Get photo filenames from the R2 bucket
+    photos = [item.key for item in storage.bucket().objects.filter(
         Prefix=bucket_folder, Delimiter='/') if item.key != bucket_folder]
 
     # Sort photos numerically by filename, which should be named as "1.png",
@@ -101,6 +99,6 @@ def read_photos():
 
     # Add photos to URL list
     for photo in photos:
-        urls.append(os.environ['S3_URL'] + photo)
+        urls.append(storage.public_url(photo))
 
     return jsonify(urls[request_start:request_end])

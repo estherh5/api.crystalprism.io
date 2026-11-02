@@ -739,7 +739,7 @@ class TestUserData(CrystalPrismTestCase):
         self.assertEqual(get_response.status_code, 401)
         self.assertEqual(error, 'Unauthorized')
 
-    @patch('canvashare.canvashare.boto3')
+    @patch('utils.storage.boto3')
     def test_user_hard_delete(self, boto3):
         # Arrange - set up mock for CanvaShare S3 bucket
         resource = boto3.resource.return_value
@@ -880,7 +880,7 @@ class TestUserData(CrystalPrismTestCase):
 
         # Ensure S3 bucket was called to create and delete user's drawing
         boto3.resource.return_value.Bucket.assert_called_with(
-            os.environ['S3_BUCKET']
+            os.environ['R2_BUCKET']
             )
 
         # Ensure deleted user account isn't found when user is searched for

@@ -64,7 +64,7 @@ class TestAverageHash(unittest.TestCase):
 
 # Test /api/canvashare/drawing endpoint [POST, GET, PATCH, DELETE]
 class TestDrawing(CrystalPrismTestCase):
-    @patch('canvashare.canvashare.boto3')
+    @patch('utils.storage.boto3')
     def test_drawing_post_get_patch_and_delete(self, boto3):
         # Arrange [POST]
         self.create_user()
@@ -97,7 +97,7 @@ class TestDrawing(CrystalPrismTestCase):
         self.assertEqual(post_response.status_code, 201)
 
         boto3.resource.return_value.Bucket.assert_called_with(
-            os.environ['S3_BUCKET']
+            os.environ['R2_BUCKET']
             )
 
         # Act [GET]
@@ -118,7 +118,7 @@ class TestDrawing(CrystalPrismTestCase):
         self.assertEqual(drawing['likers'], [])
         self.assertEqual(drawing['title'], 'Test')
         self.assertEqual(
-            os.environ['S3_URL'] + os.environ['S3_CANVASHARE_DIR']
+            os.environ['R2_PUBLIC_BASE'] + '/canvashare/'
             in drawing['url'], True
             )
         self.assertEqual(drawing['username'], self.username)
@@ -256,7 +256,7 @@ class TestDrawing(CrystalPrismTestCase):
         self.assertEqual(post_response.status_code, 400)
         self.assertEqual(error, 'Drawing title cannot be blank')
 
-    @patch('canvashare.canvashare.boto3')
+    @patch('utils.storage.boto3')
     def test_drawing_post_not_unique_error(self, boto3):
         # Arrange
         self.create_user()
@@ -410,7 +410,7 @@ class TestDrawings(CrystalPrismTestCase):
 
         # Ensure each url contains CanvaShare S3 bucket URL start
         self.assertEqual(all(
-            (os.environ['S3_URL'] + os.environ['S3_CANVASHARE_DIR'])
+            (os.environ['R2_PUBLIC_BASE'] + '/canvashare/')
             in drawing['url'] for drawing in drawings), True)
 
         # Ensure each artist is a string
@@ -504,7 +504,7 @@ class TestDrawings(CrystalPrismTestCase):
 
         # Ensure each url contains CanvaShare S3 bucket URL start
         self.assertEqual(all(
-            (os.environ['S3_URL'] + os.environ['S3_CANVASHARE_DIR'])
+            (os.environ['R2_PUBLIC_BASE'] + '/canvashare/')
             in drawing['url'] for drawing in drawings), True)
 
         # Ensure each artist is specified artist name
@@ -927,7 +927,7 @@ class TestDrawingLikes(CrystalPrismTestCase):
         # Ensure each liked drawing's url contains CanvaShare S3 bucket URL
         # start
         self.assertEqual(all(
-            (os.environ['S3_URL'] + os.environ['S3_CANVASHARE_DIR'])
+            (os.environ['R2_PUBLIC_BASE'] + '/canvashare/')
             in drawing_like['url'] for drawing_like in drawing_likes), True)
 
         # Ensure each liker is specified liker name

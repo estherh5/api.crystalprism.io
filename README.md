@@ -8,65 +8,22 @@ I started programming in January 2017 and am learning Python for back-end server
 1. Clone this repository on your server.
 2. Install requirements by running `pip install -r requirements.txt`.
 3. Create a PostgreSQL database to store user information, as well as a user that has all privileges on your database.
-4. Create an Amazon S3 bucket with folders for storing homepage photos, CanvaShare drawings, and database backup files. Create an AWS user with keys for accessing your bucket. Upload both thumbnails and full-size homepage photos to your S3 bucket's photos folder.
-    * Ensure objects in your S3 bucket folders for homepage photos and CanvaShare drawings are public by default when they are added to the bucket by adding a [bucket policy](https://awspolicygen.s3.amazonaws.com/policygen.html) to your bucket permissions. Your bucket policy should resemble the following:
-    ```
-    {
-        "Version": "2012-10-17",
-        "Id": "Policy1521914882085",
-        "Statement": [
-            {
-                "Sid": "Stmt1521914862695",
-                "Effect": "Allow",
-                "Principal": "*",
-                "Action": "s3:GetObject",
-                "Resource": "arn:aws:s3:::crystalprism/canvashare/*"
-            },
-            {
-                "Sid": "Stmt1521914879587",
-                "Effect": "Allow",
-                "Principal": "*",
-                "Action": "s3:GetObject",
-                "Resource": "arn:aws:s3:::crystalprism/photos/*"
-            }
-        ]
-    }
-    ```
-    * Ensure your S3 bucket has a CORS configuration similar to the following:
-    ```
-    <?xml version="1.0" encoding="UTF-8"?>
-    <CORSConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-      <CORSRule>
-          <AllowedOrigin>*</AllowedOrigin>
-          <AllowedMethod>GET</AllowedMethod>
-          <AllowedMethod>HEAD</AllowedMethod>
-          <MaxAgeSeconds>3000</MaxAgeSeconds>
-          <AllowedHeader>*</AllowedHeader>
-      </CORSRule>
-    </CORSConfiguration>
-    ```
+4. Create a Cloudflare R2 bucket (e.g., `crystalprism`) and enable its public development URL (or attach a custom domain) so photos and drawings can be served publicly. Create an R2 API token with Object Read & Write access to the bucket. Upload both thumbnails and full-size homepage photos to the bucket's `photos/` folder; CanvaShare drawings are stored under `canvashare/`.
     * Full-size photos should be named as numbers (e.g., "1.png"), and thumbnails must be named the same plus the suffix "-thumb" (e.g., "1-thumb.png").
     * For best display on the front-end, full-size photos should be 6 x 8 inches in size, and thumbnails should be 240 x 300 px.
 5. Set the following environment variables for the API:
     * `FLASK_APP` for the Flask application name for your server (`server.py`)
     * `SECRET_KEY` for the salt used to generate the signature portion of the JWT for user authentication (set this as a secret key that only you know; it is imperative to keep this private for user account protection)
     * `ENV_TYPE` for the environment status (set this to `Dev` for testing or `Prod` for live)
-    * `VIRTUAL_ENV_NAME` for the name of your virtual environment (e.g., `crystalprism`); this is used to schedule automatic database backups with crontab
-    * `PATH` for the path to the executable files that will run when automatic database backups are performed via crontab; you should append the path to your PostgreSQL directory here (e.g., `$PATH:/Applications/Postgres.app/Contents/Versions/latest/bin`)
-    * [`AWS_ACCESS_KEY_ID`](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the access key for your AWS account stored on Amazon S3 buckets
-    * [`AWS_SECRET_ACCESS_KEY`](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) for the secret key for your AWS account stored on Amazon S3 buckets
-    * `S3_BUCKET` for the name of your S3 bucket, which should not contain any periods (e.g., `crystalprism`)
-    * `S3_URL` for the domain-style URL for your S3 bucket (e.g., `https://crystalprism.s3.us-east-2.amazonaws.com/`)
-    * `S3_PHOTO_DIR` for the name of the S3 bucket's folder for photos (the default is `photos/`)
-    * `S3_CANVASHARE_DIR` for the name of the S3 bucket's folder for CanvaShare drawings (the default is `canvashare/`)
-    * `S3_BACKUP_DIR` for the name of the S3 bucket's folder for database backups (the default is `db-backups/`)
-    * `BACKUP_DIR` for the directory where your database backups are stored locally
+    * `R2_ACCOUNT_ID` for your Cloudflare account ID
+    * `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` for the R2 API token's S3-compatible credentials
+    * `R2_BUCKET` for the name of your R2 bucket (e.g., `crystalprism`)
+    * `R2_PUBLIC_BASE` for the bucket's public URL, without a trailing slash (e.g., `https://pub-<id>.r2.dev`)
     * `DB_CONNECTION` for the [dsn parameter string](http://initd.org/psycopg/docs/module.html) to connect to your database via psycopg2 (e.g., `dbname=<database_name> user=<database_user> password=<database_user_password> host=<database_host>`)
     * `DB_NAME` for the name of your database
     * `DB_USER` for the user who has all privileges on your database
 6. Initialize the database by running `python management.py init_db`, and load initial data (webpage owner user whose posts appear on the homepage Ideas page, admin user, initial homepage Ideas page post written by webpage owner, how-to Thought Writer posts written by admin, sample drawing created by admin) by running `python management.py load_data`.
-7. Set up weekly backups for the database by running `python management.py sched_backup`.
-8. Start the server by running `flask run` (if you are making changes while the server is running, enter `flask run --reload` instead for instant updates).
+7. Start the server by running `flask run` (if you are making changes while the server is running, enter `flask run --reload` instead for instant updates).
 
 
 ## API Status
@@ -82,15 +39,12 @@ Success
 
 ## CanvaShare API
 #### March 2017 - Present
-[CanvaShare](https://canvashare.crystalprism.io/index.html) is a community drawing gallery that lets users create drawings and post them to a public gallery. Each user's drawings get saved to an Amazon S3 bucket, and drawing attributes (title, URL, view count, drawing likes) get saved in the Crystal Prism database "drawing" and "drawing_like" tables:
+[CanvaShare](https://canvashare.crystalprism.io/index.html) is a community drawing gallery that lets users create drawings and post them to a public gallery. Each user's drawings get saved to a Cloudflare R2 bucket, and drawing attributes (title, URL, view count, drawing likes) get saved in the Crystal Prism database "drawing" and "drawing_like" tables:
 <p align="center"><img title="CanvaShare Database Tables" src ="images/canvashare-tables.png" /></p>
 
 Note that the following environment variables must be set:
-  - ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the access key for your AWS account
-  - ["AWS_SECRET_ACCESS_KEY"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the secret key for your AWS account
-  - "S3_BUCKET" must be set to the name of your S3 bucket (e.g., 'crystalprism')
-  - "S3_CANVASHARE_DIR" must be set to the name of your S3 bucket's folder for CanvaShare drawings (e.g., 'canvashare/')
-  - "S3_URL" must be set as the URL for your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism/')
+  - "R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY" and "R2_BUCKET" must be set to your Cloudflare R2 account, API token credentials and bucket name
+  - "R2_PUBLIC_BASE" must be set to the bucket's public URL (e.g., 'https://pub-<id>.r2.dev')
 
 \
 **POST** /api/canvashare/drawing
@@ -123,7 +77,7 @@ Note that the following environment variables must be set:
       }
     ],
     "title": "Welcome",
-    "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/1.png",
+    "url": "https://pub-<id>.r2.dev/canvashare/1.png",
     "username": "admin",
     "views": 10
 }
@@ -149,7 +103,7 @@ Note that the following environment variables must be set:
         "like_count": 0,
         "likers": [],
         "title": "Dreams",
-        "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/4.png",
+        "url": "https://pub-<id>.r2.dev/canvashare/4.png",
         "username": "esther",
         "views": 4
     },
@@ -164,7 +118,7 @@ Note that the following environment variables must be set:
           }
         ],
         "title": "Good Night",
-        "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/3.png",
+        "url": "https://pub-<id>.r2.dev/canvashare/3.png",
         "username": "esther",
         "views": 5
     },
@@ -179,7 +133,7 @@ Note that the following environment variables must be set:
           }
         ],
         "title": "Strings",
-        "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/2.png",
+        "url": "https://pub-<id>.r2.dev/canvashare/2.png",
         "username": "esther",
         "views": 1
     },
@@ -198,7 +152,7 @@ Note that the following environment variables must be set:
           }
         ],
         "title": "Welcome",
-        "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/1.png",
+        "url": "https://pub-<id>.r2.dev/canvashare/1.png",
         "username": "admin",
         "views": 10
     }
@@ -217,7 +171,7 @@ Note that the following environment variables must be set:
         "like_count": 0,
         "likers": [],
         "title": "Dreams",
-        "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/4.png",
+        "url": "https://pub-<id>.r2.dev/canvashare/4.png",
         "username": "esther",
         "views": 4
     },
@@ -232,7 +186,7 @@ Note that the following environment variables must be set:
           }          
         ],
         "title": "Good Night",
-        "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/3.png",
+        "url": "https://pub-<id>.r2.dev/canvashare/3.png",
         "username": "esther",
         "views": 5
     },
@@ -247,7 +201,7 @@ Note that the following environment variables must be set:
           }
         ],
         "title": "Strings",
-        "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/2.png",
+        "url": "https://pub-<id>.r2.dev/canvashare/2.png",
         "username": "esther",
         "views": 1
     }
@@ -327,7 +281,7 @@ Note that the following environment variables must be set:
         }          
       ],
       "title": "Good Night",
-      "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/3.png",
+      "url": "https://pub-<id>.r2.dev/canvashare/3.png",
       "username": "esther",
       "views": 5
     },
@@ -344,7 +298,7 @@ Note that the following environment variables must be set:
       ],
       "drawing_like_id": 8,
       "title": "Strings",
-      "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/2.png",
+      "url": "https://pub-<id>.r2.dev/canvashare/2.png",
       "username": "esther",
       "views": 1
     },
@@ -365,7 +319,7 @@ Note that the following environment variables must be set:
         }
       ],
       "title": "Welcome",
-      "url": "https://s3.us-east-2.amazonaws.com/crystalprism-canvashare/1.png",
+      "url": "https://pub-<id>.r2.dev/canvashare/1.png",
       "username": "esther",
       "views": 10
     }
@@ -932,12 +886,9 @@ Users who want to join the Crystal Prism community can create an account to stor
 
 ## Homepage API
 #### February 2018 - Present
-The Crystal Prism homepage has an Ideas page that displays Thought Writer posts written by the webpage owner. It also has a Photos page that displays photos I have taken that are stored in an Amazon S3 bucket. I use boto3 to initiate an s3 bucket resource and query the bucket to return a list of all the stored photo objects. Note that the following environment variables must be set:
-  - ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the access key for your AWS account
-  - ["AWS_SECRET_ACCESS_KEY"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the secret key for your AWS account
-  - "S3_BUCKET" must be set to the name of your S3 bucket (e.g., 'crystalprism')
-  - "S3_PHOTO_DIR" must be set to the name of your S3 bucket's folder for photos (the default is 'photos/')
-  - "S3_URL" must be set as the URL for your S3 bucket (e.g., 'https://s3.us-east-2.amazonaws.com/crystalprism/')
+The Crystal Prism homepage has an Ideas page that displays Thought Writer posts written by the webpage owner. It also has a Photos page that displays photos I have taken that are stored in a Cloudflare R2 bucket. I use boto3 against R2's S3-compatible API to list the stored photo objects under `photos/`. Note that the following environment variables must be set:
+  - "R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY" and "R2_BUCKET" must be set to your Cloudflare R2 account, API token credentials and bucket name
+  - "R2_PUBLIC_BASE" must be set to the bucket's public URL (e.g., 'https://pub-<id>.r2.dev')
 
 \
 **GET** /api/homepage/ideas?start=[request_start]&end=[request_end]
@@ -962,16 +913,16 @@ The Crystal Prism homepage has an Ideas page that displays Thought Writer posts 
 * Example response body:
 ```javascript
 [
-    'https://s3.us-east-2.amazonaws.com/crystalprism/photos/1.png',
-    'https://s3.us-east-2.amazonaws.com/crystalprism/photos/10.png',
-    'https://s3.us-east-2.amazonaws.com/crystalprism/photos/2.png',
-    'https://s3.us-east-2.amazonaws.com/crystalprism/photos/3.png',
-    'https://s3.us-east-2.amazonaws.com/crystalprism/photos/4.png',
-    'https://s3.us-east-2.amazonaws.com/crystalprism/photos/5.png',
-    'https://s3.us-east-2.amazonaws.com/crystalprism/photos/6.png',
-    'https://s3.us-east-2.amazonaws.com/crystalprism/photos/7.png',
-    'https://s3.us-east-2.amazonaws.com/crystalprism/photos/8.png',
-    'https://s3.us-east-2.amazonaws.com/crystalprism/photos/9.png'
+    'https://pub-<id>.r2.dev/photos/1.png',
+    'https://pub-<id>.r2.dev/photos/10.png',
+    'https://pub-<id>.r2.dev/photos/2.png',
+    'https://pub-<id>.r2.dev/photos/3.png',
+    'https://pub-<id>.r2.dev/photos/4.png',
+    'https://pub-<id>.r2.dev/photos/5.png',
+    'https://pub-<id>.r2.dev/photos/6.png',
+    'https://pub-<id>.r2.dev/photos/7.png',
+    'https://pub-<id>.r2.dev/photos/8.png',
+    'https://pub-<id>.r2.dev/photos/9.png'
 ]
 ```
 
@@ -982,11 +933,4 @@ The Crystal Prism database is a PostgreSQL database that contains Crystal Prism 
 <p align="center"><img title="Crystal Prism Database" src ="images/cp-database.png" /></p>
 
 Note that all fields in the database tables are required except for those denoted with an asterisk.
-The database is set up to back up data every week and save the backup file to an Amazon S3 bucket. Note that the following environment variables must be set:
- - ["AWS_ACCESS_KEY_ID"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the access key for your AWS account
- - ["AWS_SECRET_ACCESS_KEY"](http://boto3.readthedocs.io/en/latest/guide/configuration.html#environment-variables) must be set to the secret key for your AWS account
- - "S3_BUCKET" must be set to the name of your S3 bucket (e.g., 'crystalprism')
- - "S3_BACKUP_DIR" must be set to the name of your S3 bucket's folder for database backups (the default is 'db-backups/')
- - "VIRTUAL_ENV_NAME" must be set to the name of your virtual environment (e.g., 'crystalprism')
- - "PATH" must be set to the path to the executable files that will run when automatic database backups are performed via crontab; you should append the path to your PostgreSQL directory here (e.g., "$PATH:/Applications/Postgres.app/Contents/Versions/latest/bin")
- - "BACKUP_DIR" must be set to the directory where your database backups are stored locally
+The API itself does not back up the database; back it up externally with `pg_dump` on a schedule (the live database is dumped nightly).

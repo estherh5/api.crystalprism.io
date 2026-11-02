@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import bcrypt
-import boto3
 import hmac
 import json
 import os

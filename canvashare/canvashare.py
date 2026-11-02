@@ -1,4 +1,3 @@
-import boto3
 import os
 import psycopg2 as pg
 import psycopg2.extras
@@ -11,7 +10,7 @@ from flask import jsonify, make_response, request
 
 from canvashare.hashing import average_hash
 from user import user
-from utils import sanitize
+from utils import sanitize, storage
 
 
 DRAWING_PREFIX = 'data:image/png;base64,'
@@ -112,16 +111,11 @@ def create_drawing(requester):
 
         return make_response('Drawing already exists', 409)
 
-    # Upload drawing to S3 bucket
-    s3 = boto3.resource('s3')
-    bucket_name = os.environ['S3_BUCKET']
-    bucket = s3.Bucket(bucket_name)
-    bucket_folder = os.environ['S3_CANVASHARE_DIR']
+    # Upload drawing to the R2 bucket
+    key = storage.DRAWING_DIR + drawing_id + '.png'
 
-    drawing_name = drawing_id + '.png'
-
-    bucket.put_object(
-        Key=bucket_folder + drawing_name,
+    storage.bucket().put_object(
+        Key=key,
         Body=drawing,
         ContentType='image/png'
         )
@@ -139,7 +133,7 @@ def create_drawing(requester):
         {'drawing_id': drawing_id,
         'username': requester.lower(),
         'title': data['title'].strip(),
-        'url': os.environ['S3_URL'] + bucket_folder + drawing_name}
+        'url': storage.public_url(key)}
         )
 
     conn.commit()
@@ -296,14 +290,9 @@ def delete_drawing(requester, drawing_id):
     cursor.close()
     conn.close()
 
-    # Remove drawing from S3 bucket
-    s3 = boto3.resource('s3')
-    bucket_name = os.environ['S3_BUCKET']
-    bucket_folder = os.environ['S3_CANVASHARE_DIR']
-
-    drawing_name = str(drawing_id) + '.png'
-
-    s3.Object(bucket_name, bucket_folder + drawing_name).delete()
+    # Remove drawing from the R2 bucket
+    storage.bucket().Object(
+        storage.DRAWING_DIR + str(drawing_id) + '.png').delete()
 
     return make_response('Success', 200)
 

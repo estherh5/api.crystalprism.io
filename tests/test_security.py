@@ -278,7 +278,7 @@ class TestDrawingUpload(CrystalPrismTestCase):
         self.assertEqual(response.get_data(as_text=True),
             'Drawing must be base64-encoded PNG image')
 
-    @patch('canvashare.canvashare.boto3')
+    @patch('utils.storage.boto3')
     def test_valid_png_stored_as_image_png(self, boto3):
         response = self.post(png_data_url())
 

@@ -7,6 +7,14 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Shipped
 
+- **2026-11** **Photos and drawings moved from AWS S3 to Cloudflare R2.** All 74 objects (24
+  homepage photos, 50 CanvaShare drawings) copied under the same keys into the R2 `crystalprism`
+  bucket and verified by sha256. Every `drawing.url` now points at the bucket's r2.dev URL.
+  `utils/storage.py` is the one place that reaches the bucket (`bucket()`, `public_url()`). The
+  bucket is mirrored nightly by `~/blob-backups` (it was the fleet's only unbacked store). The
+  dead S3 weekly-backup commands (`backup_db`, `sched_backup`) and `python-crontab` were removed.
+  The Neon DB is dumped nightly by `backup.sh`.
+
 - **2026-10** **hn-stats.crystalprism.io reads the cookie session.** Added to
   `user.ALLOWED_ORIGINS`, so its menu's credentialed `GET /api/user/verify` and its Sign out's
   `POST /api/logout` are answered like the legacy subdomains'. Pinned in
@@ -99,6 +107,12 @@ Committed doc, not scratch. Kept current by hand as work ships.
   produced no build.
 
 ## Next
+
+- [from 2026-11-09] **Retire the AWS S3 `crystalprism` bucket and close the AWS account (Esther,
+  needs her AWS login).** R2 has served every photo and drawing since 2026-11-02. In the AWS
+  console, decide on the private `db-backups/` folder (pre-Neon database dumps that nobody can
+  read without the AWS keys), then empty and delete the bucket and close the account. Deleting
+  is irreversible, so it was left to her.
 
 ## Declined
 

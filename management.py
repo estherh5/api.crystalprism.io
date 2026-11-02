@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
 import argparse
 import bcrypt
-import boto3
 import getpass
 import json
 import os
-import pathlib
 import psycopg2 as pg
-import subprocess
 
 from base64 import decodebytes
-from crontab import CronTab
-from datetime import datetime, timezone
 
 from canvashare.hashing import average_hash
+from utils import storage
 
 
 def initialize_database():
@@ -568,7 +564,7 @@ def create_ideas(ideas_filename):
     return
 
 
-def create_all_drawings_from_s3():
+def create_all_drawings_from_bucket():
     username = input('Enter username for drawing artist: ')
 
     # Set up database connection with environment variable
@@ -596,22 +592,13 @@ def create_all_drawings_from_s3():
 
         print('Username does not exist')
 
-        create_all_drawings_from_s3()
+        create_all_drawings_from_bucket()
 
         return
 
-    # Get existing drawings from S3 bucket
-    s3 = boto3.client(
-        's3',
-        aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
-        aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY']
-    )
-    bucket_name = os.environ['S3_BUCKET']
-    bucket_folder = os.environ['S3_CANVASHARE_DIR']
-    existing_drawings = s3.list_objects_v2(Bucket=bucket_name, Prefix=bucket_folder)["Contents"]
-
-    for drawing in existing_drawings:
-        drawing_id = drawing["Key"].split(bucket_folder)[1].replace(".png", "")
+    # Get existing drawings from the R2 bucket
+    for drawing in storage.bucket().objects.filter(Prefix=storage.DRAWING_DIR):
+        drawing_id = drawing.key.split(storage.DRAWING_DIR)[1].replace(".png", "")
 
         # Add drawing to database
         cursor.execute(
@@ -627,8 +614,7 @@ def create_all_drawings_from_s3():
             {'drawing_id': drawing_id,
             'username': username.lower(),
             'title': drawing_id,
-            'created': drawing["LastModified"],
-            'url': os.environ['S3_URL'] + bucket_folder + drawing_id + ".png"}
+            'url': storage.public_url(drawing.key)}
             )
 
         print('Drawing "' + drawing_id + '" added to database.')
@@ -704,18 +690,11 @@ def create_drawings(drawings_filename):
             print('Drawing "' + drawing_id + '" already exists')
 
         else:
-            # Upload drawing to S3 bucket
-            s3 = boto3.client(
-                's3',
-                aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
-                aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY']
-            )
-            bucket_name = os.environ['S3_BUCKET']
-            bucket_folder = os.environ['S3_CANVASHARE_DIR']
+            # Upload drawing to the R2 bucket
+            key = storage.DRAWING_DIR + drawing_id + '.png'
 
-            drawing_name = drawing_id + '.png'
-
-            s3.put_object(Bucket=bucket_name, Key=bucket_folder + drawing_name, Body=drawing_url)
+            storage.bucket().put_object(
+                Key=key, Body=drawing_url, ContentType='image/png')
 
             # Set up database connection with environment variable
             conn = pg.connect(os.environ['DB_CONNECTION'])
@@ -736,7 +715,7 @@ def create_drawings(drawings_filename):
                 {'drawing_id': drawing_id,
                 'username': username.lower(),
                 'title': drawing['title'],
-                'url': os.environ['S3_URL'] + bucket_folder + drawing_name}
+                'url': storage.public_url(key)}
                 )
 
             conn.commit()
@@ -809,67 +788,6 @@ def load_initial_data():
     return
 
 
-def backup_database():
-    # Define backup file path
-    now = str(datetime.now().isoformat())
-    file_path = pathlib.Path(f'{os.environ["BACKUP_DIR"]}/{now}')
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Define command to run to back up database
-    command = f'pg_dump {os.environ["DB_CONNECTION"]} -Fc -f {file_path}'
-
-    # Dump database backup to file path
-    ps = subprocess.check_output(
-        command, shell=True,
-        cwd=os.path.dirname(os.path.realpath(__file__))
-    )
-    print(f'Backup saved to {str(file_path)}')
-
-    # Upload file to s3 backup bucket
-    s3 = boto3.client(
-        's3',
-        aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
-        aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY']
-    )
-    bucket_name = os.environ['S3_BUCKET']
-    bucket_folder = os.environ['S3_BACKUP_DIR']
-
-    data = open(file_path, 'rb')
-
-    s3.put_object(Bucket=bucket_name, Key=bucket_folder + now, Body=data)
-
-    print(f'Backup saved to S3 {bucket_name}/{bucket_folder} bucket')
-
-    return
-
-
-def schedule_weekly_backup():
-    # Initiate CronTab instance for current user
-    user = getpass.getuser()
-    cron = CronTab(user)
-
-    # Create weekly job to back up database
-    job = cron.new(
-        command='export WORKON_HOME=~/.virtualenvs; ' +
-        'VIRTUALENVWRAPPER_PYTHON=/usr/local/bin/python3; ' +
-        'source /usr/local/bin/virtualenvwrapper.sh; ' +
-        'workon ' + os.environ['VIRTUAL_ENV_NAME'] + '; ' +
-        'source ~/.virtualenvs/' + os.environ['VIRTUAL_ENV_NAME'] +
-        '/bin/postactivate; python ' + os.path.abspath(__file__) + ' backup_db'
-        )
-    job.minute.on(0)
-    job.hour.on(0)
-    job.dow.on(0)
-
-    cron.write()
-
-    print(
-        'Weekly backup scheduled for ' + os.environ['DB_NAME'] + ' database.'
-        )
-
-    return
-
-
 if __name__ == '__main__':
     # Add arguments for initializing database in CLI
     parser = argparse.ArgumentParser(description='Management commands')
@@ -879,11 +797,5 @@ if __name__ == '__main__':
         initialize_database()
     if args.action == 'load_data':
         load_initial_data()
-    if args.action == 'load_s3_drawings':
-        create_all_drawings_from_s3()
-    if args.action == 'backup_db':
-        # Only backup database on Sunday
-        if datetime.now(timezone.utc).weekday() == 6:
-            backup_database()
-    if args.action == 'sched_backup':
-        schedule_weekly_backup()
+    if args.action == 'load_bucket_drawings':
+        create_all_drawings_from_bucket()
