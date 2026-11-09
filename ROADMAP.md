@@ -7,6 +7,13 @@ Committed doc, not scratch. Kept current by hand as work ships.
 
 ## Shipped
 
+- **2026-11** **AWS retired.** The S3 buckets `crystalprism` and `crystalprism-dev` were emptied
+  and deleted, and the AWS account was closed on 2026-11-09 (it can be reopened for 90 days). 146
+  old `pg_dump` files are kept in `aws-s3-archive/` on the backup drive: all of `db-backups`,
+  `pause-db-backups` and `vroom-db-backups`, plus the newest and the last peak-size
+  `hn-db-backups` dump. Shapes in Rain's background, the one asset the R2 move missed, now ships
+  from the crystalprism.io repo.
+
 - **2026-11** **Photos and drawings moved from AWS S3 to Cloudflare R2.** All 74 objects (24
   homepage photos, 50 CanvaShare drawings) copied under the same keys into the R2 `crystalprism`
   bucket and verified by sha256. Every `drawing.url` now points at the bucket's r2.dev URL.
@@ -107,12 +114,6 @@ Committed doc, not scratch. Kept current by hand as work ships.
   produced no build.
 
 ## Next
-
-- [from 2026-11-09] **Retire the AWS S3 `crystalprism` bucket and close the AWS account (Esther,
-  needs her AWS login).** R2 has served every photo and drawing since 2026-11-02. In the AWS
-  console, decide on the private `db-backups/` folder (pre-Neon database dumps that nobody can
-  read without the AWS keys), then empty and delete the bucket and close the account. Deleting
-  is irreversible, so it was left to her.
 
 ## Declined
 
